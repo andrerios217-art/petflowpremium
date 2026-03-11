@@ -1,0 +1,1 @@
+console.log("Pet Flow Premium frontend carregado");
