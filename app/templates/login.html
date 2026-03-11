@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Pet Flow Premium</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body class="login-page">
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-logo">🐾</div>
+      <h1>Pet Flow Premium</h1>
+      <p>Entre para acessar o sistema</p>
+
+      <form id="login-form" class="login-form">
+        <input type="email" id="email" placeholder="E-mail" required />
+        <input type="password" id="senha" placeholder="Senha" required />
+        <button type="submit">Entrar</button>
+      </form>
+
+      <small id="login-message"></small>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const response = await fetch("/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: document.getElementById("email").value,
+          senha: document.getElementById("senha").value
+        })
+      });
+
+      const msg = document.getElementById("login-message");
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem("petflow_token", data.access_token);
+        msg.innerText = "Login realizado com sucesso.";
+        window.location.href = "/dashboard";
+      } else {
+        msg.innerText = "E-mail ou senha inválidos.";
+      }
+    });
+  </script>
+</body>
+</html>
