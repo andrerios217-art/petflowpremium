@@ -9,6 +9,7 @@ const COLUNAS = [
 
 let funcionariosProducaoCache = [];
 let cardAcaoAtual = null;
+let producaoAutoRefresh = null;
 
 function corPrioridade(prioridade) {
   const valor = String(prioridade || "").toUpperCase();
@@ -213,7 +214,7 @@ async function carregarProducao() {
   const empresaId = obterEmpresaId();
 
   try {
-    const resp = await fetch(`/api/producao/?empresa_id=${empresaId}`);
+    const resp = await fetch(`/api/producao/?empresa_id=${empresaId}`, { cache: "no-store" });
 
     if (!resp.ok) {
       console.error("Erro ao carregar produção:", resp.status);
@@ -235,6 +236,14 @@ async function carregarProducao() {
   } catch (error) {
     console.error("Falha ao carregar produção:", error);
   }
+}
+
+function iniciarAutoRefreshProducao() {
+  if (producaoAutoRefresh) clearInterval(producaoAutoRefresh);
+
+  producaoAutoRefresh = setInterval(async () => {
+    await carregarProducao();
+  }, 5000);
 }
 
 function renderCard(card) {
@@ -475,5 +484,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   configurarEventosModal();
   iniciarTimerSecagem();
-  setInterval(carregarProducao, 15000);
+  iniciarAutoRefreshProducao();
 });

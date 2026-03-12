@@ -15,6 +15,7 @@ let modoEdicao = false;
 let agendamentoEditandoId = null;
 
 let confirmAction = null;
+let agendaAutoRefresh = null;
 
 /* =========================================================
    UTIL
@@ -139,8 +140,10 @@ async function confirmarAcaoModal() {
    STATUS / PRIORIDADE
 ========================================================= */
 
-function corStatus(status) {
-  const valor = String(status || "").toUpperCase();
+function corStatus(item) {
+  if (item && item.tem_intercorrencia === true) return "status-intercorrencia";
+
+  const valor = String(item?.status || "").toUpperCase();
 
   if (valor === "AGUARDANDO") return "status-aguardando";
   if (valor === "EM_ATENDIMENTO") return "status-andamento";
@@ -208,7 +211,7 @@ function ativarCliqueNasColunas(inicio) {
 
 function criarCardAgendamento(item) {
   const card = document.createElement("div");
-  card.className = `agenda-card ${corStatus(item.status)}`;
+  card.className = `agenda-card ${corStatus(item)}`;
   card.dataset.id = item.id;
   card.style.cursor = "pointer";
 
@@ -219,6 +222,10 @@ function criarCardAgendamento(item) {
 
   const hora = formatarHora(item.hora);
   const servicos = obterTextoServicos(item.servicos);
+
+  const alertaIntercorrencia = item.tem_intercorrencia
+    ? `<div class="agenda-card-alerta">⚠ Intercorrência registrada</div>`
+    : "";
 
   card.innerHTML = `
     <div class="agenda-card-top">
@@ -241,6 +248,7 @@ function criarCardAgendamento(item) {
     </div>
 
     <div class="agenda-card-status">${escapeHtml(textoStatus(item.status))}</div>
+    ${alertaIntercorrencia}
   `;
 
   return card;
@@ -273,7 +281,8 @@ async function carregarAgenda() {
 
   try {
     const response = await fetch(
-      `/api/agenda/semana?empresa_id=1&data_inicio=${formatDateISO(inicio)}&data_fim=${formatDateISO(fim)}`
+      `/api/agenda/semana?empresa_id=1&data_inicio=${formatDateISO(inicio)}&data_fim=${formatDateISO(fim)}`,
+      { cache: "no-store" }
     );
 
     if (!response.ok) {
@@ -296,6 +305,27 @@ async function carregarAgenda() {
   } catch (error) {
     console.error("Erro ao carregar agenda:", error);
   }
+}
+
+function iniciarAutoRefreshAgenda() {
+  if (agendaAutoRefresh) clearInterval(agendaAutoRefresh);
+
+  agendaAutoRefresh = setInterval(async () => {
+    await carregarAgenda();
+
+    if (agendamentoDetalheAtual?.id) {
+      try {
+        const response = await fetch(`/api/agenda/${agendamentoDetalheAtual.id}`, { cache: "no-store" });
+        if (response.ok) {
+          const data = await response.json();
+          agendamentoDetalheAtual = data;
+          renderDetalhe(data);
+        }
+      } catch (error) {
+        console.error("Erro ao atualizar detalhe automaticamente:", error);
+      }
+    }
+  }, 5000);
 }
 
 /* =========================================================
@@ -692,7 +722,7 @@ async function abrirModalDetalhe(id) {
   mostrarMensagemDetalhe("");
 
   try {
-    const response = await fetch(`/api/agenda/${id}`);
+    const response = await fetch(`/api/agenda/${id}`, { cache: "no-store" });
 
     if (!response.ok) {
       throw new Error("Não foi possível carregar os detalhes.");
@@ -969,6 +999,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   await carregarFuncionarios();
   await carregarAgenda();
 
+  iniciarAutoRefreshAgenda();
+
   document.getElementById("novo-agendamento-btn")?.addEventListener("click", () => abrirModal());
   document.getElementById("fechar-modal")?.addEventListener("click", fecharModal);
   document.getElementById("cancelar-modal")?.addEventListener("click", fecharModal);
@@ -979,19 +1011,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("confirm-cancel")?.addEventListener("click", fecharConfirmModal);
   document.getElementById("confirm-ok")?.addEventListener("click", confirmarAcaoModal);
 
-  document.getElementById("semana-anterior")?.addEventListener("click", () => {
+  document.getElementById("semana-anterior")?.addEventListener("click", async () => {
     semanaAtual = addDays(startOfWeek(semanaAtual), -7);
-    carregarAgenda();
+    await carregarAgenda();
   });
 
-  document.getElementById("proxima-semana")?.addEventListener("click", () => {
+  document.getElementById("proxima-semana")?.addEventListener("click", async () => {
     semanaAtual = addDays(startOfWeek(semanaAtual), 7);
-    carregarAgenda();
+    await carregarAgenda();
   });
 
-  document.getElementById("data-base")?.addEventListener("change", (e) => {
+  document.getElementById("data-base")?.addEventListener("change", async (e) => {
     semanaAtual = new Date(e.target.value + "T00:00:00");
-    carregarAgenda();
+    await carregarAgenda();
   });
 
   document.getElementById("busca-cliente-pet")?.addEventListener("input", (e) => {

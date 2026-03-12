@@ -165,11 +165,6 @@ def proximo_destino_preview(ordem: Producao) -> Optional[str]:
         return None
 
 
-def _etapa_vai_finalizar(ordem: Producao) -> bool:
-    destino = proximo_destino_preview(ordem)
-    return destino == "FINALIZAR"
-
-
 def mover_para_proxima_etapa(
     db: Session,
     ordem: Producao,
@@ -185,12 +180,14 @@ def mover_para_proxima_etapa(
 
     destino = proxima_coluna_automatica(ordem, usar_secagem=usar_secagem)
 
-    if ordem.coluna == "PRE_BANHO":
-        texto_intercorrencias = _montar_intercorrencias(
-            intercorrencias,
-            descricao_intercorrencia
-        )
+    texto_intercorrencias = _montar_intercorrencias(
+        intercorrencias,
+        descricao_intercorrencia
+    )
+
+    if ordem.coluna == "PRE_BANHO" and texto_intercorrencias:
         ordem.intercorrencias = _mesclar_texto_existente(ordem.intercorrencias, texto_intercorrencias)
+        ordem.agendamento.tem_intercorrencia = True
 
     if destino == "SECAGEM":
         if not secagem_tempo or secagem_tempo <= 0:
@@ -202,11 +199,10 @@ def mover_para_proxima_etapa(
         ordem.etapa_status = "AGUARDANDO"
 
     elif destino == "FINALIZAR":
-        texto_intercorrencias = _montar_intercorrencias(
-            intercorrencias,
-            descricao_intercorrencia
-        )
-        ordem.intercorrencias = _mesclar_texto_existente(ordem.intercorrencias, texto_intercorrencias)
+        if texto_intercorrencias:
+            ordem.intercorrencias = _mesclar_texto_existente(ordem.intercorrencias, texto_intercorrencias)
+            ordem.agendamento.tem_intercorrencia = True
+
         ordem.observacoes = _mesclar_texto_existente(ordem.observacoes, observacoes_gerais)
 
         ordem.finalizado = True
