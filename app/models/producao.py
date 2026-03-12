@@ -17,7 +17,7 @@ class Producao(Base):
         index=True
     )
 
-    coluna = Column(String(30), nullable=False, default="ORDEM")
+    coluna = Column(String(30), nullable=False, default="PRE_BANHO")
     etapa_status = Column(String(20), nullable=False, default="AGUARDANDO")
     prioridade = Column(String(20), nullable=False, default="NORMAL")
 

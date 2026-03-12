@@ -5,9 +5,9 @@ from app.core.deps import get_db
 from app.crud import producao as crud_producao
 from app.models.agendamento import Agendamento
 from app.schemas.producao import (
+    ProducaoAvancarEtapa,
     ProducaoCardResponse,
     ProducaoIniciarEtapa,
-    ProducaoMoverEtapa,
 )
 
 router = APIRouter(prefix="/api/producao", tags=["Produção"])
@@ -32,6 +32,9 @@ def montar_card(ordem):
         "servicos": [item.servico.nome for item in ag.servicos_agendamento if item.servico],
         "funcionario_nome": ordem.funcionario.nome if ordem.funcionario else None,
         "status_agendamento": ag.status if ag else None,
+        "observacoes": ordem.observacoes,
+        "intercorrencias": ordem.intercorrencias,
+        "proximo_destino_automatico": crud_producao.proximo_destino_preview(ordem),
     }
 
 
@@ -53,10 +56,9 @@ def criar_por_agendamento(agendamento_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
 
     ordem = crud_producao.criar_ordem_se_nao_existir(db, agendamento)
-    ordem = crud_producao.buscar_por_id(db, ordem.id)
 
     if not ordem:
-        raise HTTPException(status_code=404, detail="Card de produção não encontrado após criação.")
+        raise HTTPException(status_code=400, detail="Não foi possível criar a ordem de produção.")
 
     return montar_card(ordem)
 
@@ -73,18 +75,17 @@ def iniciar_etapa(
         raise HTTPException(status_code=404, detail="Card de produção não encontrado.")
 
     ordem = crud_producao.iniciar_etapa(db, ordem, payload.funcionario_id)
-    ordem = crud_producao.buscar_por_id(db, ordem.id)
 
     if not ordem:
-        raise HTTPException(status_code=404, detail="Card de produção não encontrado após iniciar etapa.")
+        raise HTTPException(status_code=400, detail="Não foi possível iniciar a etapa.")
 
     return montar_card(ordem)
 
 
-@router.post("/{producao_id}/mover", response_model=ProducaoCardResponse)
-def mover_etapa(
+@router.post("/{producao_id}/proximo", response_model=ProducaoCardResponse)
+def avancar_para_proxima_etapa(
     producao_id: int,
-    payload: ProducaoMoverEtapa,
+    payload: ProducaoAvancarEtapa,
     db: Session = Depends(get_db)
 ):
     ordem = crud_producao.buscar_por_id(db, producao_id)
@@ -93,19 +94,19 @@ def mover_etapa(
         raise HTTPException(status_code=404, detail="Card de produção não encontrado.")
 
     try:
-        ordem = crud_producao.mover_etapa(
+        ordem = crud_producao.mover_para_proxima_etapa(
             db=db,
             ordem=ordem,
-            coluna_destino=payload.coluna_destino,
             funcionario_id=payload.funcionario_id,
+            usar_secagem=payload.usar_secagem,
             secagem_tempo=payload.secagem_tempo,
             intercorrencias=payload.intercorrencias,
             descricao_intercorrencia=payload.descricao_intercorrencia,
+            observacoes_gerais=payload.observacoes_gerais,
         )
-        ordem = crud_producao.buscar_por_id(db, ordem.id)
 
         if not ordem:
-            raise HTTPException(status_code=404, detail="Card de produção não encontrado após movimentação.")
+            raise HTTPException(status_code=400, detail="Não foi possível avançar a etapa.")
 
         return montar_card(ordem)
 

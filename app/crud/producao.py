@@ -1,12 +1,14 @@
 from datetime import datetime
+from typing import Optional
+
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.producao import Producao
 from app.models.agendamento import Agendamento
+from app.models.agendamento_servico import AgendamentoServico
 
 
 COLUNAS_VALIDAS = [
-    "ORDEM",
     "PRE_BANHO",
     "PRE_TOSA",
     "BANHO",
@@ -16,9 +18,24 @@ COLUNAS_VALIDAS = [
 ]
 
 
+def _query_base(db: Session):
+    return (
+        db.query(Producao)
+        .options(
+            joinedload(Producao.funcionario),
+            joinedload(Producao.agendamento).joinedload(Agendamento.pet),
+            joinedload(Producao.agendamento).joinedload(Agendamento.cliente),
+            joinedload(Producao.agendamento).joinedload(Agendamento.funcionario),
+            joinedload(Producao.agendamento)
+            .joinedload(Agendamento.servicos_agendamento)
+            .joinedload(AgendamentoServico.servico),
+        )
+    )
+
+
 def agendamento_tem_tosa(agendamento: Agendamento) -> bool:
     for item in agendamento.servicos_agendamento:
-        nome = (item.servico.nome or "").lower()
+        nome = (item.servico.nome or "").strip().lower() if item.servico else ""
         if "tosa" in nome:
             return True
     return False
@@ -26,17 +43,11 @@ def agendamento_tem_tosa(agendamento: Agendamento) -> bool:
 
 def listar_cards(db: Session, empresa_id: int):
     return (
-        db.query(Producao)
+        _query_base(db)
         .join(Producao.agendamento)
-        .options(
-            joinedload(Producao.agendamento).joinedload(Agendamento.pet),
-            joinedload(Producao.agendamento).joinedload(Agendamento.cliente),
-            joinedload(Producao.agendamento).joinedload(Agendamento.servicos_agendamento).joinedload("servico"),
-            joinedload(Producao.funcionario),
-        )
         .filter(
             Agendamento.empresa_id == empresa_id,
-            Producao.finalizado == False
+            Producao.finalizado.is_(False)
         )
         .order_by(Producao.created_at.asc())
         .all()
@@ -45,7 +56,7 @@ def listar_cards(db: Session, empresa_id: int):
 
 def buscar_por_agendamento(db: Session, agendamento_id: int):
     return (
-        db.query(Producao)
+        _query_base(db)
         .filter(Producao.agendamento_id == agendamento_id)
         .first()
     )
@@ -53,44 +64,43 @@ def buscar_por_agendamento(db: Session, agendamento_id: int):
 
 def buscar_por_id(db: Session, producao_id: int):
     return (
-        db.query(Producao)
-        .options(
-            joinedload(Producao.agendamento).joinedload(Agendamento.pet),
-            joinedload(Producao.agendamento).joinedload(Agendamento.cliente),
-            joinedload(Producao.agendamento).joinedload(Agendamento.servicos_agendamento).joinedload("servico"),
-            joinedload(Producao.funcionario),
-        )
+        _query_base(db)
         .filter(Producao.id == producao_id)
         .first()
     )
 
 
 def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento):
-    ordem = buscar_por_agendamento(db, agendamento.id)
-    if ordem:
-        return ordem
+    ordem_existente = buscar_por_agendamento(db, agendamento.id)
+    if ordem_existente:
+        return ordem_existente
 
     ordem = Producao(
         agendamento_id=agendamento.id,
-        coluna="ORDEM",
+        coluna="PRE_BANHO",
         etapa_status="AGUARDANDO",
-        prioridade=agendamento.prioridade or "NORMAL",
+        prioridade=(agendamento.prioridade or "NORMAL"),
         finalizado=False,
     )
     db.add(ordem)
     db.commit()
     db.refresh(ordem)
-    return ordem
+
+    return buscar_por_id(db, ordem.id)
 
 
 def iniciar_etapa(db: Session, ordem: Producao, funcionario_id: int):
+    if ordem.coluna == "SECAGEM":
+        return buscar_por_id(db, ordem.id)
+
     if ordem.funcionario_id is None:
         ordem.funcionario_id = funcionario_id
 
     ordem.etapa_status = "EM_EXECUCAO"
     db.commit()
     db.refresh(ordem)
-    return ordem
+
+    return buscar_por_id(db, ordem.id)
 
 
 def _montar_intercorrencias(intercorrencias, descricao_intercorrencia):
@@ -106,74 +116,108 @@ def _montar_intercorrencias(intercorrencias, descricao_intercorrencia):
     return texto or None
 
 
-def proxima_coluna_apos_pre_banho(agendamento: Agendamento):
-    if agendamento_tem_tosa(agendamento):
-        return "PRE_TOSA"
-    return "BANHO"
+def _mesclar_texto_existente(texto_atual: Optional[str], novo_texto: Optional[str]) -> Optional[str]:
+    atual = (texto_atual or "").strip()
+    novo = (novo_texto or "").strip()
+
+    if atual and novo:
+        return f"{atual}\n{novo}"
+    if novo:
+        return novo
+    return atual or None
 
 
-def proxima_coluna_apos_finalizacao_banho(agendamento: Agendamento):
-    if agendamento_tem_tosa(agendamento):
-        return "TOSA"
-    return None
-
-
-def mover_etapa(
-    db: Session,
+def proxima_coluna_automatica(
     ordem: Producao,
-    coluna_destino: str,
-    funcionario_id: int | None = None,
-    secagem_tempo: int | None = None,
-    intercorrencias=None,
-    descricao_intercorrencia=None,
-):
+    usar_secagem: bool = False,
+) -> str:
     coluna_atual = ordem.coluna
     agendamento = ordem.agendamento
 
+    if coluna_atual == "PRE_BANHO":
+        return "PRE_TOSA" if agendamento_tem_tosa(agendamento) else "BANHO"
+
+    if coluna_atual == "PRE_TOSA":
+        return "BANHO"
+
+    if coluna_atual == "BANHO":
+        return "SECAGEM" if usar_secagem else "FINALIZACAO_BANHO"
+
+    if coluna_atual == "SECAGEM":
+        return "FINALIZACAO_BANHO"
+
+    if coluna_atual == "FINALIZACAO_BANHO":
+        return "TOSA" if agendamento_tem_tosa(agendamento) else "FINALIZAR"
+
+    if coluna_atual == "TOSA":
+        return "FINALIZAR"
+
+    raise ValueError(f"Não há próxima etapa configurada para {coluna_atual}.")
+
+
+def proximo_destino_preview(ordem: Producao) -> Optional[str]:
+    if ordem.coluna == "BANHO":
+        return None
+
+    try:
+        return proxima_coluna_automatica(ordem, usar_secagem=False)
+    except ValueError:
+        return None
+
+
+def _etapa_vai_finalizar(ordem: Producao) -> bool:
+    destino = proximo_destino_preview(ordem)
+    return destino == "FINALIZAR"
+
+
+def mover_para_proxima_etapa(
+    db: Session,
+    ordem: Producao,
+    funcionario_id: Optional[int] = None,
+    usar_secagem: bool = False,
+    secagem_tempo: Optional[int] = None,
+    intercorrencias=None,
+    descricao_intercorrencia=None,
+    observacoes_gerais: Optional[str] = None,
+):
     if funcionario_id and ordem.funcionario_id is None:
         ordem.funcionario_id = funcionario_id
 
-    if coluna_destino not in COLUNAS_VALIDAS and coluna_destino != "FINALIZAR":
-        raise ValueError("Coluna de destino inválida.")
+    destino = proxima_coluna_automatica(ordem, usar_secagem=usar_secagem)
 
-    fluxo_permitido = {
-        "ORDEM": ["PRE_BANHO"],
-        "PRE_BANHO": [proxima_coluna_apos_pre_banho(agendamento)],
-        "PRE_TOSA": ["BANHO"],
-        "BANHO": ["SECAGEM", "FINALIZACAO_BANHO"],
-        "SECAGEM": ["FINALIZACAO_BANHO"],
-        "FINALIZACAO_BANHO": ["TOSA", "FINALIZAR"],
-        "TOSA": ["FINALIZAR"],
-    }
+    if ordem.coluna == "PRE_BANHO":
+        texto_intercorrencias = _montar_intercorrencias(
+            intercorrencias,
+            descricao_intercorrencia
+        )
+        ordem.intercorrencias = _mesclar_texto_existente(ordem.intercorrencias, texto_intercorrencias)
 
-    destinos = [d for d in fluxo_permitido.get(coluna_atual, []) if d]
-
-    if coluna_destino not in destinos:
-        raise ValueError(f"Não é permitido mover de {coluna_atual} para {coluna_destino}.")
-
-    if coluna_atual == "PRE_BANHO":
-        ordem.intercorrencias = _montar_intercorrencias(intercorrencias, descricao_intercorrencia)
-
-    if coluna_destino == "SECAGEM":
+    if destino == "SECAGEM":
         if not secagem_tempo or secagem_tempo <= 0:
             raise ValueError("Informe um tempo de secagem válido.")
+
         ordem.secagem_tempo = secagem_tempo
         ordem.secagem_inicio = datetime.utcnow()
+        ordem.coluna = "SECAGEM"
         ordem.etapa_status = "AGUARDANDO"
-    elif coluna_destino == "FINALIZAR":
+
+    elif destino == "FINALIZAR":
+        texto_intercorrencias = _montar_intercorrencias(
+            intercorrencias,
+            descricao_intercorrencia
+        )
+        ordem.intercorrencias = _mesclar_texto_existente(ordem.intercorrencias, texto_intercorrencias)
+        ordem.observacoes = _mesclar_texto_existente(ordem.observacoes, observacoes_gerais)
+
         ordem.finalizado = True
         ordem.etapa_status = "CONCLUIDO"
-        agendamento.status = "FINALIZADO"
+        ordem.agendamento.status = "FINALIZADO"
+
     else:
-        ordem.coluna = coluna_destino
+        ordem.coluna = destino
         ordem.etapa_status = "AGUARDANDO"
 
-    if coluna_destino == "FINALIZAR":
-        db.commit()
-        db.refresh(ordem)
-        return ordem
-
-    ordem.coluna = coluna_destino
     db.commit()
     db.refresh(ordem)
-    return ordem
+
+    return buscar_por_id(db, ordem.id)

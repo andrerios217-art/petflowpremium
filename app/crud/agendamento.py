@@ -11,21 +11,6 @@ STATUS_FINALIZADO = "FINALIZADO"
 STATUS_FALTA = "FALTA"
 STATUS_CANCELADO = "CANCELADO"
 
-STATUS_ALIAS = {
-    "AGUARDANDO": STATUS_AGUARDANDO,
-    "AGUARDANDO ": STATUS_AGUARDANDO,
-    "Aguardando".upper(): STATUS_AGUARDANDO,
-    "EM_ATENDIMENTO": STATUS_EM_ATENDIMENTO,
-    "EM ATENDIMENTO": STATUS_EM_ATENDIMENTO,
-    "Em_atendimento".upper(): STATUS_EM_ATENDIMENTO,
-    "FINALIZADO": STATUS_FINALIZADO,
-    "Finalizado".upper(): STATUS_FINALIZADO,
-    "FALTA": STATUS_FALTA,
-    "Falta".upper(): STATUS_FALTA,
-    "CANCELADO": STATUS_CANCELADO,
-    "Cancelado".upper(): STATUS_CANCELADO,
-}
-
 TRANSICOES_VALIDAS = {
     STATUS_AGUARDANDO: {
         STATUS_EM_ATENDIMENTO,
@@ -39,12 +24,6 @@ TRANSICOES_VALIDAS = {
     STATUS_FALTA: set(),
     STATUS_CANCELADO: set(),
 }
-
-
-def _normalizar_status(valor: str) -> str:
-    texto = (valor or "").strip().upper().replace("-", "_")
-    texto = " ".join(texto.split())
-    return STATUS_ALIAS.get(texto, texto)
 
 
 def _query_base(db: Session):
@@ -68,7 +47,7 @@ def _serialize_agendamento(ag: Agendamento):
         "funcionario_id": ag.funcionario_id,
         "data": ag.data,
         "hora": ag.hora,
-        "status": _normalizar_status(ag.status),
+        "status": ag.status,
         "prioridade": ag.prioridade,
         "observacoes": ag.observacoes,
         "cliente_nome": ag.cliente.nome if ag.cliente else "-",
@@ -186,8 +165,7 @@ def update(db: Session, agendamento_id: int, data):
     if not ag:
         return None
 
-    status_atual = _normalizar_status(ag.status)
-    if status_atual not in {STATUS_AGUARDANDO, STATUS_EM_ATENDIMENTO}:
+    if ag.status not in {STATUS_AGUARDANDO, STATUS_EM_ATENDIMENTO}:
         return {"error": "Só é possível editar agendamentos com status AGUARDANDO ou EM_ATENDIMENTO."}
 
     valido, erro = _validar_servicos_por_porte(db, ag.pet_id, data.servicos)
@@ -229,8 +207,8 @@ def alterar_status(db: Session, agendamento_id: int, status: str):
     if not ag:
         return None
 
-    status_atual = _normalizar_status(ag.status)
-    novo_status = _normalizar_status(status)
+    status_atual = (ag.status or "").strip().upper()
+    novo_status = (status or "").strip().upper()
 
     permitidos = TRANSICOES_VALIDAS.get(status_atual, set())
 
@@ -255,7 +233,7 @@ def delete(db: Session, agendamento_id: int):
     if not ag:
         return None
 
-    if _normalizar_status(ag.status) != STATUS_AGUARDANDO:
+    if ag.status != STATUS_AGUARDANDO:
         return False
 
     db.delete(ag)
