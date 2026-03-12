@@ -1035,6 +1035,33 @@ html, body {
   color: white;
 }
 
+.status-intercorrencia {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #5b21b6 !important;
+  box-shadow: 0 12px 26px rgba(124, 58, 237, 0.22) !important;
+}
+
+.agenda-card.status-intercorrencia {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #5b21b6 !important;
+}
+
+.status-intercorrencia .agenda-card-title,
+.status-intercorrencia .agenda-card-subtitle,
+.status-intercorrencia .agenda-card-servicos,
+.status-intercorrencia .agenda-card-func,
+.status-intercorrencia .agenda-card-status,
+.status-intercorrencia .agenda-time,
+.status-intercorrencia .agenda-card-alerta {
+  color: #ffffff !important;
+}
+
+.status-intercorrencia .agenda-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
 .agenda-card-top {
   display: flex;
   justify-content: space-between;
@@ -1063,6 +1090,17 @@ html, body {
   font-size: 0.82rem;
   font-weight: 700;
   opacity: 0.85;
+}
+
+.agenda-card-alerta {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  padding: 6px 8px;
 }
 
 .agenda-dot {

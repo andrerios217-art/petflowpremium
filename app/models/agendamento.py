@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, Date, Time, String, DateTime, func
+from sqlalchemy import Column, Integer, ForeignKey, Date, Time, String, DateTime, Boolean, func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -21,6 +21,7 @@ class Agendamento(Base):
     prioridade = Column(String(20), default="NORMAL")
 
     observacoes = Column(String(500), nullable=True)
+    tem_intercorrencia = Column(Boolean, nullable=False, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -28,19 +29,13 @@ class Agendamento(Base):
     cliente = relationship("Cliente")
     pet = relationship("Pet")
     funcionario = relationship("Funcionario")
+
     servicos_agendamento = relationship(
         "AgendamentoServico",
         back_populates="agendamento",
         cascade="all, delete-orphan"
     )
 
-    producao = relationship(
-        "Producao",
-        back_populates="agendamento",
-        uselist=False
-    )
-
-    # 🔹 relação com produção
     producao = relationship(
         "Producao",
         back_populates="agendamento",

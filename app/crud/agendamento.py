@@ -50,6 +50,7 @@ def _serialize_agendamento(ag: Agendamento):
         "status": ag.status,
         "prioridade": ag.prioridade,
         "observacoes": ag.observacoes,
+        "tem_intercorrencia": bool(ag.tem_intercorrencia),
         "cliente_nome": ag.cliente.nome if ag.cliente else "-",
         "pet_nome": ag.pet.nome if ag.pet else "-",
         "funcionario_nome": ag.funcionario.nome if ag.funcionario else None,
@@ -138,6 +139,7 @@ def create(db: Session, data):
         prioridade=data.prioridade,
         observacoes=data.observacoes,
         status=STATUS_AGUARDANDO,
+        tem_intercorrencia=False,
     )
 
     db.add(agendamento)

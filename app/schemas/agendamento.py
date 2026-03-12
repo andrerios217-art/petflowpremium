@@ -1,5 +1,6 @@
+from pydantic import BaseModel
 from datetime import date, time
-from pydantic import BaseModel, ConfigDict
+from typing import List, Optional
 
 
 class AgendamentoServicoCreate(BaseModel):
@@ -12,54 +13,57 @@ class AgendamentoCreate(BaseModel):
     empresa_id: int
     cliente_id: int
     pet_id: int
-    funcionario_id: int | None = None
+    funcionario_id: Optional[int] = None
 
     data: date
     hora: time
 
-    prioridade: str = "NORMAL"
-    observacoes: str | None = None
+    prioridade: Optional[str] = "NORMAL"
+    observacoes: Optional[str] = None
 
-    servicos: list[AgendamentoServicoCreate]
+    servicos: List[AgendamentoServicoCreate]
 
 
 class AgendamentoUpdate(BaseModel):
-    funcionario_id: int | None = None
+    funcionario_id: Optional[int] = None
+
     data: date
     hora: time
-    prioridade: str = "NORMAL"
-    observacoes: str | None = None
-    servicos: list[AgendamentoServicoCreate]
+
+    prioridade: Optional[str] = "NORMAL"
+    observacoes: Optional[str] = None
+
+    servicos: List[AgendamentoServicoCreate]
 
 
 class AgendamentoServicoOut(BaseModel):
-    id: int | None = None
+    id: int
     servico_id: int
     nome: str
     preco: float
     tempo_previsto: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class AgendamentoOut(BaseModel):
     id: int
+
     empresa_id: int
     cliente_id: int
     pet_id: int
-    funcionario_id: int | None
+    funcionario_id: Optional[int]
 
     data: date
     hora: time
 
     status: str
-    prioridade: str
-    observacoes: str | None
+    prioridade: Optional[str]
 
-    cliente_nome: str
-    pet_nome: str
-    funcionario_nome: str | None = None
+    observacoes: Optional[str]
 
-    servicos: list[AgendamentoServicoOut] = []
+    cliente_nome: Optional[str]
+    pet_nome: Optional[str]
+    funcionario_nome: Optional[str]
 
-    model_config = ConfigDict(from_attributes=True)
+    tem_intercorrencia: Optional[bool] = False
+
+    servicos: List[AgendamentoServicoOut]
