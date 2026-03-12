@@ -10,11 +10,12 @@ from app.schemas.producao import (
     ProducaoMoverEtapa,
 )
 
-router = APIRouter(prefix="/producao", tags=["Produção"])
+router = APIRouter(prefix="/api/producao", tags=["Produção"])
 
 
 def montar_card(ordem):
     ag = ordem.agendamento
+
     return {
         "id": ordem.id,
         "agendamento_id": ordem.agendamento_id,
@@ -53,6 +54,10 @@ def criar_por_agendamento(agendamento_id: int, db: Session = Depends(get_db)):
 
     ordem = crud_producao.criar_ordem_se_nao_existir(db, agendamento)
     ordem = crud_producao.buscar_por_id(db, ordem.id)
+
+    if not ordem:
+        raise HTTPException(status_code=404, detail="Card de produção não encontrado após criação.")
+
     return montar_card(ordem)
 
 
@@ -63,11 +68,16 @@ def iniciar_etapa(
     db: Session = Depends(get_db)
 ):
     ordem = crud_producao.buscar_por_id(db, producao_id)
+
     if not ordem:
         raise HTTPException(status_code=404, detail="Card de produção não encontrado.")
 
     ordem = crud_producao.iniciar_etapa(db, ordem, payload.funcionario_id)
     ordem = crud_producao.buscar_por_id(db, ordem.id)
+
+    if not ordem:
+        raise HTTPException(status_code=404, detail="Card de produção não encontrado após iniciar etapa.")
+
     return montar_card(ordem)
 
 
@@ -78,6 +88,7 @@ def mover_etapa(
     db: Session = Depends(get_db)
 ):
     ordem = crud_producao.buscar_por_id(db, producao_id)
+
     if not ordem:
         raise HTTPException(status_code=404, detail="Card de produção não encontrado.")
 
@@ -92,6 +103,11 @@ def mover_etapa(
             descricao_intercorrencia=payload.descricao_intercorrencia,
         )
         ordem = crud_producao.buscar_por_id(db, ordem.id)
+
+        if not ordem:
+            raise HTTPException(status_code=404, detail="Card de produção não encontrado após movimentação.")
+
         return montar_card(ordem)
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

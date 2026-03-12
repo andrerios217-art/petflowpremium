@@ -14,34 +14,43 @@ function corPrioridade(prioridade) {
   return "prioridade-preta";
 }
 
-function nomeColuna(coluna) {
-  const mapa = {
-    ORDEM: "Ordem",
-    PRE_BANHO: "Pré-banho",
-    PRE_TOSA: "Pré-tosa",
-    BANHO: "Banho",
-    FINALIZACAO_BANHO: "Finalização do banho",
-    TOSA: "Tosa",
-    SECAGEM: "Secagem",
-  };
-  return mapa[coluna] || coluna;
+function obterEmpresaId() {
+  const pagina = document.querySelector(".pagina-producao");
+  const empresaId = pagina?.dataset?.empresaId;
+
+  if (!empresaId) {
+    console.warn("empresa_id não informado no HTML da produção.");
+  }
+
+  return empresaId || "1";
 }
 
 async function carregarProducao() {
-  const empresaId = document.body.dataset.empresaId || 1;
-  const resp = await fetch(`/producao/?empresa_id=${empresaId}`);
-  const data = await resp.json();
+  const empresaId = obterEmpresaId();
 
-  COLUNAS.forEach((coluna) => {
-    const container = document.getElementById(`coluna-${coluna}`);
-    if (container) container.innerHTML = "";
-  });
+  try {
+    const resp = await fetch(`/api/producao/?empresa_id=${empresaId}`);
 
-  data.forEach((card) => {
-    const container = document.getElementById(`coluna-${card.coluna}`);
-    if (!container) return;
-    container.appendChild(renderCard(card));
-  });
+    if (!resp.ok) {
+      console.error("Erro ao carregar produção:", resp.status);
+      return;
+    }
+
+    const data = await resp.json();
+
+    COLUNAS.forEach((coluna) => {
+      const container = document.getElementById(`coluna-${coluna}`);
+      if (container) container.innerHTML = "";
+    });
+
+    data.forEach((card) => {
+      const container = document.getElementById(`coluna-${card.coluna}`);
+      if (!container) return;
+      container.appendChild(renderCard(card));
+    });
+  } catch (error) {
+    console.error("Falha ao carregar produção:", error);
+  }
 }
 
 function renderCard(card) {
@@ -49,13 +58,17 @@ function renderCard(card) {
   div.className = `card-producao ${corPrioridade(card.prioridade)}`;
   div.dataset.id = card.id;
 
-  const servicos = (card.servicos || []).map(s => `<li>${s}</li>`).join("");
+  const servicos = (card.servicos || [])
+    .map((s) => `<li>${s}</li>`)
+    .join("");
 
   let secagemHtml = "";
   if (card.coluna === "SECAGEM" && card.secagem_inicio && card.secagem_tempo) {
-    secagemHtml = `<p class="secagem-info" data-inicio="${card.secagem_inicio}" data-minutos="${card.secagem_tempo}">
-      Secagem: ${card.secagem_tempo} min
-    </p>`;
+    secagemHtml = `
+      <p class="secagem-info" data-inicio="${card.secagem_inicio}" data-minutos="${card.secagem_tempo}">
+        Secagem: ${card.secagem_tempo} min
+      </p>
+    `;
   }
 
   div.innerHTML = `
@@ -74,8 +87,8 @@ function renderCard(card) {
     </div>
 
     <div class="card-actions">
-      <button onclick="iniciarEtapa(${card.id})">Iniciar</button>
-      <button onclick="abrirMover(${card.id}, '${card.coluna}')">Avançar</button>
+      <button type="button" onclick="iniciarEtapa(${card.id})">Iniciar</button>
+      <button type="button" onclick="abrirMover(${card.id}, '${card.coluna}')">Avançar</button>
     </div>
   `;
 
@@ -86,19 +99,28 @@ async function iniciarEtapa(id) {
   const funcionarioId = prompt("Informe o ID do funcionário:");
   if (!funcionarioId) return;
 
-  const resp = await fetch(`/producao/${id}/iniciar`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ funcionario_id: Number(funcionarioId) }),
-  });
+  try {
+    const resp = await fetch(`/api/producao/${id}/iniciar`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        funcionario_id: Number(funcionarioId),
+      }),
+    });
 
-  if (!resp.ok) {
-    const erro = await resp.json();
-    alert(erro.detail || "Erro ao iniciar etapa.");
-    return;
+    if (!resp.ok) {
+      const erro = await resp.json();
+      alert(erro.detail || "Erro ao iniciar etapa.");
+      return;
+    }
+
+    await carregarProducao();
+  } catch (error) {
+    console.error("Erro ao iniciar etapa:", error);
+    alert("Falha de comunicação ao iniciar etapa.");
   }
-
-  carregarProducao();
 }
 
 function proximoDestino(colunaAtual) {
@@ -111,15 +133,19 @@ function proximoDestino(colunaAtual) {
     FINALIZACAO_BANHO: ["TOSA", "FINALIZAR"],
     TOSA: ["FINALIZAR"],
   };
+
   return mapa[colunaAtual] || [];
 }
 
 async function abrirMover(id, colunaAtual) {
   const destinos = proximoDestino(colunaAtual);
   const destino = prompt(`Destino possível: ${destinos.join(", ")}`);
+
   if (!destino) return;
 
-  const payload = { coluna_destino: destino };
+  const payload = {
+    coluna_destino: destino,
+  };
 
   if (colunaAtual === "PRE_BANHO") {
     const pulga = confirm("Tem pulga?");
@@ -144,19 +170,26 @@ async function abrirMover(id, colunaAtual) {
     payload.secagem_tempo = Number(tempo);
   }
 
-  const resp = await fetch(`/producao/${id}/mover`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const resp = await fetch(`/api/producao/${id}/mover`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
-  if (!resp.ok) {
-    const erro = await resp.json();
-    alert(erro.detail || "Erro ao mover card.");
-    return;
+    if (!resp.ok) {
+      const erro = await resp.json();
+      alert(erro.detail || "Erro ao mover card.");
+      return;
+    }
+
+    await carregarProducao();
+  } catch (error) {
+    console.error("Erro ao mover card:", error);
+    alert("Falha de comunicação ao mover card.");
   }
-
-  carregarProducao();
 }
 
 function iniciarTimerSecagem() {
