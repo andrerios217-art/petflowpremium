@@ -4,51 +4,117 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login | Pet Flow Premium</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
-<body class="login-page">
-  <div class="login-wrapper">
-    <div class="login-card">
-      <div class="login-logo">🐾</div>
+<body class="login-page premium-login-page">
+  <div class="premium-login-shell">
+    <section class="premium-login-left">
+      <div class="premium-brand-badge">🐾</div>
+      <span class="premium-kicker">Petshop • Clínica • Gestão • CRM</span>
       <h1>Pet Flow Premium</h1>
-      <p>Entre para acessar o sistema</p>
+      <p>
+        Controle completo da operação, agenda, produção, financeiro, CRM e relacionamento
+        com clientes em uma experiência fluida e moderna.
+      </p>
 
-      <form id="login-form" class="login-form">
-        <input type="email" id="email" placeholder="E-mail" required />
-        <input type="password" id="senha" placeholder="Senha" required />
-        <button type="submit">Entrar</button>
-      </form>
+      <div class="premium-feature-list">
+        <div class="premium-feature-card">
+          <strong>Agenda Inteligente</strong>
+          <span>Visual rápido e operação fluida.</span>
+        </div>
+        <div class="premium-feature-card">
+          <strong>Linha de Produção</strong>
+          <span>Fluxo real do banho e tosa.</span>
+        </div>
+        <div class="premium-feature-card">
+          <strong>CRM e Assinaturas</strong>
+          <span>Retenção, recorrência e crescimento.</span>
+        </div>
+      </div>
+    </section>
 
-      <small id="login-message"></small>
-    </div>
+    <section class="premium-login-right">
+      <div class="premium-login-card">
+        <div class="premium-login-card-header">
+          <div class="premium-mini-logo">🐾</div>
+          <div>
+            <h2>Entrar no sistema</h2>
+            <p>Acesse sua conta para continuar</p>
+          </div>
+        </div>
+
+        <form id="login-form" class="premium-login-form">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" placeholder="admin@petflow.com" required />
+
+          <label for="senha">Senha</label>
+          <input type="password" id="senha" placeholder="••••••••" required />
+
+          <div class="premium-login-row">
+            <label class="remember-check">
+              <input type="checkbox" id="remember-me" />
+              <span>Lembrar acesso</span>
+            </label>
+
+            <a href="#" class="premium-link-disabled">Esqueci minha senha</a>
+          </div>
+
+          <button type="submit" class="premium-login-btn">Entrar</button>
+
+          <div id="login-message" class="premium-login-message"></div>
+        </form>
+
+        <div class="premium-login-footer">
+          <span>Ambiente seguro</span>
+          <span>•</span>
+          <span>Autenticação JWT</span>
+        </div>
+      </div>
+    </section>
   </div>
 
-  <script>
-    document.getElementById("login-form").addEventListener("submit", async function (e) {
-      e.preventDefault();
+ <script>
+  document.getElementById("login-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
 
+    const email = document.getElementById("email").value;
+    const senha = document.getElementById("senha").value;
+    const remember = document.getElementById("remember-me").checked;
+    const msg = document.getElementById("login-message");
+
+    msg.innerText = "Validando acesso...";
+
+    try {
       const response = await fetch("/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          email: document.getElementById("email").value,
-          senha: document.getElementById("senha").value
-        })
+        body: JSON.stringify({ email, senha })
       });
-
-      const msg = document.getElementById("login-message");
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem("petflow_token", data.access_token);
+
+        const storage = remember ? localStorage : sessionStorage;
+        storage.setItem("petflow_token", data.access_token);
+        storage.setItem("petflow_tipo_usuario", data.tipo_usuario || "");
+        storage.setItem("petflow_nome", data.nome || "");
+        storage.setItem("petflow_permissoes", JSON.stringify(data.permissoes || {}));
+
         msg.innerText = "Login realizado com sucesso.";
         window.location.href = "/dashboard";
       } else {
         msg.innerText = "E-mail ou senha inválidos.";
       }
-    });
-  </script>
+    } catch (error) {
+      msg.innerText = "Não foi possível conectar ao servidor.";
+    }
+  });
+</script>
+
 </body>
 </html>

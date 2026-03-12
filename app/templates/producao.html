@@ -1,0 +1,98 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="pagina-producao" data-empresa-id="1">
+  <h1>Linha de Produção</h1>
+
+  <div class="kanban">
+    <div class="coluna">
+      <h3>Ordem</h3>
+      <div id="coluna-ORDEM" class="cards"></div>
+    </div>
+
+    <div class="coluna">
+      <h3>Pré-banho</h3>
+      <div id="coluna-PRE_BANHO" class="cards"></div>
+    </div>
+
+    <div class="coluna">
+      <h3>Pré-tosa</h3>
+      <div id="coluna-PRE_TOSA" class="cards"></div>
+    </div>
+
+    <div class="coluna">
+      <h3>Banho</h3>
+      <div id="coluna-BANHO" class="cards"></div>
+    </div>
+
+    <div class="coluna">
+      <h3>Finalização do banho</h3>
+      <div id="coluna-FINALIZACAO_BANHO" class="cards"></div>
+    </div>
+
+    <div class="coluna">
+      <h3>Tosa</h3>
+      <div id="coluna-TOSA" class="cards"></div>
+    </div>
+
+    <div class="coluna">
+      <h3>Secagem</h3>
+      <div id="coluna-SECAGEM" class="cards"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .kanban {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 16px 0;
+  }
+
+  .coluna {
+    min-width: 280px;
+    background: #f4f4f4;
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100px;
+  }
+
+  .card-producao {
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px;
+    border-left: 6px solid #999;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+
+  .prioridade-verde { border-left-color: green; }
+  .prioridade-vermelha { border-left-color: red; }
+  .prioridade-preta { border-left-color: black; }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .alerta-secagem {
+    border: 2px solid red !important;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.01); }
+    100% { transform: scale(1); }
+  }
+</style>
+
+<script src="/static/js/producao.js"></script>
+{% endblock %}

@@ -3,3 +3,11 @@ from app.models.usuario import Usuario
 from app.models.permissao import Permissao
 from app.models.configuracao import Configuracao
 from app.models.auditoria import Auditoria
+from app.models.cliente import Cliente
+from app.models.pet import Pet
+from app.models.endereco import Endereco
+from app.models.servico import Servico
+from app.models.funcionario import Funcionario
+from app.models.agendamento import Agendamento
+from app.models.agendamento_servico import AgendamentoServico
+from app.models.producao import Producao

@@ -1,0 +1,70 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Pets</h1>
+    <p>Gestão de pets cadastrados no sistema.</p>
+  </div>
+  <div class="header-actions">
+    <a href="/pets/novo" class="primary-btn no-underline">Novo Pet</a>
+  </div>
+</section>
+
+<section class="glass-card">
+  <div class="section-topbar">
+    <input type="text" id="busca-pets" placeholder="Buscar por nome, raça ou porte" class="search-input" />
+  </div>
+
+  <div class="table-wrap">
+    <table class="premium-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Cliente ID</th>
+          <th>Raça</th>
+          <th>Sexo</th>
+          <th>Porte</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="pets-tbody">
+        <tr>
+          <td colspan="6">Carregando pets...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  async function carregarPets(q = "") {
+    const response = await fetch(`/api/pets?q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+
+    const tbody = document.getElementById("pets-tbody");
+
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="6">Nenhum pet encontrado.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(pet => `
+      <tr>
+        <td>${pet.nome ?? "-"}</td>
+        <td>${pet.cliente_id ?? "-"}</td>
+        <td>${pet.raca ?? "-"}</td>
+        <td>${pet.sexo ?? "-"}</td>
+        <td>${pet.porte ?? "-"}</td>
+        <td>${pet.ativo ? "Ativo" : "Inativo"}</td>
+      </tr>
+    `).join("");
+  }
+
+  document.getElementById("busca-pets").addEventListener("input", function () {
+    carregarPets(this.value);
+  });
+
+  carregarPets();
+</script>
+{% endblock %}

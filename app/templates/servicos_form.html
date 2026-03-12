@@ -1,0 +1,182 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+
+<section class="page-header">
+  <div>
+    <h1 id="form-title">Novo Serviço</h1>
+    <p>Cadastro e edição de serviços.</p>
+  </div>
+</section>
+
+<section class="glass-card">
+
+  <form id="servico-form" class="form-grid">
+
+    <div class="form-group">
+      <label>Nome do serviço</label>
+      <input type="text" id="nome" required />
+    </div>
+
+    <div class="form-group">
+      <label>Porte de referência</label>
+      <select id="porte_referencia" required>
+        <option value="">Selecione</option>
+        <option value="G1">G1</option>
+        <option value="G2">G2</option>
+        <option value="G3">G3</option>
+        <option value="G4">G4</option>
+        <option value="G5">G5</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Custo (R$)</label>
+      <input type="number" id="custo" step="0.01" min="0.01" required />
+    </div>
+
+    <div class="form-group">
+      <label>Preço de venda (R$)</label>
+      <input type="number" id="venda" step="0.01" min="0.01" required />
+    </div>
+
+    <div class="form-group">
+      <label>Tempo estimado (minutos)</label>
+      <input type="number" id="tempo_minutos" min="1" required />
+    </div>
+
+    <div class="form-actions">
+
+      <button type="submit" class="primary-btn">
+        Salvar Serviço
+      </button>
+
+      <a href="/servicos" class="secondary-btn no-underline">
+        Cancelar
+      </a>
+
+    </div>
+
+    <div id="servico-message" class="form-message"></div>
+
+  </form>
+
+</section>
+
+<script>
+
+const servicoId = "{{ servico_id if servico_id else '' }}"
+
+function validarFormulario() {
+
+  const nome = document.getElementById("nome").value.trim()
+  const porte = document.getElementById("porte_referencia").value
+  const custo = document.getElementById("custo").value
+  const venda = document.getElementById("venda").value
+  const tempo = document.getElementById("tempo_minutos").value
+
+  if (!nome || !porte || !custo || !venda || !tempo) {
+
+    document.getElementById("servico-message").innerText =
+      "Preencha todos os campos obrigatórios."
+
+    return false
+  }
+
+  return true
+}
+
+async function carregarServicoEdicao() {
+
+  if (!servicoId) return
+
+  document.getElementById("form-title").innerText = "Editar Serviço"
+
+  const response = await fetch(`/api/servicos/${servicoId}`)
+  const data = await response.json()
+
+  document.getElementById("nome").value = data.nome || ""
+  document.getElementById("porte_referencia").value = data.porte_referencia || ""
+  document.getElementById("custo").value = data.custo ?? ""
+  document.getElementById("venda").value = data.venda ?? ""
+  document.getElementById("tempo_minutos").value = data.tempo_minutos ?? ""
+
+}
+
+document.getElementById("servico-form").addEventListener("submit", async function (e) {
+
+  e.preventDefault()
+
+  if (!validarFormulario()) return
+
+  const payload = {
+
+    empresa_id: 1,
+
+    nome: document.getElementById("nome").value,
+
+    porte_referencia: document.getElementById("porte_referencia").value,
+
+    custo: Number(document.getElementById("custo").value),
+
+    venda: Number(document.getElementById("venda").value),
+
+    tempo_minutos: Number(document.getElementById("tempo_minutos").value)
+
+  }
+
+  const msg = document.getElementById("servico-message")
+
+  let response
+
+  if (servicoId) {
+
+    response = await fetch(`/api/servicos/${servicoId}`, {
+
+      method: "PUT",
+
+      headers: { "Content-Type": "application/json" },
+
+      body: JSON.stringify(payload)
+
+    })
+
+  } else {
+
+    response = await fetch("/api/servicos/", {
+
+      method: "POST",
+
+      headers: { "Content-Type": "application/json" },
+
+      body: JSON.stringify(payload)
+
+    })
+
+  }
+
+  if (response.ok) {
+
+    msg.innerText = "Serviço salvo com sucesso."
+
+    setTimeout(() => {
+
+      window.location.href = "/servicos"
+
+    }, 800)
+
+  } else {
+
+    const error = await response.json()
+
+    msg.innerText = error.detail || "Erro ao salvar serviço."
+
+  }
+
+})
+
+carregarServicoEdicao()
+
+</script>
+
+{% endblock %}

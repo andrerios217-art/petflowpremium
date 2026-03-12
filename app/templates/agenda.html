@@ -1,0 +1,235 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Agenda Semanal</h1>
+    <p>Visualização livre e organizada automaticamente por horário.</p>
+  </div>
+
+  <div class="header-actions agenda-actions">
+    <button class="secondary-btn" id="semana-anterior">← Semana anterior</button>
+    <input type="date" id="data-base" class="date-input" />
+    <button class="secondary-btn" id="proxima-semana">Próxima semana →</button>
+    <button class="primary-btn" id="novo-agendamento-btn">Novo Agendamento</button>
+  </div>
+</section>
+
+<section class="agenda-board" id="agenda-board">
+  <div class="agenda-column">
+    <div class="agenda-column-header">SEG <span id="dia-0"></span></div>
+    <div class="agenda-column-body" id="col-0"></div>
+  </div>
+
+  <div class="agenda-column">
+    <div class="agenda-column-header">TER <span id="dia-1"></span></div>
+    <div class="agenda-column-body" id="col-1"></div>
+  </div>
+
+  <div class="agenda-column">
+    <div class="agenda-column-header">QUA <span id="dia-2"></span></div>
+    <div class="agenda-column-body" id="col-2"></div>
+  </div>
+
+  <div class="agenda-column">
+    <div class="agenda-column-header">QUI <span id="dia-3"></span></div>
+    <div class="agenda-column-body" id="col-3"></div>
+  </div>
+
+  <div class="agenda-column">
+    <div class="agenda-column-header">SEX <span id="dia-4"></span></div>
+    <div class="agenda-column-body" id="col-4"></div>
+  </div>
+
+  <div class="agenda-column">
+    <div class="agenda-column-header">SAB <span id="dia-5"></span></div>
+    <div class="agenda-column-body" id="col-5"></div>
+  </div>
+</section>
+
+<!-- MODAL NOVO / EDIÇÃO -->
+<div id="agendamento-modal" class="modal-backdrop hidden">
+  <div class="modal-card modal-large">
+    <div class="modal-header">
+      <div>
+        <h2>Novo Agendamento</h2>
+        <p>Selecione cliente, pet, serviços e horário.</p>
+      </div>
+      <button type="button" class="modal-close" id="fechar-modal">✕</button>
+    </div>
+
+    <form id="agendamento-form" class="form-grid">
+      <div class="form-group full-width">
+        <label>Buscar cliente/pet</label>
+        <input
+          type="text"
+          id="busca-cliente-pet"
+          placeholder="Digite nome do cliente, pet, telefone ou CPF"
+        />
+        <div class="search-results hidden" id="resultado-busca"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Cliente</label>
+        <input type="text" id="cliente_nome" disabled />
+      </div>
+
+      <div class="form-group">
+        <label>Pet</label>
+        <input type="text" id="pet_nome" disabled />
+      </div>
+
+      <div class="form-group">
+        <label>Data</label>
+        <input type="date" id="ag_data" required />
+      </div>
+
+      <div class="form-group">
+        <label>Hora</label>
+        <input type="time" id="ag_hora" required />
+      </div>
+
+      <div class="form-group">
+        <label>Funcionário</label>
+        <select id="ag_funcionario">
+          <option value="">Selecione</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Prioridade</label>
+        <select id="ag_prioridade">
+          <option value="NORMAL">Normal</option>
+          <option value="PRIORIDADE">Prioridade</option>
+          <option value="SEM_PRIORIDADE">Sem prioridade</option>
+        </select>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Serviços</label>
+        <div class="service-picker-row">
+          <select id="servico-select">
+            <option value="">Selecione um serviço</option>
+          </select>
+          <button type="button" class="secondary-btn" id="adicionar-servico-btn">Adicionar</button>
+        </div>
+        <div id="servicos-escolhidos" class="selected-services"></div>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Observações</label>
+        <input
+          type="text"
+          id="ag_observacoes"
+          placeholder="Solicitações pontuais do atendimento"
+        />
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="primary-btn">Salvar Agendamento</button>
+        <button type="button" class="secondary-btn" id="cancelar-modal">Cancelar</button>
+      </div>
+
+      <div id="agenda-message" class="form-message"></div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL DETALHE -->
+<div id="detalhe-agendamento-modal" class="modal-backdrop hidden">
+  <div class="modal-card modal-large modal-detail-card">
+    <div class="modal-header">
+      <div>
+        <h2>Detalhes do Agendamento</h2>
+        <p>Acompanhamento e ações rápidas do atendimento.</p>
+      </div>
+      <button type="button" class="modal-close" id="fechar-detalhe-modal">✕</button>
+    </div>
+
+    <div class="detail-body">
+      <div id="detalhe-loading" class="detail-loading hidden">
+        Carregando detalhes...
+      </div>
+
+      <div id="detalhe-conteudo">
+        <div class="detail-grid">
+          <div class="detail-box">
+            <span class="detail-label">Cliente</span>
+            <strong id="detalhe-cliente">-</strong>
+          </div>
+
+          <div class="detail-box">
+            <span class="detail-label">Pet</span>
+            <strong id="detalhe-pet">-</strong>
+          </div>
+
+          <div class="detail-box">
+            <span class="detail-label">Funcionário</span>
+            <strong id="detalhe-funcionario">-</strong>
+          </div>
+
+          <div class="detail-box">
+            <span class="detail-label">Data</span>
+            <strong id="detalhe-data">-</strong>
+          </div>
+
+          <div class="detail-box">
+            <span class="detail-label">Hora</span>
+            <strong id="detalhe-hora">-</strong>
+          </div>
+
+          <div class="detail-box">
+            <span class="detail-label">Status</span>
+            <strong id="detalhe-status">-</strong>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Serviços</h3>
+          <div id="detalhe-servicos" class="selected-services"></div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Observações</h3>
+          <div id="detalhe-observacoes" class="detail-observacoes-box">Sem observações.</div>
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <div class="detail-actions-left">
+          <button type="button" class="secondary-btn hidden" id="btn-editar-agendamento">Editar</button>
+        </div>
+
+        <div class="detail-actions-right">
+          <button type="button" class="secondary-btn hidden" id="btn-falta-agendamento">Falta</button>
+          <button type="button" class="secondary-btn hidden" id="btn-cancelar-agendamento">Cancelar</button>
+          <button type="button" class="primary-btn hidden" id="btn-iniciar-agendamento">Iniciar atendimento</button>
+          <button type="button" class="success-btn hidden" id="btn-finalizar-agendamento">Finalizar</button>
+        </div>
+      </div>
+
+      <div id="detalhe-message" class="form-message"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAÇÃO PREMIUM -->
+<div id="confirm-modal" class="modal-backdrop hidden">
+  <div class="modal-card confirm-modal-card">
+    <div class="modal-header">
+      <div>
+        <h2 id="confirm-title">Confirmar ação</h2>
+        <p id="confirm-text">Deseja continuar?</p>
+      </div>
+      <button type="button" class="modal-close" id="confirm-close">✕</button>
+    </div>
+
+    <div class="confirm-actions">
+      <button type="button" class="secondary-btn" id="confirm-cancel">Cancelar</button>
+      <button type="button" class="primary-btn" id="confirm-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/agenda.js"></script>
+{% endblock %}

@@ -6,6 +6,12 @@ from fastapi.templating import Jinja2Templates
 from app.core.database import Base, engine
 from app.models import *  # noqa
 from app.api import auth, empresas, usuarios, configuracoes
+from app.api import clientes_api
+from app.api import pets_api
+from app.api import servicos_api
+from app.api import funcionarios_api
+from app.api import agenda_api
+from app.api.producao_api import router as producao_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -18,6 +24,12 @@ app.include_router(auth.router)
 app.include_router(empresas.router)
 app.include_router(usuarios.router)
 app.include_router(configuracoes.router)
+app.include_router(clientes_api.router)
+app.include_router(pets_api.router)
+app.include_router(servicos_api.router)
+app.include_router(funcionarios_api.router)
+app.include_router(agenda_api.router)
+app.include_router(producao_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -28,3 +40,102 @@ def login_page(request: Request):
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+@app.get("/clientes", response_class=HTMLResponse)
+def clientes_page(request: Request):
+    return templates.TemplateResponse("clientes.html", {"request": request})
+
+
+@app.get("/clientes/novo", response_class=HTMLResponse)
+def clientes_form_page(request: Request):
+    return templates.TemplateResponse("clientes_form.html", {"request": request})
+
+
+@app.get("/clientes/editar/{cliente_id}", response_class=HTMLResponse)
+def clientes_edit_page(request: Request, cliente_id: int):
+    return templates.TemplateResponse(
+        "clientes_form.html",
+        {"request": request, "cliente_id": cliente_id}
+    )
+
+
+@app.get("/pets", response_class=HTMLResponse)
+def pets_page(request: Request):
+    return templates.TemplateResponse("pets.html", {"request": request})
+
+
+@app.get("/pets/novo", response_class=HTMLResponse)
+def pets_form_page(request: Request):
+    return templates.TemplateResponse("pets_form.html", {"request": request})
+
+
+@app.get("/servicos", response_class=HTMLResponse)
+def servicos_page(request: Request):
+    return templates.TemplateResponse("servicos.html", {"request": request})
+
+
+@app.get("/funcionarios", response_class=HTMLResponse)
+def funcionarios_page(request: Request):
+    return templates.TemplateResponse("funcionarios.html", {"request": request})
+
+
+@app.get("/agenda", response_class=HTMLResponse)
+def agenda_page(request: Request):
+    return templates.TemplateResponse("agenda.html", {"request": request})
+
+
+@app.get("/producao", response_class=HTMLResponse)
+def producao_page(request: Request):
+    return templates.TemplateResponse("producao.html", {"request": request})
+
+
+@app.get("/estoque", response_class=HTMLResponse)
+def estoque_page(request: Request):
+    return templates.TemplateResponse("estoque.html", {"request": request})
+
+
+@app.get("/financeiro", response_class=HTMLResponse)
+def financeiro_page(request: Request):
+    return templates.TemplateResponse("financeiro.html", {"request": request})
+
+
+@app.get("/crm", response_class=HTMLResponse)
+def crm_page(request: Request):
+    return templates.TemplateResponse("crm.html", {"request": request})
+
+
+@app.get("/relatorios", response_class=HTMLResponse)
+def relatorios_page(request: Request):
+    return templates.TemplateResponse("relatorios.html", {"request": request})
+
+
+@app.get("/configuracoes", response_class=HTMLResponse)
+def configuracoes_page(request: Request):
+    return templates.TemplateResponse("configuracoes.html", {"request": request})
+
+
+@app.get("/servicos/novo", response_class=HTMLResponse)
+def servicos_form_page(request: Request):
+    return templates.TemplateResponse("servicos_form.html", {"request": request})
+
+
+@app.get("/servicos/editar/{servico_id}", response_class=HTMLResponse)
+def servicos_edit_page(request: Request, servico_id: int):
+    return templates.TemplateResponse(
+        "servicos_form.html",
+        {"request": request, "servico_id": servico_id}
+    )
+
+
+@app.get("/funcionarios/novo", response_class=HTMLResponse)
+def funcionarios_form_page(request: Request):
+    return templates.TemplateResponse("funcionarios_form.html", {"request": request})
+
+
+@app.get("/funcionarios/editar/{funcionario_id}", response_class=HTMLResponse)
+def funcionarios_edit_page(request: Request, funcionario_id: int):
+    return templates.TemplateResponse(
+        "funcionarios_form.html",
+        {"request": request, "funcionario_id": funcionario_id}
+    )
