@@ -140,26 +140,32 @@ async function confirmarAcaoModal() {
 ========================================================= */
 
 function corStatus(status) {
-  if (status === "AGUARDANDO") return "status-aguardando";
-  if (status === "EM_ATENDIMENTO") return "status-andamento";
-  if (status === "FINALIZADO") return "status-finalizado";
-  if (status === "FALTA") return "status-falta";
-  if (status === "CANCELADO") return "status-cancelado";
+  const valor = String(status || "").toUpperCase();
+
+  if (valor === "AGUARDANDO") return "status-aguardando";
+  if (valor === "EM_ATENDIMENTO") return "status-andamento";
+  if (valor === "FINALIZADO") return "status-finalizado";
+  if (valor === "FALTA") return "status-falta";
+  if (valor === "CANCELADO") return "status-cancelado";
   return "status-aguardando";
 }
 
 function textoStatus(status) {
-  if (status === "AGUARDANDO") return "Aguardando";
-  if (status === "EM_ATENDIMENTO") return "Em atendimento";
-  if (status === "FINALIZADO") return "Finalizado";
-  if (status === "FALTA") return "Falta";
-  if (status === "CANCELADO") return "Cancelado";
+  const valor = String(status || "").toUpperCase();
+
+  if (valor === "AGUARDANDO") return "Aguardando";
+  if (valor === "EM_ATENDIMENTO") return "Em atendimento";
+  if (valor === "FINALIZADO") return "Finalizado";
+  if (valor === "FALTA") return "Falta";
+  if (valor === "CANCELADO") return "Cancelado";
   return status || "-";
 }
 
 function prioridadeDot(prioridade) {
-  if (prioridade === "PRIORIDADE") return "dot-prioridade";
-  if (prioridade === "SEM_PRIORIDADE") return "dot-sem-prioridade";
+  const valor = String(prioridade || "").toUpperCase();
+
+  if (valor === "PRIORITARIO" || valor === "PRIORIDADE") return "dot-prioridade";
+  if (valor === "SEM_PRIORIDADE") return "dot-sem-prioridade";
   return "dot-normal";
 }
 
@@ -248,6 +254,11 @@ function atualizarCardNoDOM(item) {
   cardAntigo.replaceWith(novoCard);
 }
 
+function removerCardNoDOM(id) {
+  const card = document.querySelector(`.agenda-card[data-id="${id}"]`);
+  if (card) card.remove();
+}
+
 async function carregarAgenda() {
   limparColunas();
 
@@ -260,27 +271,31 @@ async function carregarAgenda() {
   montarCabecalhosSemana(inicio);
   ativarCliqueNasColunas(inicio);
 
-  const response = await fetch(
-    `/api/agenda/semana?empresa_id=1&data_inicio=${formatDateISO(inicio)}&data_fim=${formatDateISO(fim)}`
-  );
+  try {
+    const response = await fetch(
+      `/api/agenda/semana?empresa_id=1&data_inicio=${formatDateISO(inicio)}&data_fim=${formatDateISO(fim)}`
+    );
 
-  if (!response.ok) {
-    console.error("Erro ao carregar agenda");
-    return;
+    if (!response.ok) {
+      console.error("Erro ao carregar agenda");
+      return;
+    }
+
+    const agendamentos = await response.json();
+
+    agendamentos.forEach((item) => {
+      const dataItem = new Date(item.data + "T00:00:00");
+      const index = Math.round((dataItem - inicio) / (1000 * 60 * 60 * 24));
+
+      if (index < 0 || index > 5) return;
+
+      const card = criarCardAgendamento(item);
+      const coluna = document.getElementById(`col-${index}`);
+      if (coluna) coluna.appendChild(card);
+    });
+  } catch (error) {
+    console.error("Erro ao carregar agenda:", error);
   }
-
-  const agendamentos = await response.json();
-
-  agendamentos.forEach((item) => {
-    const dataItem = new Date(item.data + "T00:00:00");
-    const index = Math.round((dataItem - inicio) / (1000 * 60 * 60 * 24));
-
-    if (index < 0 || index > 5) return;
-
-    const card = criarCardAgendamento(item);
-    const coluna = document.getElementById(`col-${index}`);
-    if (coluna) coluna.appendChild(card);
-  });
 }
 
 /* =========================================================
@@ -605,6 +620,7 @@ function setDetalheLoading(loading) {
 function limparBotoesDetalhe() {
   [
     "btn-editar-agendamento",
+    "btn-excluir-agendamento",
     "btn-falta-agendamento",
     "btn-cancelar-agendamento",
     "btn-iniciar-agendamento",
@@ -617,16 +633,18 @@ function limparBotoesDetalhe() {
 function renderAcoesDetalhe(status) {
   limparBotoesDetalhe();
 
+  const valor = String(status || "").toUpperCase();
   const btnEditar = document.getElementById("btn-editar-agendamento");
 
-  if (status === "AGUARDANDO") {
+  if (valor === "AGUARDANDO") {
     btnEditar?.classList.remove("hidden");
     document.getElementById("btn-iniciar-agendamento")?.classList.remove("hidden");
     document.getElementById("btn-falta-agendamento")?.classList.remove("hidden");
     document.getElementById("btn-cancelar-agendamento")?.classList.remove("hidden");
+    document.getElementById("btn-excluir-agendamento")?.classList.remove("hidden");
   }
 
-  if (status === "EM_ATENDIMENTO") {
+  if (valor === "EM_ATENDIMENTO") {
     btnEditar?.classList.remove("hidden");
     document.getElementById("btn-finalizar-agendamento")?.classList.remove("hidden");
   }
@@ -691,32 +709,7 @@ async function abrirModalDetalhe(id) {
   }
 }
 
-async function executarAlteracaoStatus(novoStatus) {
-  try {
-    const response = await fetch(
-      `/api/agenda/${agendamentoDetalheAtual.id}/status?status=${encodeURIComponent(novoStatus)}`,
-      { method: "PUT" }
-    );
-
-    const resposta = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      mostrarMensagemDetalhe(resposta.detail || resposta.message || "Erro ao alterar status.");
-      return;
-    }
-
-    agendamentoDetalheAtual = resposta;
-    renderDetalhe(agendamentoDetalheAtual);
-    atualizarCardNoDOM(agendamentoDetalheAtual);
-
-    mostrarMensagemDetalhe(`Status alterado para ${textoStatus(agendamentoDetalheAtual.status)}.`);
-  } catch (error) {
-    console.error(error);
-    mostrarMensagemDetalhe("Erro de comunicação com o servidor.");
-  }
-}
-
-function alterarStatusAgendamento(novoStatus) {
+async function alterarStatusAgendamento(novoStatus) {
   if (!agendamentoDetalheAtual?.id) return;
 
   abrirConfirmModal({
@@ -724,7 +717,61 @@ function alterarStatusAgendamento(novoStatus) {
     text: `Deseja alterar o status para "${textoStatus(novoStatus)}"?`,
     confirmText: "Confirmar",
     onConfirm: async () => {
-      await executarAlteracaoStatus(novoStatus);
+      mostrarMensagemDetalhe("");
+
+      try {
+        const response = await fetch(
+          `/api/agenda/${agendamentoDetalheAtual.id}/status?status=${encodeURIComponent(novoStatus)}`,
+          { method: "PUT" }
+        );
+
+        const resposta = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          mostrarMensagemDetalhe(resposta.detail || resposta.message || "Erro ao alterar status.");
+          return;
+        }
+
+        agendamentoDetalheAtual = resposta;
+        renderDetalhe(agendamentoDetalheAtual);
+        atualizarCardNoDOM(agendamentoDetalheAtual);
+        await carregarAgenda();
+
+        mostrarMensagemDetalhe(`Status alterado para ${textoStatus(agendamentoDetalheAtual.status)}.`);
+      } catch (error) {
+        console.error(error);
+        mostrarMensagemDetalhe("Erro de comunicação com o servidor.");
+      }
+    }
+  });
+}
+
+async function excluirAgendamentoAtual() {
+  if (!agendamentoDetalheAtual?.id) return;
+
+  abrirConfirmModal({
+    title: "Excluir agendamento",
+    text: "Deseja realmente excluir este agendamento?",
+    confirmText: "Excluir",
+    onConfirm: async () => {
+      try {
+        const response = await fetch(`/api/agenda/${agendamentoDetalheAtual.id}`, {
+          method: "DELETE"
+        });
+
+        const resposta = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          mostrarMensagemDetalhe(resposta.detail || resposta.message || "Não foi possível excluir.");
+          return;
+        }
+
+        removerCardNoDOM(agendamentoDetalheAtual.id);
+        fecharModalDetalhe();
+      } catch (error) {
+        console.error(error);
+        mostrarMensagemDetalhe("Erro de comunicação com o servidor.");
+      }
     }
   });
 }
@@ -958,5 +1005,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("btn-finalizar-agendamento")?.addEventListener("click", () => alterarStatusAgendamento("FINALIZADO"));
   document.getElementById("btn-falta-agendamento")?.addEventListener("click", () => alterarStatusAgendamento("FALTA"));
   document.getElementById("btn-cancelar-agendamento")?.addEventListener("click", () => alterarStatusAgendamento("CANCELADO"));
+  document.getElementById("btn-excluir-agendamento")?.addEventListener("click", excluirAgendamentoAtual);
   document.getElementById("btn-editar-agendamento")?.addEventListener("click", editarAgendamentoAtual);
 });

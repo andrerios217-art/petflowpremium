@@ -84,9 +84,12 @@ def alterar_status(
         raise HTTPException(status_code=400, detail="Transição de status não permitida.")
 
     if status == "EM_ATENDIMENTO":
-        agendamento_model = agendamento_crud.get_model_by_id(db, agendamento_id)
-        if agendamento_model:
-            producao_crud.criar_ordem_se_nao_existir(db, agendamento_model)
+        try:
+            agendamento_model = agendamento_crud.get_model_by_id(db, agendamento_id)
+            if agendamento_model:
+                producao_crud.criar_ordem_se_nao_existir(db, agendamento_model)
+        except Exception as e:
+            print(f"[ERRO PRODUCAO] Falha ao criar ordem para agendamento {agendamento_id}: {e}")
 
     return ag
 

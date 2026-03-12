@@ -4,12 +4,13 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 
-class ProducaoMoverEtapa(BaseModel):
-    coluna_destino: str
+class ProducaoAvancarEtapa(BaseModel):
     funcionario_id: Optional[int] = None
+    usar_secagem: bool = False
     secagem_tempo: Optional[int] = None
     intercorrencias: Optional[List[str]] = None
     descricao_intercorrencia: Optional[str] = None
+    observacoes_gerais: Optional[str] = None
 
 
 class ProducaoIniciarEtapa(BaseModel):
@@ -33,6 +34,10 @@ class ProducaoCardResponse(BaseModel):
     servicos: List[str] = []
     funcionario_nome: Optional[str] = None
     status_agendamento: Optional[str] = None
+
+    observacoes: Optional[str] = None
+    intercorrencias: Optional[str] = None
+    proximo_destino_automatico: Optional[str] = None
 
     class Config:
         from_attributes = True
