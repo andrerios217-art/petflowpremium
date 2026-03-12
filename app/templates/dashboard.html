@@ -1,0 +1,58 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Bem-vindo ao Pet Flow Premium</p>
+  </div>
+  <div class="header-actions">
+    <button class="primary-btn">Novo Agendamento</button>
+  </div>
+</section>
+
+<section class="stats-grid">
+  <div class="glass-card">
+    <span class="card-label">Faturamento Hoje</span>
+    <strong>R$ 0,00</strong>
+  </div>
+  <div class="glass-card">
+    <span class="card-label">Pets em Atendimento</span>
+    <strong>0</strong>
+  </div>
+  <div class="glass-card">
+    <span class="card-label">Agenda do Dia</span>
+    <strong>0</strong>
+  </div>
+  <div class="glass-card">
+    <span class="card-label">Clientes Ativos</span>
+    <strong>0</strong>
+  </div>
+</section>
+
+<section class="content-grid">
+  <div class="glass-card large-card">
+    <h2>Resumo Operacional</h2>
+    <p>Esta área será usada para exibir agenda, produção, capacidade operacional e alertas.</p>
+  </div>
+
+  <div class="glass-card">
+    <h2>Produção Hoje</h2>
+    <ul class="simple-list">
+      <li>Pré-banho: 0</li>
+      <li>Banho: 0</li>
+      <li>Secagem: 0</li>
+      <li>Tosa: 0</li>
+    </ul>
+  </div>
+
+  <div class="glass-card">
+    <h2>Financeiro</h2>
+    <ul class="simple-list">
+      <li>Caixa: fechado</li>
+      <li>Entradas: R$ 0,00</li>
+      <li>Saídas: R$ 0,00</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}

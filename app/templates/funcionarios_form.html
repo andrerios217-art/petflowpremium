@@ -1,0 +1,202 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1 id="form-title">Novo Funcionário</h1>
+    <p>Cadastro e edição de funcionário com permissões de acesso.</p>
+  </div>
+</section>
+
+<section class="glass-card">
+  <form id="funcionario-form" class="form-grid">
+    <div class="form-group">
+      <label>Nome completo</label>
+      <input type="text" id="nome" required />
+    </div>
+
+    <div class="form-group">
+      <label>CPF</label>
+      <input type="text" id="cpf" required />
+    </div>
+
+    <div class="form-group">
+      <label>E-mail</label>
+      <input type="email" id="email" required />
+    </div>
+
+    <div class="form-group">
+      <label>Telefone</label>
+      <input type="text" id="telefone" required />
+    </div>
+
+    <div class="form-group">
+      <label>Função</label>
+      <select id="funcao" required>
+        <option value="">Selecione</option>
+        <option value="Banhista">Banhista</option>
+        <option value="Tosador">Tosador</option>
+        <option value="Recepção">Recepção</option>
+        <option value="Gerente">Gerente</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label id="senha-label">Senha de acesso</label>
+      <input type="password" id="senha" required />
+    </div>
+
+    <div class="form-group full-width">
+      <label>Permissões de acesso</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="acesso_dashboard" /> Dashboard</label>
+        <label><input type="checkbox" id="acesso_clientes" /> Clientes</label>
+        <label><input type="checkbox" id="acesso_pets" /> Pets</label>
+        <label><input type="checkbox" id="acesso_servicos" /> Serviços</label>
+        <label><input type="checkbox" id="acesso_funcionarios" /> Funcionários</label>
+        <label><input type="checkbox" id="acesso_agenda" /> Agenda</label>
+        <label><input type="checkbox" id="acesso_producao" /> Produção</label>
+        <label><input type="checkbox" id="acesso_estoque" /> Estoque</label>
+        <label><input type="checkbox" id="acesso_financeiro" /> Financeiro</label>
+        <label><input type="checkbox" id="acesso_crm" /> CRM</label>
+        <label><input type="checkbox" id="acesso_relatorios" /> Relatórios</label>
+        <label><input type="checkbox" id="acesso_configuracoes" /> Configurações</label>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="primary-btn">Salvar Funcionário</button>
+      <a href="/funcionarios" class="secondary-btn no-underline">Voltar</a>
+    </div>
+
+    <div id="funcionario-message" class="form-message"></div>
+  </form>
+</section>
+
+<script>
+  const funcionarioId = "{{ funcionario_id if funcionario_id else '' }}";
+
+  function aplicarPermissoesPorFuncao(funcao) {
+    const ids = [
+      "acesso_dashboard", "acesso_clientes", "acesso_pets", "acesso_servicos",
+      "acesso_funcionarios", "acesso_agenda", "acesso_producao", "acesso_estoque",
+      "acesso_financeiro", "acesso_crm", "acesso_relatorios", "acesso_configuracoes"
+    ];
+
+    ids.forEach(id => document.getElementById(id).checked = false);
+
+    if (funcao === "Banhista") {
+      document.getElementById("acesso_pets").checked = true;
+      document.getElementById("acesso_agenda").checked = true;
+      document.getElementById("acesso_producao").checked = true;
+    }
+
+    if (funcao === "Tosador") {
+      document.getElementById("acesso_pets").checked = true;
+      document.getElementById("acesso_agenda").checked = true;
+      document.getElementById("acesso_producao").checked = true;
+    }
+
+    if (funcao === "Recepção") {
+      document.getElementById("acesso_dashboard").checked = true;
+      document.getElementById("acesso_clientes").checked = true;
+      document.getElementById("acesso_pets").checked = true;
+      document.getElementById("acesso_agenda").checked = true;
+      document.getElementById("acesso_servicos").checked = true;
+    }
+
+    if (funcao === "Gerente") {
+      ids.forEach(id => document.getElementById(id).checked = true);
+    }
+  }
+
+  document.getElementById("funcao").addEventListener("change", function () {
+    aplicarPermissoesPorFuncao(this.value);
+  });
+
+  async function carregarFuncionarioEdicao() {
+    if (!funcionarioId) return;
+
+    document.getElementById("form-title").innerText = "Editar Funcionário";
+    document.getElementById("senha-label").innerText = "Nova senha (opcional)";
+    document.getElementById("senha").required = false;
+
+    const response = await fetch(`/api/funcionarios/${funcionarioId}`);
+    const data = await response.json();
+
+    document.getElementById("nome").value = data.nome || "";
+    document.getElementById("cpf").value = data.cpf || "";
+    document.getElementById("email").value = data.email || "";
+    document.getElementById("telefone").value = data.telefone || "";
+    document.getElementById("funcao").value = data.funcao || "";
+
+    document.getElementById("acesso_dashboard").checked = data.acesso_dashboard;
+    document.getElementById("acesso_clientes").checked = data.acesso_clientes;
+    document.getElementById("acesso_pets").checked = data.acesso_pets;
+    document.getElementById("acesso_servicos").checked = data.acesso_servicos;
+    document.getElementById("acesso_funcionarios").checked = data.acesso_funcionarios;
+    document.getElementById("acesso_agenda").checked = data.acesso_agenda;
+    document.getElementById("acesso_producao").checked = data.acesso_producao;
+    document.getElementById("acesso_estoque").checked = data.acesso_estoque;
+    document.getElementById("acesso_financeiro").checked = data.acesso_financeiro;
+    document.getElementById("acesso_crm").checked = data.acesso_crm;
+    document.getElementById("acesso_relatorios").checked = data.acesso_relatorios;
+    document.getElementById("acesso_configuracoes").checked = data.acesso_configuracoes;
+  }
+
+  document.getElementById("funcionario-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const payload = {
+      empresa_id: 1,
+      nome: document.getElementById("nome").value,
+      cpf: document.getElementById("cpf").value,
+      email: document.getElementById("email").value,
+      telefone: document.getElementById("telefone").value,
+      funcao: document.getElementById("funcao").value,
+      senha: document.getElementById("senha").value || null,
+
+      acesso_dashboard: document.getElementById("acesso_dashboard").checked,
+      acesso_clientes: document.getElementById("acesso_clientes").checked,
+      acesso_pets: document.getElementById("acesso_pets").checked,
+      acesso_servicos: document.getElementById("acesso_servicos").checked,
+      acesso_funcionarios: document.getElementById("acesso_funcionarios").checked,
+      acesso_agenda: document.getElementById("acesso_agenda").checked,
+      acesso_producao: document.getElementById("acesso_producao").checked,
+      acesso_estoque: document.getElementById("acesso_estoque").checked,
+      acesso_financeiro: document.getElementById("acesso_financeiro").checked,
+      acesso_crm: document.getElementById("acesso_crm").checked,
+      acesso_relatorios: document.getElementById("acesso_relatorios").checked,
+      acesso_configuracoes: document.getElementById("acesso_configuracoes").checked
+    };
+
+    const msg = document.getElementById("funcionario-message");
+
+    let response;
+
+    if (funcionarioId) {
+      response = await fetch(`/api/funcionarios/${funcionarioId}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+    } else {
+      response = await fetch("/api/funcionarios/", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+    }
+
+    if (response.ok) {
+      msg.innerText = "Funcionário salvo com sucesso.";
+      setTimeout(() => window.location.href = "/funcionarios", 700);
+    } else {
+      const error = await response.json();
+      msg.innerText = error.detail || "Erro ao salvar funcionário.";
+    }
+  });
+
+  carregarFuncionarioEdicao();
+</script>
+{% endblock %}

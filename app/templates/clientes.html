@@ -1,0 +1,84 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Clientes</h1>
+    <p>Gestão de tutores, endereços e pets vinculados.</p>
+  </div>
+  <div class="header-actions">
+    <a href="/clientes/novo" class="primary-btn no-underline">Novo Cliente</a>
+  </div>
+</section>
+
+<section class="glass-card">
+  <div class="section-topbar">
+    <input type="text" id="busca-clientes" placeholder="Buscar por nome, CPF, e-mail ou telefone" class="search-input" />
+  </div>
+
+  <div class="table-wrap">
+    <table class="premium-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>CPF</th>
+          <th>E-mail</th>
+          <th>Telefone</th>
+          <th>Status</th>
+          <th class="actions-col">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="clientes-tbody">
+        <tr>
+          <td colspan="6">Carregando clientes...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  async function carregarClientes(q = "") {
+    const response = await fetch(`/api/clientes?q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+
+    const tbody = document.getElementById("clientes-tbody");
+
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="6">Nenhum cliente encontrado.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(cliente => `
+      <tr>
+        <td>${cliente.nome ?? "-"}</td>
+        <td>${cliente.cpf ?? "-"}</td>
+        <td>${cliente.email ?? "-"}</td>
+        <td>${cliente.telefone ?? "-"}</td>
+        <td>
+          <label class="switch">
+            <input type="checkbox" ${cliente.ativo ? "checked" : ""} onchange="toggleCliente(${cliente.id})">
+            <span class="slider"></span>
+          </label>
+        </td>
+        <td class="actions-col">
+          <a href="/clientes/editar/${cliente.id}" class="icon-btn" title="Editar">✏️</a>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  async function toggleCliente(clienteId) {
+    await fetch(`/api/clientes/${clienteId}/toggle`, {
+      method: "PATCH"
+    });
+    carregarClientes(document.getElementById("busca-clientes").value);
+  }
+
+  document.getElementById("busca-clientes").addEventListener("input", function () {
+    carregarClientes(this.value);
+  });
+
+  carregarClientes();
+</script>
+{% endblock %}

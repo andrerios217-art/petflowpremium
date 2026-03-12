@@ -1,0 +1,86 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Funcionários</h1>
+    <p>Equipe, funções e permissões de acesso.</p>
+  </div>
+  <div class="header-actions">
+    <a href="/funcionarios/novo" class="primary-btn no-underline">Novo Funcionário</a>
+  </div>
+</section>
+
+<section class="glass-card">
+  <div class="section-topbar">
+    <input type="text" id="busca-funcionarios" placeholder="Buscar por nome, CPF, e-mail, telefone ou função" class="search-input" />
+  </div>
+
+  <div class="table-wrap">
+    <table class="premium-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>CPF</th>
+          <th>E-mail</th>
+          <th>Telefone</th>
+          <th>Função</th>
+          <th>Status</th>
+          <th class="actions-col">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="funcionarios-tbody">
+        <tr>
+          <td colspan="7">Carregando funcionários...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  async function carregarFuncionarios(q = "") {
+    const response = await fetch(`/api/funcionarios?q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+
+    const tbody = document.getElementById("funcionarios-tbody");
+
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="7">Nenhum funcionário encontrado.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(funcionario => `
+      <tr>
+        <td>${funcionario.nome ?? "-"}</td>
+        <td>${funcionario.cpf ?? "-"}</td>
+        <td>${funcionario.email ?? "-"}</td>
+        <td>${funcionario.telefone ?? "-"}</td>
+        <td>${funcionario.funcao ?? "-"}</td>
+        <td>
+          <label class="switch">
+            <input type="checkbox" ${funcionario.ativo ? "checked" : ""} onchange="toggleFuncionario(${funcionario.id})">
+            <span class="slider"></span>
+          </label>
+        </td>
+        <td class="actions-col">
+          <a href="/funcionarios/editar/${funcionario.id}" class="icon-btn" title="Editar">✏️</a>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  async function toggleFuncionario(funcionarioId) {
+    await fetch(`/api/funcionarios/${funcionarioId}/toggle`, {
+      method: "PATCH"
+    });
+    carregarFuncionarios(document.getElementById("busca-funcionarios").value);
+  }
+
+  document.getElementById("busca-funcionarios").addEventListener("input", function () {
+    carregarFuncionarios(this.value);
+  });
+
+  carregarFuncionarios();
+</script>
+{% endblock %}

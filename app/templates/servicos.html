@@ -1,0 +1,103 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Serviços</h1>
+    <p>Cadastro e gestão dos serviços da loja.</p>
+  </div>
+  <div class="header-actions">
+    <a href="/servicos/novo" class="primary-btn no-underline">Novo Serviço</a>
+  </div>
+</section>
+
+<section class="glass-card">
+  <div class="section-topbar">
+    <input type="text" id="busca-servicos" placeholder="Buscar por nome ou porte" class="search-input" />
+  </div>
+
+  <div class="table-wrap">
+    <table class="premium-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Porte</th>
+          <th>Custo</th>
+          <th>Venda</th>
+          <th>Tempo</th>
+          <th>Status</th>
+          <th class="actions-col">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="servicos-tbody">
+        <tr>
+          <td colspan="7">Carregando serviços...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  function moeda(valor) {
+    if (valor === null || valor === undefined || valor === "") return "-";
+    return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  async function carregarServicos(q = "") {
+    const response = await fetch(`/api/servicos?q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+
+    const tbody = document.getElementById("servicos-tbody");
+
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="7">Nenhum serviço encontrado.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(servico => `
+      <tr>
+        <td>${servico.nome ?? "-"}</td>
+        <td>${servico.porte_referencia ?? "-"}</td>
+        <td>${moeda(servico.custo)}</td>
+        <td>${moeda(servico.venda)}</td>
+        <td>${servico.tempo_minutos ? servico.tempo_minutos + " min" : "-"}</td>
+        <td>
+          <label class="switch">
+            <input type="checkbox" ${servico.ativo ? "checked" : ""} onchange="toggleServico(${servico.id})">
+            <span class="slider"></span>
+          </label>
+        </td>
+        <td class="actions-col">
+          <a href="/servicos/editar/${servico.id}" class="icon-btn" title="Editar">✏️</a>
+          <button class="icon-btn danger-btn" onclick="excluirServico(${servico.id})" title="Excluir">🗑️</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  async function toggleServico(servicoId) {
+    await fetch(`/api/servicos/${servicoId}/toggle`, {
+      method: "PATCH"
+    });
+    carregarServicos(document.getElementById("busca-servicos").value);
+  }
+
+  async function excluirServico(servicoId) {
+    const confirmar = confirm("Deseja excluir este serviço permanentemente?");
+    if (!confirmar) return;
+
+    await fetch(`/api/servicos/${servicoId}`, {
+      method: "DELETE"
+    });
+
+    carregarServicos(document.getElementById("busca-servicos").value);
+  }
+
+  document.getElementById("busca-servicos").addEventListener("input", function () {
+    carregarServicos(this.value);
+  });
+
+  carregarServicos();
+</script>
+{% endblock %}
