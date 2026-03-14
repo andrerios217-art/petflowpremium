@@ -1,113 +1,129 @@
 console.log("Pet Flow Premium frontend carregado");
 
 document.addEventListener("DOMContentLoaded", () => {
-  function obterPermissoes() {
-    try {
-      const local = localStorage.getItem("petflow_permissoes");
-      const session = sessionStorage.getItem("petflow_permissoes");
+    function obterPermissoes() {
+        try {
+            const local = localStorage.getItem("petflow_permissoes");
+            const session = sessionStorage.getItem("petflow_permissoes");
 
-      if (local) return JSON.parse(local);
-      if (session) return JSON.parse(session);
+            if (local) return JSON.parse(local);
+            if (session) return JSON.parse(session);
 
-      return {};
-    } catch (error) {
-      console.warn("Erro ao ler permissões:", error);
-      return {};
+            return {};
+        } catch (error) {
+            console.warn("Erro ao ler permissões:", error);
+            return {};
+        }
     }
-  }
 
-  function obterTipoUsuario() {
-    return (
-      localStorage.getItem("petflow_tipo_usuario") ||
-      sessionStorage.getItem("petflow_tipo_usuario") ||
-      ""
-    );
-  }
-
-  function obterTemaAtual() {
-    return document.documentElement.getAttribute("data-theme") || "light";
-  }
-
-  function salvarTema(tema) {
-    try {
-      localStorage.setItem("petflow_theme", tema);
-    } catch (error) {
-      console.warn("Não foi possível salvar o tema:", error);
+    function obterTipoUsuario() {
+        return (
+            localStorage.getItem("petflow_tipo_usuario") ||
+            sessionStorage.getItem("petflow_tipo_usuario") ||
+            ""
+        );
     }
-  }
 
-  function aplicarTema(tema) {
-    const temaNormalizado = tema === "dark" ? "dark" : "light";
+    function aplicarPermissoesSidebar() {
+        const permissoes = obterPermissoes();
+        const tipoUsuario = obterTipoUsuario();
 
-    document.documentElement.setAttribute("data-theme", temaNormalizado);
-    salvarTema(temaNormalizado);
-    atualizarBotaoTema(temaNormalizado);
-  }
+        if (tipoUsuario !== "funcionario") {
+            return;
+        }
 
-  function atualizarBotaoTema(tema) {
-    const botao = document.getElementById("theme-toggle-btn");
-    const icone = document.getElementById("theme-toggle-icon");
-    const texto = document.getElementById("theme-toggle-text");
+        const mapaPermissoes = {
+            "/dashboard": "dashboard",
+            "/clientes": "clientes",
+            "/pets": "pets",
+            "/servicos": "servicos",
+            "/funcionarios": "funcionarios",
+            "/agenda": "agenda",
+            "/agenda-veterinaria": "agenda",
+            "/producao": "producao",
+            "/estoque": "estoque",
+            "/financeiro": "financeiro",
+            "/crm": "crm",
+            "/relatorios": "relatorios",
+            "/configuracoes": "configuracoes",
+        };
 
-    if (!botao || !icone || !texto) return;
+        const itensSidebar = document.querySelectorAll(".sidebar-nav .nav-item");
 
-    if (tema === "dark") {
-      icone.textContent = "☀️";
-      texto.textContent = "Modo claro";
-      botao.setAttribute("aria-label", "Ativar modo claro");
-      botao.setAttribute("title", "Ativar modo claro");
-    } else {
-      icone.textContent = "🌙";
-      texto.textContent = "Modo escuro";
-      botao.setAttribute("aria-label", "Ativar modo escuro");
-      botao.setAttribute("title", "Ativar modo escuro");
+        itensSidebar.forEach((item) => {
+            const href = item.getAttribute("href");
+            if (!href) return;
+
+            const chavePermissao = mapaPermissoes[href];
+            if (chavePermissao && !permissoes[chavePermissao]) {
+                item.style.display = "none";
+            }
+        });
     }
-  }
 
-  function alternarTema() {
-    const temaAtual = obterTemaAtual();
-    const novoTema = temaAtual === "dark" ? "light" : "dark";
-    aplicarTema(novoTema);
-  }
+    function garantirTemaClaro() {
+        document.documentElement.removeAttribute("data-theme");
 
-  const permissoes = obterPermissoes();
-  const tipoUsuario = obterTipoUsuario();
+        try {
+            localStorage.removeItem("petflow_theme");
+        } catch (error) {
+            console.warn("Não foi possível limpar tema salvo no localStorage:", error);
+        }
 
-  if (tipoUsuario === "funcionario") {
-    const mapaPermissoes = {
-      "/dashboard": "dashboard",
-      "/clientes": "clientes",
-      "/pets": "pets",
-      "/servicos": "servicos",
-      "/funcionarios": "funcionarios",
-      "/agenda": "agenda",
-      "/producao": "producao",
-      "/estoque": "estoque",
-      "/financeiro": "financeiro",
-      "/crm": "crm",
-      "/relatorios": "relatorios",
-      "/configuracoes": "configuracoes"
-    };
+        try {
+            sessionStorage.removeItem("petflow_theme");
+        } catch (error) {
+            console.warn("Não foi possível limpar tema salvo no sessionStorage:", error);
+        }
 
-    const itensSidebar = document.querySelectorAll(".sidebar-nav .nav-item");
+        const botaoTema = document.getElementById("theme-toggle-btn");
+        if (botaoTema) {
+            botaoTema.remove();
+        }
+    }
 
-    itensSidebar.forEach((item) => {
-      const href = item.getAttribute("href");
+    function criarContainerToast() {
+        let container = document.getElementById("toast-container");
 
-      if (!href) return;
+        if (container) {
+            return container;
+        }
 
-      const chavePermissao = mapaPermissoes[href];
+        container = document.createElement("div");
+        container.id = "toast-container";
+        container.className = "toast-container";
+        document.body.appendChild(container);
 
-      if (chavePermissao && !permissoes[chavePermissao]) {
-        item.style.display = "none";
-      }
-    });
-  }
+        return container;
+    }
 
-  const themeToggleBtn = document.getElementById("theme-toggle-btn");
-  atualizarBotaoTema(obterTemaAtual());
+    function showToast(message, type = "success") {
+        if (!message) return;
 
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener("click", alternarTema);
-  }
+        const container = criarContainerToast();
+        const toast = document.createElement("div");
+
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.classList.add("show");
+        });
+
+        setTimeout(() => {
+            toast.classList.remove("show");
+            setTimeout(() => {
+                toast.remove();
+            }, 250);
+        }, 3000);
+    }
+
+    if (typeof window.showToast !== "function") {
+        window.showToast = showToast;
+    }
+
+    garantirTemaClaro();
+    aplicarPermissoesSidebar();
 });
