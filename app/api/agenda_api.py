@@ -1,110 +1,56 @@
+from datetime import datetime, date, timedelta
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from app.core.deps import get_db
-from app.crud import agendamento as agendamento_crud
-from app.crud import producao as producao_crud
-from app.schemas.agendamento import AgendamentoCreate, AgendamentoOut, AgendamentoUpdate
+from app.models.agendamento import Agendamento
+from app.models.agendamento_servico import AgendamentoServico
+from app.models.servico import Servico
 
-router = APIRouter(prefix="/api/agenda", tags=["Agenda"])
-
-STATUS_VALIDOS = {
-    "AGUARDANDO",
-    "EM_ATENDIMENTO",
-    "FINALIZADO",
-    "FALTA",
-    "CANCELADO",
-}
+router = APIRouter(tags=["Agenda Grooming"])
 
 
-@router.get("/semana", response_model=list[AgendamentoOut])
-def listar_semana(
-    empresa_id: int,
-    data_inicio: str,
-    data_fim: str,
-    db: Session = Depends(get_db)
+def _get_week_range(data_ref: date):
+    inicio = data_ref - timedelta(days=data_ref.weekday())
+    fim = inicio + timedelta(days=5)  # segunda a sábado
+    return inicio, fim
+
+
+@router.get("/api/agenda/semana")
+def listar_agenda_semana(
+    data_ref: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
 ):
-    return agendamento_crud.list_semana(db, empresa_id, data_inicio, data_fim)
-
-
-@router.post("/", response_model=AgendamentoOut)
-def criar(data: AgendamentoCreate, db: Session = Depends(get_db)):
-    ag = agendamento_crud.create(db, data)
-
-    if isinstance(ag, dict) and ag.get("error"):
-        raise HTTPException(status_code=400, detail=ag["error"])
-
-    return ag
-
-
-@router.get("/{agendamento_id}", response_model=AgendamentoOut)
-def buscar(agendamento_id: int, db: Session = Depends(get_db)):
-    ag = agendamento_crud.get_by_id(db, agendamento_id)
-
-    if not ag:
-        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
-
-    return ag
-
-
-@router.put("/{agendamento_id}", response_model=AgendamentoOut)
-def atualizar(
-    agendamento_id: int,
-    data: AgendamentoUpdate,
-    db: Session = Depends(get_db)
-):
-    ag = agendamento_crud.update(db, agendamento_id, data)
-
-    if ag is None:
-        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
-
-    if isinstance(ag, dict) and ag.get("error"):
-        raise HTTPException(status_code=400, detail=ag["error"])
-
-    return ag
-
-
-@router.put("/{agendamento_id}/status", response_model=AgendamentoOut)
-def alterar_status(
-    agendamento_id: int,
-    status: str = Query(...),
-    db: Session = Depends(get_db)
-):
-    status = (status or "").strip().upper()
-
-    if status not in STATUS_VALIDOS:
-        raise HTTPException(status_code=400, detail="Status inválido.")
-
-    ag = agendamento_crud.alterar_status(db, agendamento_id, status)
-
-    if ag is None:
-        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
-
-    if ag is False:
-        raise HTTPException(status_code=400, detail="Transição de status não permitida.")
-
-    if status == "EM_ATENDIMENTO":
-        try:
-            agendamento_model = agendamento_crud.get_model_by_id(db, agendamento_id)
-            if agendamento_model:
-                producao_crud.criar_ordem_se_nao_existir(db, agendamento_model)
-        except Exception as e:
-            print(f"[ERRO PRODUCAO] Falha ao criar ordem para agendamento {agendamento_id}: {e}")
-
-    return ag
-
-
-@router.delete("/{agendamento_id}")
-def excluir(agendamento_id: int, db: Session = Depends(get_db)):
-    ok = agendamento_crud.delete(db, agendamento_id)
-
-    if ok is None:
-        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
-
-    if ok is False:
+    try:
+        if data_ref:
+            data_base = datetime.strptime(data_ref, "%Y-%m-%d").date()
+        else:
+            data_base = date.today()
+    except ValueError:
         raise HTTPException(
             status_code=400,
-            detail="Só é possível excluir agendamentos AGUARDANDO"
+            detail="Data inválida. Use YYYY-MM-DD.",
         )
 
-    return {"success": True}
+    inicio, fim = _get_week_range(data_base)
+
+    agendamentos = (
+        db.query(Agendamento)
+        .join(AgendamentoServico, AgendamentoServico.agendamento_id == Agendamento.id)
+        .join(Servico, Servico.id == AgendamentoServico.servico_id)
+        .filter(
+            and_(
+                Agendamento.data >= inicio,
+                Agendamento.data <= fim,
+                Servico.tipo_servico == "PETSHOP",
+            )
+        )
+        .distinct()
+        .order_by(Agendamento.data.asc(), Agendamento.hora.asc())
+        .all()
+    )
+
+    return agendamentos

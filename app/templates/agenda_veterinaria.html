@@ -1,770 +1,641 @@
-{% extends "layout/base.html" %}
-
-{% block title %}Agenda Veterinária{% endblock %}
-
-{% block content %}
-<div class="page-container agenda-veterinaria-page">
-    <div class="page-header premium-glass">
-        <div>
-            <span class="section-badge">PetFlow Premium</span>
-            <h1>Agenda Veterinária</h1>
-            <p>Agenda exclusiva para serviços do tipo <strong>VETERINARIO</strong>, sem misturar com o fluxo grooming.</p>
-        </div>
-
-        <div class="header-actions">
-            <button class="btn btn-outline" id="btnSemanaAnterior" type="button">Semana anterior</button>
-            <button class="btn btn-outline" id="btnHoje" type="button">Hoje</button>
-            <button class="btn btn-outline" id="btnProximaSemana" type="button">Próxima semana</button>
-            <button class="btn btn-primary" id="btnNovoAgendamento" type="button">+ Novo Agendamento Vet</button>
-        </div>
-    </div>
-
-    <div class="premium-glass agenda-toolbar">
-        <div class="toolbar-block">
-            <label for="filtroBuscaAgenda">Busca rápida</label>
-            <input type="text" id="filtroBuscaAgenda" placeholder="Buscar por tutor, pet, funcionário ou serviço">
-        </div>
-
-        <div class="toolbar-block toolbar-periodo">
-            <label>Período</label>
-            <div class="periodo-value" id="periodoSemanaLabel">Carregando...</div>
-        </div>
-    </div>
-
-    <div class="agenda-vet-grid" id="agendaVetGrid">
-        <div class="premium-glass empty-state">
-            <h3>Carregando agenda veterinária...</h3>
-            <p>Aguarde enquanto buscamos os atendimentos da semana.</p>
-        </div>
-    </div>
-</div>
-
-<div class="modal-overlay" id="modalAgendamentoVetOverlay">
-    <div class="premium-modal modal-xl">
-        <div class="premium-modal-header">
-            <div>
-                <h2>Novo Agendamento Veterinário</h2>
-                <p>Cadastre apenas serviços do tipo <strong>VETERINARIO</strong>.</p>
-            </div>
-            <button class="modal-close" type="button" id="btnFecharModalAgendamentoVet">&times;</button>
-        </div>
-
-        <div class="premium-modal-body">
-            <form id="formAgendamentoVet" class="form-grid">
-                <div class="form-group">
-                    <label for="agVetCliente">Tutor / Cliente</label>
-                    <select id="agVetCliente" required>
-                        <option value="">Selecione o tutor</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="agVetPet">Pet</label>
-                    <select id="agVetPet" required>
-                        <option value="">Selecione o pet</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="agVetFuncionario">Veterinário / Responsável</label>
-                    <select id="agVetFuncionario">
-                        <option value="">Selecione o responsável</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="agVetDataHora">Data e Hora</label>
-                    <input type="datetime-local" id="agVetDataHora" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="agVetPrioridade">Prioridade</label>
-                    <select id="agVetPrioridade">
-                        <option value="NORMAL">Normal</option>
-                        <option value="ALTA">Alta</option>
-                        <option value="URGENTE">Urgente</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="agVetStatus">Status</label>
-                    <select id="agVetStatus">
-                        <option value="AGUARDANDO">Aguardando</option>
-                        <option value="CONFIRMADO">Confirmado</option>
-                    </select>
-                </div>
-
-                <div class="form-group form-group-full">
-                    <label>Serviços previstos</label>
-                    <div id="agVetServicosChecklist" class="servicos-checklist"></div>
-                    <small>Marque um ou mais serviços veterinários previstos.</small>
-                </div>
-
-                <div class="form-group form-group-full">
-                    <label for="agVetObservacoes">Observações da recepção</label>
-                    <textarea id="agVetObservacoes" rows="4" placeholder="Motivo da consulta, sinais relatados, observações do agendamento, encaixe, retorno, etc."></textarea>
-                </div>
-            </form>
-        </div>
-
-        <div class="premium-modal-footer">
-            <button class="btn btn-outline" type="button" id="btnCancelarAgendamentoVet">Cancelar</button>
-            <button class="btn btn-primary" type="button" id="btnSalvarAgendamentoVet">Salvar Agendamento</button>
-        </div>
-    </div>
-</div>
-
-<div class="modal-overlay" id="modalAtendimentoClinicoOverlay">
-    <div class="premium-modal modal-xxl atendimento-clinico-modal">
-        <div class="premium-modal-header">
-            <div>
-                <h2>Atendimento Clínico</h2>
-                <p>Anamnese em andamento com histórico do pet acessível sem fechar o preenchimento.</p>
-            </div>
-            <button class="modal-close" type="button" id="btnFecharModalAtendimentoClinico">&times;</button>
-        </div>
-
-        <div class="premium-modal-body atendimento-clinico-body">
-            <div class="atendimento-clinico-main">
-                <div class="premium-glass clinico-resumo-topo">
-                    <div class="resumo-coluna">
-                        <span class="label">Tutor</span>
-                        <strong id="clinicoTutorNome">-</strong>
-                        <small id="clinicoTutorContato">-</small>
-                    </div>
-
-                    <div class="resumo-coluna">
-                        <span class="label">Pet</span>
-                        <strong id="clinicoPetNome">-</strong>
-                        <small id="clinicoPetResumo">-</small>
-                    </div>
-
-                    <div class="resumo-coluna">
-                        <span class="label">Serviços previstos</span>
-                        <div id="clinicoServicosPrevistos" class="badge-list"></div>
-                    </div>
-
-                    <div class="resumo-coluna atendimento-actions-top">
-                        <button class="btn btn-outline" type="button" id="btnAbrirHistoricoPet">
-                            Histórico do Pet
-                        </button>
-                    </div>
-                </div>
-
-                <form id="formAtendimentoClinicoBase" class="clinico-grid">
-                    <div class="premium-glass clinico-card">
-                        <h3>Anamnese</h3>
-
-                        <div class="form-group">
-                            <label for="clinicoQueixaPrincipal">Queixa principal</label>
-                            <textarea id="clinicoQueixaPrincipal" rows="3" placeholder="Relato principal do tutor"></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="clinicoHistoricoAtual">Histórico atual</label>
-                            <textarea id="clinicoHistoricoAtual" rows="4" placeholder="Evolução do quadro, início dos sintomas, apetite, vômito, diarreia, comportamento, etc."></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="clinicoObservacoesGerais">Observações clínicas</label>
-                            <textarea id="clinicoObservacoesGerais" rows="4" placeholder="Observações gerais do atendimento"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="premium-glass clinico-card">
-                        <h3>Execução Clínica (base)</h3>
-
-                        <div class="form-group">
-                            <label for="clinicoServicosExecutados">Serviços executados</label>
-                            <textarea id="clinicoServicosExecutados" rows="4" placeholder="Consulta, retorno, aplicação, procedimento, etc."></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="clinicoMedicacoes">Medicações aplicadas</label>
-                            <textarea id="clinicoMedicacoes" rows="4" placeholder="Descreva medicações aplicadas durante o atendimento"></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="clinicoExames">Exames / solicitações</label>
-                            <textarea id="clinicoExames" rows="4" placeholder="Exames realizados ou solicitados"></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="clinicoReceita">Receita / orientações</label>
-                            <textarea id="clinicoReceita" rows="4" placeholder="Prescrição e orientações ao tutor"></textarea>
-                        </div>
-                    </div>
-                </form>
-
-                <div class="premium-glass clinico-alert">
-                    <strong>Observação desta fase:</strong>
-                    esta tela já está pronta para o fluxo do veterinário e para consulta rápida do histórico do pet sem perder a anamnese.
-                    A persistência definitiva do prontuário, itens executados e integração com PDV entra na próxima etapa.
-                </div>
-            </div>
-
-            <aside class="clinico-historico-drawer" id="clinicoHistoricoDrawer">
-                <div class="drawer-header">
-                    <div>
-                        <h3>Histórico do Pet</h3>
-                        <p>Consulta rápida sem fechar o atendimento.</p>
-                    </div>
-                    <button class="drawer-close" type="button" id="btnFecharHistoricoDrawer">&times;</button>
-                </div>
-
-                <div class="drawer-body" id="clinicoHistoricoConteudo">
-                    <div class="empty-state small">
-                        <h4>Selecione um atendimento</h4>
-                        <p>O histórico será exibido aqui quando você abrir um atendimento clínico.</p>
-                    </div>
-                </div>
-            </aside>
-        </div>
-
-        <div class="premium-modal-footer">
-            <button class="btn btn-outline" type="button" id="btnFecharAtendimentoClinicoRodape">Fechar</button>
-            <button class="btn btn-primary" type="button" id="btnSalvarRascunhoClinico">
-                Salvar rascunho local
-            </button>
-        </div>
-    </div>
-</div>
-
-<style>
-    .agenda-veterinaria-page {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .page-header,
-    .agenda-toolbar,
-    .premium-glass,
-    .premium-modal,
-    .clinico-historico-drawer {
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
-    }
-
-    .page-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 24px;
-        border-radius: 22px;
-    }
-
-    .page-header h1 {
-        margin: 8px 0 10px;
-    }
-
-    .section-badge {
-        display: inline-flex;
-        padding: 6px 12px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-        background: rgba(255,255,255,.12);
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-
-    .agenda-toolbar {
-        display: grid;
-        grid-template-columns: 1.5fr .8fr;
-        gap: 16px;
-        padding: 18px 20px;
-        border-radius: 20px;
-    }
-
-    .toolbar-block {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .toolbar-block label {
-        font-size: 13px;
-        font-weight: 700;
-        opacity: .85;
-    }
-
-    .toolbar-block input,
-    .toolbar-block select,
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        width: 100%;
-        border: 1px solid rgba(255,255,255,.12);
-        background: rgba(255,255,255,.06);
-        color: inherit;
-        border-radius: 14px;
-        padding: 12px 14px;
-        outline: none;
-    }
-
-    .periodo-value {
-        min-height: 46px;
-        display: flex;
-        align-items: center;
-        padding: 12px 14px;
-        border-radius: 14px;
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.12);
-        font-weight: 700;
-    }
-
-    .agenda-vet-grid {
-        display: grid;
-        grid-template-columns: repeat(7, minmax(220px, 1fr));
-        gap: 16px;
-        align-items: start;
-    }
-
-    .agenda-dia-coluna {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        min-height: 300px;
-        padding: 16px;
-        border-radius: 22px;
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.10);
-    }
-
-    .agenda-dia-header {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-
-    .agenda-dia-header strong {
-        font-size: 16px;
-    }
-
-    .agenda-dia-header span {
-        font-size: 13px;
-        opacity: .82;
-    }
-
-    .agenda-card-vet {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        padding: 16px;
-        border-radius: 18px;
-        background: rgba(255,255,255,.08);
-        border: 1px solid rgba(255,255,255,.10);
-        box-shadow: 0 10px 30px rgba(0,0,0,.12);
-    }
-
-    .agenda-card-top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
-    }
-
-    .agenda-card-top h4 {
-        margin: 0;
-        font-size: 16px;
-    }
-
-    .agenda-card-subtitle {
-        margin: 4px 0 0;
-        font-size: 13px;
-        opacity: .78;
-    }
-
-    .status-badge,
-    .priority-badge,
-    .service-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .06em;
-    }
-
-    .status-badge {
-        background: rgba(76, 175, 80, .18);
-        border: 1px solid rgba(76, 175, 80, .28);
-    }
-
-    .priority-badge {
-        background: rgba(255, 193, 7, .16);
-        border: 1px solid rgba(255, 193, 7, .26);
-    }
-
-    .badge-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .service-badge {
-        background: rgba(255,255,255,.08);
-        border: 1px solid rgba(255,255,255,.12);
-        text-transform: none;
-        letter-spacing: 0;
-        font-size: 12px;
-        font-weight: 700;
-    }
-
-    .agenda-card-meta {
-        display: grid;
-        gap: 8px;
-        font-size: 13px;
-    }
-
-    .agenda-card-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .btn {
-        border: none;
-        border-radius: 14px;
-        padding: 12px 16px;
-        cursor: pointer;
-        font-weight: 700;
-        transition: transform .15s ease, opacity .15s ease;
-    }
-
-    .btn:hover {
-        transform: translateY(-1px);
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, rgba(86, 120, 255, .95), rgba(111, 76, 255, .95));
-        color: #fff;
-    }
-
-    .btn-outline {
-        background: rgba(255,255,255,.08);
-        color: inherit;
-        border: 1px solid rgba(255,255,255,.12);
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 28px 20px;
-        border-radius: 18px;
-        background: rgba(255,255,255,.04);
-        border: 1px dashed rgba(255,255,255,.14);
-    }
-
-    .empty-state.small {
-        padding: 16px;
-    }
-
-    .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(5, 10, 20, .55);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        padding: 24px;
-    }
-
-    .modal-overlay.active {
-        display: flex;
-    }
-
-    .premium-modal {
-        width: 100%;
-        max-height: calc(100vh - 48px);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        border-radius: 24px;
-        background: rgba(14, 18, 31, .92);
-        border: 1px solid rgba(255,255,255,.10);
-        box-shadow: 0 24px 80px rgba(0,0,0,.35);
-    }
-
-    .modal-xl {
-        max-width: 980px;
-    }
-
-    .modal-xxl {
-        max-width: 1440px;
-    }
-
-    .premium-modal-header,
-    .premium-modal-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 20px 24px;
-        border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-
-    .premium-modal-footer {
-        border-bottom: none;
-        border-top: 1px solid rgba(255,255,255,.08);
-        justify-content: flex-end;
-    }
-
-    .premium-modal-body {
-        padding: 24px;
-        overflow: auto;
-    }
-
-    .modal-close,
-    .drawer-close {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        border: none;
-        background: rgba(255,255,255,.08);
-        color: inherit;
-        font-size: 22px;
-        cursor: pointer;
-    }
-
-    .form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .form-group label {
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .form-group small {
-        opacity: .72;
-        font-size: 12px;
-    }
-
-    .form-group-full {
-        grid-column: 1 / -1;
-    }
-
-    .servicos-checklist {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        padding: 14px;
-        border-radius: 16px;
-        border: 1px solid rgba(255,255,255,.12);
-        background: rgba(255,255,255,.05);
-        max-height: 220px;
-        overflow-y: auto;
-    }
-
-    .servico-check-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 14px;
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.08);
-    }
-
-    .servico-check-item input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        margin-top: 2px;
-    }
-
-    .servico-check-info {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .servico-check-info strong {
-        font-size: 13px;
-    }
-
-    .servico-check-info span {
-        font-size: 12px;
-        opacity: .78;
-    }
-
-    .atendimento-clinico-body {
-        display: grid;
-        grid-template-columns: 1fr 420px;
-        gap: 20px;
-        align-items: start;
-    }
-
-    .atendimento-clinico-main {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        min-width: 0;
-    }
-
-    .clinico-resumo-topo {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-        padding: 18px;
-        border-radius: 20px;
-        background: rgba(255,255,255,.05);
-        border: 1px solid rgba(255,255,255,.08);
-    }
-
-    .resumo-coluna {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .resumo-coluna .label {
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: .06em;
-        opacity: .7;
-        font-weight: 800;
-    }
-
-    .atendimento-actions-top {
-        align-items: flex-end;
-        justify-content: center;
-    }
-
-    .clinico-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
-    }
-
-    .clinico-card {
-        padding: 18px;
-        border-radius: 20px;
-        background: rgba(255,255,255,.05);
-        border: 1px solid rgba(255,255,255,.08);
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-    }
-
-    .clinico-card h3 {
-        margin: 0;
-    }
-
-    .clinico-alert {
-        padding: 16px 18px;
-        border-radius: 18px;
-        background: rgba(255, 193, 7, .10);
-        border: 1px solid rgba(255, 193, 7, .20);
-        font-size: 14px;
-    }
-
-    .clinico-historico-drawer {
-        width: 100%;
-        min-height: 100%;
-        display: flex;
-        flex-direction: column;
-        border-radius: 20px;
-        background: rgba(255,255,255,.05);
-        border: 1px solid rgba(255,255,255,.08);
-        overflow: hidden;
-    }
-
-    .drawer-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 16px;
-        border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-
-    .drawer-body {
-        padding: 16px;
-        overflow: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .historico-card,
-    .historico-timeline-item {
-        padding: 14px;
-        border-radius: 16px;
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.08);
-    }
-
-    .historico-card h4,
-    .historico-timeline-item h4 {
-        margin: 0 0 8px;
-        font-size: 14px;
-    }
-
-    .historico-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .muted {
-        opacity: .72;
-    }
-
-    @media (max-width: 1400px) {
-        .agenda-vet-grid {
-            grid-template-columns: repeat(3, minmax(250px, 1fr));
+from datetime import datetime, date, time, timedelta
+from decimal import Decimal
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.core.deps import get_db
+from app.models.agendamento import Agendamento
+from app.models.agendamento_servico import AgendamentoServico
+from app.models.cliente import Cliente
+from app.models.funcionario import Funcionario
+from app.models.pet import Pet
+from app.models.servico import Servico
+
+
+router = APIRouter(tags=["Agenda Veterinária"])
+
+
+def _get_week_range(data_ref: date):
+    inicio = data_ref - timedelta(days=data_ref.weekday())
+    fim = inicio + timedelta(days=6)
+    return inicio, fim
+
+
+def _safe_datetime_iso(data_value, hora_value):
+    if not data_value:
+        return None
+
+    if hora_value:
+        dt = datetime.combine(data_value, hora_value)
+        return dt.isoformat()
+
+    return datetime.combine(data_value, time.min).isoformat()
+
+
+def _servico_valor(servico: Servico) -> Decimal:
+    valor = (
+        getattr(servico, "venda", None)
+        or getattr(servico, "valor", None)
+        or 0
+    )
+    return Decimal(str(valor))
+
+
+def _servico_tempo_previsto(servico: Servico) -> int:
+    """
+    Retorna o tempo previsto em minutos.
+    Ajuste aqui se o seu model de Servico usar outro nome de campo.
+    """
+    candidatos = [
+        getattr(servico, "tempo_previsto", None),
+        getattr(servico, "duracao_minutos", None),
+        getattr(servico, "duracao", None),
+        60,
+    ]
+
+    for valor in candidatos:
+        try:
+            numero = int(valor)
+            if numero > 0:
+                return numero
+        except (TypeError, ValueError):
+            continue
+
+    return 60
+
+
+def _buscar_servicos_do_agendamento(db: Session, agendamento_id: int):
+    servicos = (
+        db.query(Servico)
+        .join(AgendamentoServico, AgendamentoServico.servico_id == Servico.id)
+        .filter(
+            AgendamentoServico.agendamento_id == agendamento_id,
+            Servico.tipo_servico == "VETERINARIO",
+        )
+        .order_by(Servico.nome.asc())
+        .all()
+    )
+
+    return [
+        {
+            "id": getattr(servico, "id", None),
+            "nome": getattr(servico, "nome", ""),
+            "tipo_servico": getattr(servico, "tipo_servico", ""),
+            "porte_referencia": getattr(servico, "porte_referencia", ""),
+            "valor": float(_servico_valor(servico)),
         }
+        for servico in servicos
+    ]
 
-        .atendimento-clinico-body {
-            grid-template-columns: 1fr;
-        }
+
+def _buscar_cliente(db: Session, cliente_id: Optional[int]):
+    if not cliente_id:
+        return None
+    return db.query(Cliente).filter(Cliente.id == cliente_id).first()
+
+
+def _buscar_pet(db: Session, pet_id: Optional[int]):
+    if not pet_id:
+        return None
+    return db.query(Pet).filter(Pet.id == pet_id).first()
+
+
+def _buscar_funcionario(db: Session, funcionario_id: Optional[int]):
+    if not funcionario_id:
+        return None
+    return db.query(Funcionario).filter(Funcionario.id == funcionario_id).first()
+
+
+def _serialize_agendamento(db: Session, agendamento: Agendamento):
+    cliente = _buscar_cliente(db, getattr(agendamento, "cliente_id", None))
+    pet = _buscar_pet(db, getattr(agendamento, "pet_id", None))
+    funcionario = _buscar_funcionario(db, getattr(agendamento, "funcionario_id", None))
+    servicos = _buscar_servicos_do_agendamento(db, getattr(agendamento, "id", None))
+
+    valor_total = 0.0
+    for servico in servicos:
+        valor_total += float(servico.get("valor", 0) or 0)
+
+    data_agendamento = getattr(agendamento, "data", None)
+    hora_agendamento = getattr(agendamento, "hora", None)
+
+    return {
+        "id": getattr(agendamento, "id", None),
+        "data": data_agendamento.isoformat() if data_agendamento else None,
+        "hora": hora_agendamento.strftime("%H:%M:%S") if hora_agendamento else None,
+        "data_agendamento": _safe_datetime_iso(data_agendamento, hora_agendamento),
+        "status": getattr(agendamento, "status", "AGUARDANDO"),
+        "prioridade": getattr(agendamento, "prioridade", "NORMAL"),
+        "observacoes": getattr(agendamento, "observacoes", "") or "",
+        "tem_intercorrencia": bool(getattr(agendamento, "tem_intercorrencia", False)),
+        "valor_total": valor_total,
+        "cliente": {
+            "id": getattr(cliente, "id", None) if cliente else None,
+            "nome": getattr(cliente, "nome", "") if cliente else "",
+            "telefone": getattr(cliente, "telefone", "") if cliente else "",
+            "email": getattr(cliente, "email", "") if cliente else "",
+        },
+        "pet": {
+            "id": getattr(pet, "id", None) if pet else None,
+            "nome": getattr(pet, "nome", "") if pet else "",
+            "especie": getattr(pet, "especie", "") if pet else "",
+            "raca": getattr(pet, "raca", "") if pet else "",
+            "porte": getattr(pet, "porte", "") if pet else "",
+            "sexo": getattr(pet, "sexo", "") if pet else "",
+            "idade": getattr(pet, "idade", None) if pet else None,
+        },
+        "funcionario": {
+            "id": getattr(funcionario, "id", None) if funcionario else None,
+            "nome": getattr(funcionario, "nome", "") if funcionario else "",
+        },
+        "servicos": servicos,
     }
 
-    @media (max-width: 1024px) {
-        .form-grid,
-        .clinico-grid,
-        .clinico-resumo-topo,
-        .agenda-toolbar,
-        .servicos-checklist {
-            grid-template-columns: 1fr;
-        }
 
-        .agenda-vet-grid {
-            grid-template-columns: 1fr;
-        }
+def _normalizar_servico_ids(servico_ids):
+    if servico_ids is None:
+        return []
 
-        .page-header {
-            flex-direction: column;
-        }
+    if not isinstance(servico_ids, list):
+        raise HTTPException(status_code=400, detail="O campo servico_ids deve ser uma lista.")
 
-        .header-actions {
-            justify-content: flex-start;
-        }
+    ids_normalizados = []
+    for item in servico_ids:
+        try:
+            valor = int(item)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Há IDs de serviços inválidos na requisição.")
+
+        if valor > 0 and valor not in ids_normalizados:
+            ids_normalizados.append(valor)
+
+    return ids_normalizados
+
+
+def _resolver_empresa_id(cliente=None, pet=None, funcionario=None, body=None):
+    body = body or {}
+
+    empresa_candidates = [
+        body.get("empresa_id"),
+        getattr(cliente, "empresa_id", None) if cliente else None,
+        getattr(pet, "empresa_id", None) if pet else None,
+        getattr(funcionario, "empresa_id", None) if funcionario else None,
+    ]
+
+    for value in empresa_candidates:
+        try:
+            numero = int(value)
+        except (TypeError, ValueError):
+            continue
+
+        if numero > 0:
+            return numero
+
+    return None
+
+
+def _validar_consistencia_multiempresa(cliente=None, pet=None, funcionario=None, empresa_id=None):
+    empresa_ids_encontradas = []
+
+    for entidade in [cliente, pet, funcionario]:
+        if entidade is None:
+            continue
+
+        valor = getattr(entidade, "empresa_id", None)
+        if valor is not None:
+            empresa_ids_encontradas.append(valor)
+
+    if empresa_id is not None:
+        empresa_ids_encontradas.append(empresa_id)
+
+    empresa_ids_unicas = {item for item in empresa_ids_encontradas if item is not None}
+
+    if len(empresa_ids_unicas) > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Cliente, pet e responsável pertencem a empresas diferentes."
+        )
+
+
+@router.get("/api/agenda-veterinaria/semana")
+def listar_agenda_veterinaria_semana(
+    data_ref: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        if data_ref:
+            data_base = datetime.strptime(data_ref, "%Y-%m-%d").date()
+        else:
+            data_base = date.today()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data de referência inválida. Use YYYY-MM-DD.")
+
+    inicio, fim = _get_week_range(data_base)
+
+    agendamentos = (
+        db.query(Agendamento)
+        .join(AgendamentoServico, AgendamentoServico.agendamento_id == Agendamento.id)
+        .join(Servico, Servico.id == AgendamentoServico.servico_id)
+        .filter(
+            Agendamento.data >= inicio,
+            Agendamento.data <= fim,
+            Servico.tipo_servico == "VETERINARIO",
+        )
+        .distinct()
+        .order_by(Agendamento.data.asc(), Agendamento.hora.asc())
+        .all()
+    )
+
+    itens = []
+    for agendamento in agendamentos:
+        serializado = _serialize_agendamento(db, agendamento)
+        serializado["historico_url"] = (
+            f"/api/pets/{serializado['pet']['id']}/historico"
+            if serializado["pet"]["id"]
+            else None
+        )
+        itens.append(serializado)
+
+    dias = []
+    cursor = inicio
+    while cursor <= fim:
+        dias.append(
+            {
+                "data": cursor.isoformat(),
+                "label": cursor.strftime("%d/%m/%Y"),
+                "dia_semana": [
+                    "Segunda",
+                    "Terça",
+                    "Quarta",
+                    "Quinta",
+                    "Sexta",
+                    "Sábado",
+                    "Domingo",
+                ][cursor.weekday()],
+            }
+        )
+        cursor += timedelta(days=1)
+
+    return {
+        "periodo": {
+            "inicio": inicio.isoformat(),
+            "fim": fim.isoformat(),
+            "inicio_label": inicio.strftime("%d/%m/%Y"),
+            "fim_label": fim.strftime("%d/%m/%Y"),
+        },
+        "dias": dias,
+        "agendamentos": itens,
     }
-</style>
 
-<script src="/static/js/agenda_veterinaria.js"></script>
-{% endblock %}
+
+@router.get("/api/agenda-veterinaria/servicos")
+def listar_servicos_veterinarios(
+    busca: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Servico).filter(
+        Servico.tipo_servico == "VETERINARIO",
+        Servico.ativo == True,  # noqa: E712
+    )
+
+    if busca:
+        termo = f"%{busca.strip()}%"
+        query = query.filter(Servico.nome.ilike(termo))
+
+    servicos = query.order_by(Servico.nome.asc()).all()
+
+    return [
+        {
+            "id": getattr(item, "id", None),
+            "nome": getattr(item, "nome", ""),
+            "tipo_servico": getattr(item, "tipo_servico", ""),
+            "porte_referencia": getattr(item, "porte_referencia", ""),
+            "valor": float(_servico_valor(item)),
+            "ativo": bool(getattr(item, "ativo", True)),
+        }
+        for item in servicos
+    ]
+
+
+@router.get("/api/agenda-veterinaria/clientes")
+def listar_clientes(
+    busca: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Cliente)
+
+    if busca:
+        termo = f"%{busca.strip()}%"
+        filtros = []
+
+        if hasattr(Cliente, "nome"):
+            filtros.append(Cliente.nome.ilike(termo))
+        if hasattr(Cliente, "telefone"):
+            filtros.append(Cliente.telefone.ilike(termo))
+        if hasattr(Cliente, "email"):
+            filtros.append(Cliente.email.ilike(termo))
+
+        if filtros:
+            query = query.filter(or_(*filtros))
+
+    if hasattr(Cliente, "ativo"):
+        query = query.filter(Cliente.ativo == True)  # noqa: E712
+
+    clientes = query.order_by(Cliente.nome.asc()).limit(50).all()
+
+    return [
+        {
+            "id": getattr(item, "id", None),
+            "nome": getattr(item, "nome", ""),
+            "telefone": getattr(item, "telefone", ""),
+            "email": getattr(item, "email", ""),
+        }
+        for item in clientes
+    ]
+
+
+@router.get("/api/agenda-veterinaria/pets")
+def listar_pets(
+    cliente_id: Optional[int] = Query(None),
+    busca: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Pet)
+
+    if cliente_id is not None and hasattr(Pet, "cliente_id"):
+        query = query.filter(Pet.cliente_id == cliente_id)
+
+    if busca:
+        termo = f"%{busca.strip()}%"
+        filtros = []
+
+        if hasattr(Pet, "nome"):
+            filtros.append(Pet.nome.ilike(termo))
+        if hasattr(Pet, "raca"):
+            filtros.append(Pet.raca.ilike(termo))
+
+        if filtros:
+            query = query.filter(or_(*filtros))
+
+    if hasattr(Pet, "ativo"):
+        query = query.filter(Pet.ativo == True)  # noqa: E712
+
+    pets = query.order_by(Pet.nome.asc()).limit(100).all()
+
+    return [
+        {
+            "id": getattr(item, "id", None),
+            "nome": getattr(item, "nome", ""),
+            "cliente_id": getattr(item, "cliente_id", None),
+            "especie": getattr(item, "especie", ""),
+            "raca": getattr(item, "raca", ""),
+            "porte": getattr(item, "porte", ""),
+            "sexo": getattr(item, "sexo", ""),
+        }
+        for item in pets
+    ]
+
+
+@router.get("/api/agenda-veterinaria/funcionarios")
+def listar_funcionarios(
+    busca: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Funcionario)
+
+    if busca:
+        termo = f"%{busca.strip()}%"
+        if hasattr(Funcionario, "nome"):
+            query = query.filter(Funcionario.nome.ilike(termo))
+
+    if hasattr(Funcionario, "ativo"):
+        query = query.filter(Funcionario.ativo == True)  # noqa: E712
+
+    funcionarios = query.order_by(Funcionario.nome.asc()).limit(50).all()
+
+    return [
+        {
+            "id": getattr(item, "id", None),
+            "nome": getattr(item, "nome", ""),
+        }
+        for item in funcionarios
+    ]
+
+
+@router.get("/api/agenda-veterinaria/agendamentos/{agendamento_id}")
+def detalhar_agendamento_veterinario(
+    agendamento_id: int,
+    db: Session = Depends(get_db),
+):
+    agendamento = (
+        db.query(Agendamento)
+        .filter(Agendamento.id == agendamento_id)
+        .first()
+    )
+
+    if not agendamento:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+
+    servicos = _buscar_servicos_do_agendamento(db, agendamento_id)
+    if not servicos:
+        raise HTTPException(status_code=400, detail="Este agendamento não pertence à agenda veterinária.")
+
+    payload = _serialize_agendamento(db, agendamento)
+    payload["historico_url"] = (
+        f"/api/pets/{payload['pet']['id']}/historico"
+        if payload["pet"]["id"]
+        else None
+    )
+    return payload
+
+
+@router.post("/api/agenda-veterinaria/agendamentos")
+async def criar_agendamento_veterinario(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Requisição inválida. Envie um JSON válido.")
+
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Corpo da requisição inválido.")
+
+    cliente_id = body.get("cliente_id")
+    pet_id = body.get("pet_id")
+    funcionario_id = body.get("funcionario_id")
+    data_agendamento = body.get("data_agendamento")
+    observacoes = body.get("observacoes", "")
+    prioridade = body.get("prioridade", "NORMAL")
+    status = body.get("status", "AGUARDANDO")
+    servico_ids = _normalizar_servico_ids(body.get("servico_ids", []))
+
+    if not cliente_id:
+        raise HTTPException(status_code=400, detail="Cliente é obrigatório.")
+    if not pet_id:
+        raise HTTPException(status_code=400, detail="Pet é obrigatório.")
+    if not data_agendamento:
+        raise HTTPException(status_code=400, detail="Data/hora do agendamento é obrigatória.")
+    if not servico_ids:
+        raise HTTPException(status_code=400, detail="Selecione ao menos um serviço veterinário.")
+
+    try:
+        data_agendamento_dt = datetime.fromisoformat(data_agendamento)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data/hora inválida.")
+
+    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+
+    pet = db.query(Pet).filter(Pet.id == pet_id).first()
+    if not pet:
+        raise HTTPException(status_code=404, detail="Pet não encontrado.")
+
+    if hasattr(Pet, "cliente_id") and getattr(pet, "cliente_id", None) != cliente_id:
+        raise HTTPException(status_code=400, detail="O pet selecionado não pertence ao cliente informado.")
+
+    funcionario = None
+    if funcionario_id:
+        funcionario = db.query(Funcionario).filter(Funcionario.id == funcionario_id).first()
+        if not funcionario:
+            raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+
+    empresa_id = _resolver_empresa_id(
+        cliente=cliente,
+        pet=pet,
+        funcionario=funcionario,
+        body=body,
+    )
+
+    _validar_consistencia_multiempresa(
+        cliente=cliente,
+        pet=pet,
+        funcionario=funcionario,
+        empresa_id=empresa_id,
+    )
+
+    servicos = (
+        db.query(Servico)
+        .filter(
+            Servico.id.in_(servico_ids),
+            Servico.tipo_servico == "VETERINARIO",
+            Servico.ativo == True,  # noqa: E712
+        )
+        .all()
+    )
+
+    if len(servicos) != len(servico_ids):
+        raise HTTPException(status_code=400, detail="Há serviços inválidos ou não veterinários na seleção.")
+
+    try:
+        novo_agendamento = Agendamento()
+
+        if hasattr(novo_agendamento, "empresa_id") and empresa_id:
+            novo_agendamento.empresa_id = empresa_id
+
+        if hasattr(novo_agendamento, "cliente_id"):
+            novo_agendamento.cliente_id = cliente_id
+        if hasattr(novo_agendamento, "pet_id"):
+            novo_agendamento.pet_id = pet_id
+        if hasattr(novo_agendamento, "funcionario_id"):
+            novo_agendamento.funcionario_id = funcionario_id
+        if hasattr(novo_agendamento, "data"):
+            novo_agendamento.data = data_agendamento_dt.date()
+        if hasattr(novo_agendamento, "hora"):
+            novo_agendamento.hora = data_agendamento_dt.time()
+        if hasattr(novo_agendamento, "observacoes"):
+            novo_agendamento.observacoes = observacoes
+        if hasattr(novo_agendamento, "prioridade"):
+            novo_agendamento.prioridade = prioridade
+        if hasattr(novo_agendamento, "status"):
+            novo_agendamento.status = status
+
+        db.add(novo_agendamento)
+        db.flush()
+
+        for servico in servicos:
+            rel = AgendamentoServico()
+
+            if hasattr(rel, "agendamento_id"):
+                rel.agendamento_id = novo_agendamento.id
+
+            if hasattr(rel, "servico_id"):
+                rel.servico_id = servico.id
+
+            if hasattr(rel, "preco"):
+                rel.preco = _servico_valor(servico)
+
+            if hasattr(rel, "tempo_previsto"):
+                rel.tempo_previsto = _servico_tempo_previsto(servico)
+
+            db.add(rel)
+
+        db.commit()
+        db.refresh(novo_agendamento)
+
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não foi possível salvar o agendamento por restrição de integridade: {str(exc.orig)}"
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Erro de banco de dados ao criar o agendamento veterinário."
+        )
+
+    payload = _serialize_agendamento(db, novo_agendamento)
+    payload["historico_url"] = (
+        f"/api/pets/{payload['pet']['id']}/historico"
+        if payload["pet"]["id"]
+        else None
+    )
+    payload["message"] = "Agendamento veterinário criado com sucesso."
+    return payload
+
+
+@router.post("/api/agenda-veterinaria/agendamentos/{agendamento_id}/iniciar-atendimento")
+def iniciar_atendimento_veterinario(
+    agendamento_id: int,
+    db: Session = Depends(get_db),
+):
+    agendamento = (
+        db.query(Agendamento)
+        .filter(Agendamento.id == agendamento_id)
+        .first()
+    )
+
+    if not agendamento:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+
+    servicos = _buscar_servicos_do_agendamento(db, agendamento_id)
+    if not servicos:
+        raise HTTPException(status_code=400, detail="Este agendamento não pertence à agenda veterinária.")
+
+    payload = _serialize_agendamento(db, agendamento)
+
+    return {
+        "message": "Atendimento clínico pronto para abertura.",
+        "agendamento": payload,
+        "atendimento_clinico": {
+            "modo": "draft_local",
+            "agendamento_id": payload["id"],
+            "pet_id": payload["pet"]["id"],
+            "cliente_id": payload["cliente"]["id"],
+            "historico_url": (
+                f"/api/pets/{payload['pet']['id']}/historico"
+                if payload["pet"]["id"]
+                else None
+            ),
+            "pdv_integracao_preparada": True,
+            "permite_historico_sem_fechar_anamnese": True,
+        },
+    }

@@ -301,7 +301,7 @@
 
                 <div class="agenda-card-meta">
                     <div><strong>Horário:</strong> ${dataHora}</div>
-                    <div><strong>Responsável:</strong> ${escapeHtml(item.funcionario?.nome || "Não definido")}</div>
+                    <div><strong>Veterinário:</strong> ${escapeHtml(item.funcionario?.nome || "Não definido")}</div>
                     <div><strong>Prioridade:</strong> <span class="priority-badge">${escapeHtml(item.prioridade || "NORMAL")}</span></div>
                 </div>
 
@@ -391,7 +391,7 @@
             const data = await fetchJsonSafe(
                 "/api/agenda-veterinaria/funcionarios",
                 {},
-                "Erro ao carregar funcionários."
+                "Erro ao carregar veterinários."
             );
 
             state.funcionarios = Array.isArray(data) ? data : [];
@@ -404,10 +404,17 @@
     function preencherSelectFuncionarios() {
         if (!el.agVetFuncionario) return;
 
+        if (!state.funcionarios.length) {
+            el.agVetFuncionario.innerHTML = `<option value="">Nenhum veterinário disponível</option>`;
+            return;
+        }
+
         el.agVetFuncionario.innerHTML = `
-            <option value="">Selecione o responsável</option>
+            <option value="">Selecione o veterinário</option>
             ${state.funcionarios.map((funcionario) => `
-                <option value="${funcionario.id}">${escapeHtml(funcionario.nome || "")}</option>
+                <option value="${funcionario.id}">
+                    ${escapeHtml(funcionario.nome || "")}${funcionario.funcao ? ` - ${escapeHtml(funcionario.funcao)}` : ""}
+                </option>
             `).join("")}
         `;
     }
@@ -512,6 +519,7 @@
 
             if (!payload.cliente_id) throw new Error("Selecione o tutor.");
             if (!payload.pet_id) throw new Error("Selecione o pet.");
+            if (!payload.funcionario_id) throw new Error("Selecione o veterinário.");
             if (!payload.data_agendamento) throw new Error("Informe a data/hora.");
             if (!payload.servico_ids.length) throw new Error("Selecione ao menos um serviço veterinário.");
 
