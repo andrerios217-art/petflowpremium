@@ -10,6 +10,10 @@ const COLUNAS = [
 let funcionariosProducaoCache = [];
 let cardAcaoAtual = null;
 let producaoAutoRefresh = null;
+let carregandoProducao = false;
+let ultimoSnapshotProducao = "";
+let timerSecagemIniciado = false;
+let ultimoRefreshManual = 0;
 
 function corPrioridade(prioridade) {
   const valor = String(prioridade || "").toUpperCase();
@@ -81,16 +85,107 @@ function deveExibirBotaoIniciar(card) {
   return status === "AGUARDANDO";
 }
 
-async function carregarFuncionariosProducao() {
-  try {
-    const resp = await fetch("/api/funcionarios/");
-    if (!resp.ok) return;
+function deveExibirBotaoAvancar(card) {
+  const status = String(card.etapa_status || "").toUpperCase();
+  const coluna = String(card.coluna || "").toUpperCase();
 
-    const data = await resp.json();
-    funcionariosProducaoCache = Array.isArray(data)
-      ? data.filter((f) => f.ativo)
-      : [];
+  return status === "EM_EXECUCAO" || coluna === "SECAGEM";
+}
+
+function normalizarListaFuncionarios(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.itens)) return payload.itens;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.results)) return payload.results;
+  return [];
+}
+
+function funcionarioEstaAtivo(funcionario) {
+  if (typeof funcionario?.ativo === "boolean") {
+    return funcionario.ativo;
+  }
+  return true;
+}
+
+function nomeFuncaoFuncionario(funcionario) {
+  return funcionario?.funcao || funcionario?.cargo || funcionario?.tipo || "Sem função";
+}
+
+function modalAcaoAberto() {
+  const modal = document.getElementById("acao-producao-modal");
+  return !!modal && !modal.classList.contains("hidden");
+}
+
+function podeExecutarAutoRefresh() {
+  if (document.hidden) return false;
+  if (modalAcaoAberto()) return false;
+  if (carregandoProducao) return false;
+  return true;
+}
+
+function gerarSnapshotProducao(cards) {
+  const base = (Array.isArray(cards) ? cards : []).map((card) => ({
+    id: card.id,
+    coluna: card.coluna,
+    etapa_status: card.etapa_status,
+    prioridade: card.prioridade,
+    funcionario_id: card.funcionario_id,
+    funcionario_nome: card.funcionario_nome,
+    secagem_tempo: card.secagem_tempo,
+    secagem_inicio: card.secagem_inicio,
+    finalizado: card.finalizado,
+    observacoes: card.observacoes,
+    intercorrencias: card.intercorrencias,
+    proximo_destino_automatico: card.proximo_destino_automatico,
+    status_agendamento: card.status_agendamento,
+    pet_nome: card.pet_nome,
+    tutor_nome: card.tutor_nome,
+    servicos: card.servicos || [],
+  }));
+
+  return JSON.stringify(base);
+}
+
+async function carregarFuncionariosProducao() {
+  const empresaId = obterEmpresaId();
+
+  try {
+    const urlsTentativa = [
+      `/api/funcionarios/?empresa_id=${empresaId}`,
+      `/api/funcionarios?empresa_id=${empresaId}`,
+      "/api/funcionarios/",
+      "/api/funcionarios",
+    ];
+
+    let data = [];
+    let carregado = false;
+
+    for (const url of urlsTentativa) {
+      try {
+        const resp = await fetch(url, { cache: "no-store" });
+
+        if (!resp.ok) {
+          continue;
+        }
+
+        const json = await resp.json();
+        data = normalizarListaFuncionarios(json);
+        carregado = true;
+        break;
+      } catch (erroInterno) {
+        console.error(`Erro ao tentar carregar funcionários em ${url}:`, erroInterno);
+      }
+    }
+
+    if (!carregado) {
+      funcionariosProducaoCache = [];
+      console.error("Não foi possível carregar os funcionários da produção.");
+      return;
+    }
+
+    funcionariosProducaoCache = data.filter(funcionarioEstaAtivo);
   } catch (error) {
+    funcionariosProducaoCache = [];
     console.error("Erro ao carregar funcionários:", error);
   }
 }
@@ -104,10 +199,12 @@ function preencherSelectFuncionarios(valorSelecionado = "") {
   funcionariosProducaoCache.forEach((func) => {
     const opt = document.createElement("option");
     opt.value = String(func.id);
-    opt.textContent = `${func.nome} • ${func.funcao}`;
+    opt.textContent = `${func.nome} • ${nomeFuncaoFuncionario(func)}`;
+
     if (String(valorSelecionado) === String(func.id)) {
       opt.selected = true;
     }
+
     select.appendChild(opt);
   });
 }
@@ -148,9 +245,13 @@ function limparCamposModalAcao() {
   limparMensagemAcao();
 }
 
-function abrirModalAcao({ tipo, card }) {
+async function abrirModalAcao({ tipo, card }) {
   cardAcaoAtual = card;
   limparCamposModalAcao();
+
+  if (!funcionariosProducaoCache.length) {
+    await carregarFuncionariosProducao();
+  }
 
   document.getElementById("acao-producao-id").value = card.id;
   document.getElementById("acao-producao-coluna-atual").value = card.coluna;
@@ -210,8 +311,29 @@ function coletarIntercorrencias() {
   return itens;
 }
 
-async function carregarProducao() {
+function renderizarKanban(data) {
+  COLUNAS.forEach((coluna) => {
+    const container = document.getElementById(`coluna-${coluna}`);
+    if (container) container.innerHTML = "";
+  });
+
+  data.forEach((card) => {
+    const container = document.getElementById(`coluna-${card.coluna}`);
+    if (!container) return;
+    container.appendChild(renderCard(card));
+  });
+}
+
+async function carregarProducao(forcarRender = false) {
+  if (carregandoProducao) return;
+
+  const agora = Date.now();
+  if (!forcarRender && agora - ultimoRefreshManual < 1200) {
+    return;
+  }
+
   const empresaId = obterEmpresaId();
+  carregandoProducao = true;
 
   try {
     const resp = await fetch(`/api/producao/?empresa_id=${empresaId}`, { cache: "no-store" });
@@ -222,28 +344,33 @@ async function carregarProducao() {
     }
 
     const data = await resp.json();
+    const snapshotAtual = gerarSnapshotProducao(data);
 
-    COLUNAS.forEach((coluna) => {
-      const container = document.getElementById(`coluna-${coluna}`);
-      if (container) container.innerHTML = "";
-    });
+    if (!forcarRender && snapshotAtual === ultimoSnapshotProducao) {
+      return;
+    }
 
-    data.forEach((card) => {
-      const container = document.getElementById(`coluna-${card.coluna}`);
-      if (!container) return;
-      container.appendChild(renderCard(card));
-    });
+    ultimoSnapshotProducao = snapshotAtual;
+    renderizarKanban(data);
   } catch (error) {
     console.error("Falha ao carregar produção:", error);
+  } finally {
+    carregandoProducao = false;
   }
 }
 
 function iniciarAutoRefreshProducao() {
-  if (producaoAutoRefresh) clearInterval(producaoAutoRefresh);
+  if (producaoAutoRefresh) {
+    clearInterval(producaoAutoRefresh);
+  }
 
   producaoAutoRefresh = setInterval(async () => {
-    await carregarProducao();
-  }, 5000);
+    if (!podeExecutarAutoRefresh()) {
+      return;
+    }
+
+    await carregarProducao(false);
+  }, 12000);
 }
 
 function renderCard(card) {
@@ -265,11 +392,14 @@ function renderCard(card) {
   }
 
   const cardSerializado = JSON.stringify(card).replaceAll('"', "&quot;");
+
   const botaoIniciar = deveExibirBotaoIniciar(card)
     ? `<button type="button" onclick="abrirAcaoIniciar('${cardSerializado}')">Iniciar</button>`
     : "";
 
-  const textoAvancar = card.coluna === "SECAGEM" ? "Finalizar secagem" : "Avançar";
+  const botaoAvancar = deveExibirBotaoAvancar(card)
+    ? `<button type="button" class="btn-secundario" onclick="abrirAcaoAvancar('${cardSerializado}')">${card.coluna === "SECAGEM" ? "Finalizar secagem" : "Avançar"}</button>`
+    : "";
 
   div.innerHTML = `
     <div class="card-header">
@@ -293,7 +423,7 @@ function renderCard(card) {
 
     <div class="card-actions">
       ${botaoIniciar}
-      <button type="button" class="btn-secundario" onclick="abrirAcaoAvancar('${cardSerializado}')">${textoAvancar}</button>
+      ${botaoAvancar}
     </div>
   `;
 
@@ -332,6 +462,8 @@ async function confirmarAcaoProducao() {
     return;
   }
 
+  ultimoRefreshManual = Date.now();
+
   if (tipo === "INICIAR") {
     try {
       const resp = await fetch(`/api/producao/${producaoId}/iniciar`, {
@@ -352,7 +484,7 @@ async function confirmarAcaoProducao() {
       }
 
       fecharModalAcao();
-      await carregarProducao();
+      await carregarProducao(true);
       return;
     } catch (error) {
       console.error(error);
@@ -423,7 +555,7 @@ async function confirmarAcaoProducao() {
       }
 
       fecharModalAcao();
-      await carregarProducao();
+      await carregarProducao(true);
       return;
     } catch (error) {
       console.error(error);
@@ -434,6 +566,9 @@ async function confirmarAcaoProducao() {
 }
 
 function iniciarTimerSecagem() {
+  if (timerSecagemIniciado) return;
+  timerSecagemIniciado = true;
+
   setInterval(() => {
     document.querySelectorAll(".secagem-info").forEach((el) => {
       const inicio = new Date(el.dataset.inicio);
@@ -441,19 +576,46 @@ function iniciarTimerSecagem() {
       const limite = new Date(inicio.getTime() + minutos * 60000);
       const agora = new Date();
 
+      const card = el.closest(".card-producao");
+      if (!card) return;
+
       if (agora >= limite) {
-        const card = el.closest(".card-producao");
-        if (card) card.classList.add("alerta-secagem");
+        card.classList.add("alerta-secagem");
+      } else {
+        card.classList.remove("alerta-secagem");
       }
     });
   }, 2000);
 }
 
 function configurarEventosModal() {
+  const modalOverlay = document.getElementById("acao-producao-modal");
+
   document.getElementById("fechar-acao-producao-modal")?.addEventListener("click", fecharModalAcao);
   document.getElementById("cancelar-acao-producao")?.addEventListener("click", fecharModalAcao);
   document.getElementById("confirmar-acao-producao")?.addEventListener("click", confirmarAcaoProducao);
-  document.getElementById("btn-atualizar-producao")?.addEventListener("click", carregarProducao);
+  document.getElementById("btn-atualizar-producao")?.addEventListener("click", async () => {
+    ultimoRefreshManual = Date.now();
+    await carregarProducao(true);
+  });
+
+  modalOverlay?.addEventListener("click", (event) => {
+    if (event.target === modalOverlay) {
+      fecharModalAcao();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modalAcaoAberto()) {
+      fecharModalAcao();
+    }
+  });
+
+  document.addEventListener("visibilitychange", async () => {
+    if (!document.hidden && !modalAcaoAberto()) {
+      await carregarProducao(false);
+    }
+  });
 
   document.getElementById("acao-banho-opcao")?.addEventListener("change", (e) => {
     const valor = String(e.target.value || "").toUpperCase();
@@ -480,7 +642,7 @@ function configurarEventosModal() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   await carregarFuncionariosProducao();
-  await carregarProducao();
+  await carregarProducao(true);
 
   configurarEventosModal();
   iniciarTimerSecagem();

@@ -8,20 +8,7 @@ from app.schemas.funcionario import FuncionarioCreate, FuncionarioOut
 router = APIRouter(prefix="/api/funcionarios", tags=["funcionarios"])
 
 
-@router.get("/", response_model=list[FuncionarioOut])
-def listar(
-    q: str | None = Query(default=None),
-    db: Session = Depends(get_db)
-):
-    return funcionario_crud.list_all(db, q=q)
-
-
-@router.get("/{funcionario_id}")
-def obter(funcionario_id: int, db: Session = Depends(get_db)):
-    funcionario = funcionario_crud.get_by_id(db, funcionario_id)
-    if not funcionario:
-        raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
-
+def serializar_funcionario(funcionario):
     return {
         "id": funcionario.id,
         "empresa_id": funcionario.empresa_id,
@@ -42,8 +29,39 @@ def obter(funcionario_id: int, db: Session = Depends(get_db)):
         "acesso_crm": funcionario.acesso_crm,
         "acesso_relatorios": funcionario.acesso_relatorios,
         "acesso_configuracoes": funcionario.acesso_configuracoes,
-        "ativo": funcionario.ativo
+        "ativo": funcionario.ativo,
     }
+
+
+@router.get("/")
+def listar(
+    q: str | None = Query(default=None),
+    empresa_id: int | None = Query(default=None),
+    apenas_ativos: bool = Query(default=True),
+    apenas_producao: bool = Query(default=False),
+    db: Session = Depends(get_db)
+):
+    funcionarios = funcionario_crud.list_all(db, q=q)
+
+    if empresa_id is not None:
+        funcionarios = [f for f in funcionarios if f.empresa_id == empresa_id]
+
+    if apenas_ativos:
+        funcionarios = [f for f in funcionarios if f.ativo]
+
+    if apenas_producao:
+        funcionarios = [f for f in funcionarios if f.acesso_producao]
+
+    return [serializar_funcionario(funcionario) for funcionario in funcionarios]
+
+
+@router.get("/{funcionario_id}")
+def obter(funcionario_id: int, db: Session = Depends(get_db)):
+    funcionario = funcionario_crud.get_by_id(db, funcionario_id)
+    if not funcionario:
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+
+    return serializar_funcionario(funcionario)
 
 
 @router.post("/", response_model=FuncionarioOut)

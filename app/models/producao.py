@@ -36,3 +36,10 @@ class Producao(Base):
 
     agendamento = relationship("Agendamento", back_populates="producao")
     funcionario = relationship("Funcionario")
+
+    historicos = relationship(
+        "ProducaoHistorico",
+        back_populates="producao",
+        cascade="all, delete-orphan",
+        order_by="ProducaoHistorico.iniciado_em.asc()"
+    )

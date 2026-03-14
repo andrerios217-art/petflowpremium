@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.producao import Producao
 from app.models.agendamento import Agendamento
 from app.models.agendamento_servico import AgendamentoServico
+from app.models.producao_historico import ProducaoHistorico
 
 
 COLUNAS_VALIDAS = [
@@ -16,6 +17,20 @@ COLUNAS_VALIDAS = [
     "TOSA",
     "SECAGEM",
 ]
+
+
+def _agora_utc():
+    return datetime.now(timezone.utc)
+
+
+def _normalizar_datetime_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+
+    return dt.astimezone(timezone.utc)
 
 
 def _query_base(db: Session):
@@ -29,6 +44,7 @@ def _query_base(db: Session):
             joinedload(Producao.agendamento)
             .joinedload(Agendamento.servicos_agendamento)
             .joinedload(AgendamentoServico.servico),
+            joinedload(Producao.historicos),
         )
     )
 
@@ -70,6 +86,153 @@ def buscar_por_id(db: Session, producao_id: int):
     )
 
 
+def _servico_principal_id(ordem: Producao) -> Optional[int]:
+    if not ordem.agendamento or not ordem.agendamento.servicos_agendamento:
+        return None
+
+    primeiro_item = ordem.agendamento.servicos_agendamento[0]
+    if not primeiro_item or not primeiro_item.servico:
+        return None
+
+    return primeiro_item.servico.id
+
+
+def _calcular_tempo_gasto_minutos(
+    iniciado_em: Optional[datetime],
+    finalizado_em: Optional[datetime]
+) -> Optional[int]:
+    if not iniciado_em or not finalizado_em:
+        return None
+
+    inicio_utc = _normalizar_datetime_utc(iniciado_em)
+    fim_utc = _normalizar_datetime_utc(finalizado_em)
+
+    if not inicio_utc or not fim_utc:
+        return None
+
+    delta = fim_utc - inicio_utc
+    total_minutos = int(delta.total_seconds() // 60)
+
+    if total_minutos < 0:
+        return 0
+
+    return total_minutos
+
+
+def _buscar_historico_aberto(db: Session, producao_id: int, etapa: str) -> Optional[ProducaoHistorico]:
+    return (
+        db.query(ProducaoHistorico)
+        .filter(
+            ProducaoHistorico.producao_id == producao_id,
+            ProducaoHistorico.etapa == etapa,
+            ProducaoHistorico.finalizado_em.is_(None),
+        )
+        .order_by(ProducaoHistorico.iniciado_em.desc(), ProducaoHistorico.id.desc())
+        .first()
+    )
+
+
+def _criar_historico_etapa(
+    db: Session,
+    ordem: Producao,
+    etapa: str,
+    funcionario_id: Optional[int] = None,
+    status: str = "INICIADO",
+    observacoes: Optional[str] = None,
+    intercorrencia: Optional[str] = None,
+):
+    historico = ProducaoHistorico(
+        producao_id=ordem.id,
+        agendamento_id=ordem.agendamento_id,
+        pet_id=ordem.agendamento.pet.id if ordem.agendamento and ordem.agendamento.pet else None,
+        servico_id=_servico_principal_id(ordem),
+        funcionario_id=funcionario_id or ordem.funcionario_id,
+        etapa=etapa,
+        status=status,
+        iniciado_em=_agora_utc(),
+        observacoes=observacoes,
+        intercorrencia=intercorrencia,
+    )
+    db.add(historico)
+    return historico
+
+
+def _finalizar_historico_etapa(
+    db: Session,
+    ordem: Producao,
+    etapa: str,
+    observacoes: Optional[str] = None,
+    intercorrencia: Optional[str] = None,
+):
+    historico = _buscar_historico_aberto(db, ordem.id, etapa)
+    if not historico:
+        return None
+
+    agora = _agora_utc()
+    historico.finalizado_em = agora
+    historico.status = "FINALIZADO"
+    historico.tempo_gasto_minutos = _calcular_tempo_gasto_minutos(historico.iniciado_em, agora)
+
+    if observacoes:
+        historico.observacoes = _mesclar_texto_existente(historico.observacoes, observacoes)
+
+    if intercorrencia:
+        historico.intercorrencia = _mesclar_texto_existente(historico.intercorrencia, intercorrencia)
+
+    return historico
+
+
+def _garantir_historico_iniciado(db: Session, ordem: Producao, funcionario_id: Optional[int] = None):
+    historico_aberto = _buscar_historico_aberto(db, ordem.id, ordem.coluna)
+    if historico_aberto:
+        if funcionario_id and historico_aberto.funcionario_id is None:
+            historico_aberto.funcionario_id = funcionario_id
+        return historico_aberto
+
+    return _criar_historico_etapa(
+        db=db,
+        ordem=ordem,
+        etapa=ordem.coluna,
+        funcionario_id=funcionario_id,
+        status="INICIADO",
+    )
+
+
+def _validar_pode_iniciar(ordem: Producao):
+    if ordem.finalizado:
+        raise ValueError("Esta ordem de produção já foi finalizada.")
+
+    status = StringStatus(ordem.etapa_status)
+
+    if status == "EM_EXECUCAO":
+        raise ValueError("Esta etapa já foi iniciada.")
+
+    if status == "CONCLUIDO":
+        raise ValueError("Esta etapa já foi concluída.")
+
+
+def _validar_pode_avancar(ordem: Producao):
+    if ordem.finalizado:
+        raise ValueError("Esta ordem de produção já foi finalizada.")
+
+    coluna = StringStatus(ordem.coluna)
+    status = StringStatus(ordem.etapa_status)
+
+    if coluna == "SECAGEM":
+        return
+
+    if status != "EM_EXECUCAO":
+        raise ValueError("Esta etapa precisa ser iniciada antes de avançar.")
+
+
+def StringStatus(valor: Optional[str]) -> str:
+    return StringValue(valor).upper()
+
+
+def StringValue(valor: Optional[str]) -> str:
+    return str(valor or "").strip()
+
+
 def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento):
     ordem_existente = buscar_por_agendamento(db, agendamento.id)
     if ordem_existente:
@@ -90,6 +253,8 @@ def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento):
 
 
 def iniciar_etapa(db: Session, ordem: Producao, funcionario_id: int):
+    _validar_pode_iniciar(ordem)
+
     if ordem.coluna == "SECAGEM":
         return buscar_por_id(db, ordem.id)
 
@@ -97,6 +262,13 @@ def iniciar_etapa(db: Session, ordem: Producao, funcionario_id: int):
         ordem.funcionario_id = funcionario_id
 
     ordem.etapa_status = "EM_EXECUCAO"
+
+    _garantir_historico_iniciado(
+        db=db,
+        ordem=ordem,
+        funcionario_id=funcionario_id,
+    )
+
     db.commit()
     db.refresh(ordem)
 
@@ -175,6 +347,8 @@ def mover_para_proxima_etapa(
     descricao_intercorrencia=None,
     observacoes_gerais: Optional[str] = None,
 ):
+    _validar_pode_avancar(ordem)
+
     if funcionario_id and ordem.funcionario_id is None:
         ordem.funcionario_id = funcionario_id
 
@@ -185,6 +359,16 @@ def mover_para_proxima_etapa(
         descricao_intercorrencia
     )
 
+    historico_aberto = _buscar_historico_aberto(db, ordem.id, ordem.coluna)
+    if not historico_aberto and ordem.etapa_status == "EM_EXECUCAO":
+        historico_aberto = _criar_historico_etapa(
+            db=db,
+            ordem=ordem,
+            etapa=ordem.coluna,
+            funcionario_id=funcionario_id or ordem.funcionario_id,
+            status="INICIADO",
+        )
+
     if ordem.coluna == "PRE_BANHO" and texto_intercorrencias:
         ordem.intercorrencias = _mesclar_texto_existente(ordem.intercorrencias, texto_intercorrencias)
         ordem.agendamento.tem_intercorrencia = True
@@ -193,10 +377,28 @@ def mover_para_proxima_etapa(
         if not secagem_tempo or secagem_tempo <= 0:
             raise ValueError("Informe um tempo de secagem válido.")
 
+        _finalizar_historico_etapa(
+            db=db,
+            ordem=ordem,
+            etapa=ordem.coluna,
+            observacoes=observacoes_gerais,
+            intercorrencia=texto_intercorrencias,
+        )
+
         ordem.secagem_tempo = secagem_tempo
-        ordem.secagem_inicio = datetime.utcnow()
+        ordem.secagem_inicio = _agora_utc()
         ordem.coluna = "SECAGEM"
         ordem.etapa_status = "AGUARDANDO"
+
+        observacao_secagem = f"Secagem programada por {secagem_tempo} minuto(s)."
+        _criar_historico_etapa(
+            db=db,
+            ordem=ordem,
+            etapa="SECAGEM",
+            funcionario_id=funcionario_id or ordem.funcionario_id,
+            status="INICIADO",
+            observacoes=observacao_secagem,
+        )
 
     elif destino == "FINALIZAR":
         if texto_intercorrencias:
@@ -205,13 +407,37 @@ def mover_para_proxima_etapa(
 
         ordem.observacoes = _mesclar_texto_existente(ordem.observacoes, observacoes_gerais)
 
+        _finalizar_historico_etapa(
+            db=db,
+            ordem=ordem,
+            etapa=ordem.coluna,
+            observacoes=observacoes_gerais,
+            intercorrencia=texto_intercorrencias,
+        )
+
         ordem.finalizado = True
         ordem.etapa_status = "CONCLUIDO"
         ordem.agendamento.status = "FINALIZADO"
 
     else:
+        _finalizar_historico_etapa(
+            db=db,
+            ordem=ordem,
+            etapa=ordem.coluna,
+            observacoes=observacoes_gerais,
+            intercorrencia=texto_intercorrencias,
+        )
+
         ordem.coluna = destino
         ordem.etapa_status = "AGUARDANDO"
+
+        _criar_historico_etapa(
+            db=db,
+            ordem=ordem,
+            etapa=destino,
+            funcionario_id=funcionario_id or ordem.funcionario_id,
+            status="INICIADO",
+        )
 
     db.commit()
     db.refresh(ordem)

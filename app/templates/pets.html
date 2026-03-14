@@ -13,7 +13,12 @@
 
 <section class="glass-card">
   <div class="section-topbar">
-    <input type="text" id="busca-pets" placeholder="Buscar por nome, raça ou porte" class="search-input" />
+    <input
+      type="text"
+      id="busca-pets"
+      placeholder="Buscar por nome, raça ou porte"
+      class="search-input"
+    />
   </div>
 
   <div class="table-wrap">
@@ -26,45 +31,566 @@
           <th>Sexo</th>
           <th>Porte</th>
           <th>Status</th>
+          <th style="width: 280px;">Ações</th>
         </tr>
       </thead>
       <tbody id="pets-tbody">
         <tr>
-          <td colspan="6">Carregando pets...</td>
+          <td colspan="7">Carregando pets...</td>
         </tr>
       </tbody>
     </table>
   </div>
 </section>
 
-<script>
-  async function carregarPets(q = "") {
-    const response = await fetch(`/api/pets?q=${encodeURIComponent(q)}`);
-    const data = await response.json();
+<div id="pet-historico-modal" class="pet-historico-modal hidden">
+  <div class="pet-historico-backdrop" id="pet-historico-backdrop"></div>
 
-    const tbody = document.getElementById("pets-tbody");
+  <div class="pet-historico-dialog">
+    <div class="pet-historico-header">
+      <div>
+        <h2 id="pet-historico-titulo">Histórico do Pet</h2>
+        <p id="pet-historico-subtitulo">Visualização completa de atendimentos e produção.</p>
+      </div>
 
-    if (!data.length) {
-      tbody.innerHTML = `<tr><td colspan="6">Nenhum pet encontrado.</td></tr>`;
-      return;
-    }
+      <button
+        type="button"
+        class="pet-historico-close"
+        id="pet-historico-close"
+        aria-label="Fechar histórico"
+      >
+        ×
+      </button>
+    </div>
 
-    tbody.innerHTML = data.map(pet => `
-      <tr>
-        <td>${pet.nome ?? "-"}</td>
-        <td>${pet.cliente_id ?? "-"}</td>
-        <td>${pet.raca ?? "-"}</td>
-        <td>${pet.sexo ?? "-"}</td>
-        <td>${pet.porte ?? "-"}</td>
-        <td>${pet.ativo ? "Ativo" : "Inativo"}</td>
-      </tr>
-    `).join("");
+    <div class="pet-historico-body" id="pet-historico-body">
+      <div class="pet-historico-loading">
+        Carregando histórico...
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pet-confirm-modal" class="pet-confirm-modal hidden">
+  <div class="pet-confirm-backdrop" id="pet-confirm-backdrop"></div>
+
+  <div class="pet-confirm-dialog">
+    <div class="pet-confirm-header">
+      <div>
+        <h3 id="pet-confirm-title">Confirmar ação</h3>
+        <p id="pet-confirm-subtitle">Revise a ação antes de continuar.</p>
+      </div>
+
+      <button
+        type="button"
+        class="pet-confirm-close"
+        id="pet-confirm-close"
+        aria-label="Fechar confirmação"
+      >
+        ×
+      </button>
+    </div>
+
+    <div class="pet-confirm-body">
+      <div class="pet-confirm-message" id="pet-confirm-message">
+        Deseja continuar?
+      </div>
+    </div>
+
+    <div class="pet-confirm-footer">
+      <button
+        type="button"
+        class="pet-confirm-btn secondary"
+        id="pet-confirm-cancel"
+      >
+        Cancelar
+      </button>
+
+      <button
+        type="button"
+        class="pet-confirm-btn primary"
+        id="pet-confirm-submit"
+      >
+        Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .pet-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
-  document.getElementById("busca-pets").addEventListener("input", function () {
-    carregarPets(this.value);
-  });
+  .pet-action-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
 
-  carregarPets();
-</script>
+  .pet-action-btn.historico {
+    background: linear-gradient(135deg, #6d4aff, #8d6bff);
+    color: #fff;
+  }
+
+  .pet-action-btn.historico:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+  }
+
+  .pet-action-btn.toggle-ativo {
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    color: #fff;
+  }
+
+  .pet-action-btn.toggle-inativo {
+    background: linear-gradient(135deg, #b45309, #f59e0b);
+    color: #fff;
+  }
+
+  .pet-action-btn.toggle-ativo:hover,
+  .pet-action-btn.toggle-inativo:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+  }
+
+  .pet-historico-modal.hidden,
+  .pet-confirm-modal.hidden {
+    display: none;
+  }
+
+  .pet-historico-modal,
+  .pet-confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+  }
+
+  .pet-historico-backdrop,
+  .pet-confirm-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 10, 20, 0.58);
+    backdrop-filter: blur(4px);
+  }
+
+  .pet-historico-dialog {
+    position: relative;
+    width: min(1200px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    margin: 16px auto;
+    background: #ffffff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pet-confirm-dialog {
+    position: relative;
+    width: min(520px, calc(100vw - 32px));
+    margin: 80px auto;
+    background: #ffffff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pet-historico-header,
+  .pet-confirm-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    background: linear-gradient(135deg, #f7f4ff 0%, #ffffff 100%);
+  }
+
+  .pet-historico-header h2,
+  .pet-confirm-header h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1d29;
+  }
+
+  .pet-historico-header p,
+  .pet-confirm-header p {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+
+  .pet-historico-close,
+  .pet-confirm-close {
+    border: none;
+    background: #f3f4f6;
+    color: #111827;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .pet-historico-close:hover,
+  .pet-confirm-close:hover {
+    background: #e5e7eb;
+  }
+
+  .pet-historico-body {
+    padding: 24px 28px 28px;
+    overflow-y: auto;
+    background: #f8fafc;
+  }
+
+  .pet-confirm-body {
+    padding: 24px 28px 12px;
+    background: #ffffff;
+  }
+
+  .pet-confirm-message {
+    background: #f8fafc;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 18px;
+    padding: 18px;
+    color: #1f2937;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .pet-confirm-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px 28px 24px;
+    background: #ffffff;
+  }
+
+  .pet-confirm-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .pet-confirm-btn.secondary {
+    background: #f3f4f6;
+    color: #111827;
+  }
+
+  .pet-confirm-btn.secondary:hover {
+    background: #e5e7eb;
+  }
+
+  .pet-confirm-btn.primary {
+    background: linear-gradient(135deg, #6d4aff, #8d6bff);
+    color: #fff;
+  }
+
+  .pet-confirm-btn.primary:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+  }
+
+  .pet-historico-loading,
+  .pet-historico-empty,
+  .pet-historico-error {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 22px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: #374151;
+    font-size: 14px;
+  }
+
+  .pet-historico-error {
+    border-left: 4px solid #ef4444;
+  }
+
+  .pet-resumo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  .pet-resumo-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  }
+
+  .pet-resumo-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8a8fa3;
+    margin-bottom: 6px;
+  }
+
+  .pet-resumo-valor {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+    word-break: break-word;
+  }
+
+  .pet-resumo-card.full {
+    grid-column: span 2;
+  }
+
+  .pet-section-title {
+    margin: 28px 0 14px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .pet-atendimentos-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .pet-atendimento-card {
+    background: #ffffff;
+    border-radius: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  }
+
+  .pet-atendimento-topo {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+  }
+
+  .pet-atendimento-topo h4 {
+    margin: 0 0 6px;
+    font-size: 17px;
+    color: #111827;
+  }
+
+  .pet-atendimento-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pet-chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #eef2ff;
+    color: #4338ca;
+  }
+
+  .pet-chip.ok {
+    background: #ecfdf5;
+    color: #047857;
+  }
+
+  .pet-chip.warn {
+    background: #fff7ed;
+    color: #c2410c;
+  }
+
+  .pet-chip.roxo {
+    background: #f5f3ff;
+    color: #6d28d9;
+  }
+
+  .pet-atendimento-conteudo {
+    padding: 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .pet-info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .pet-info-box {
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .pet-info-box .label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #8a8fa3;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  .pet-info-box .value {
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 600;
+    white-space: pre-line;
+  }
+
+  .pet-timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 10px;
+  }
+
+  .pet-timeline-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 12px;
+  }
+
+  .pet-timeline-marker-wrap {
+    display: flex;
+    justify-content: center;
+  }
+
+  .pet-timeline-marker {
+    width: 12px;
+    height: 12px;
+    margin-top: 6px;
+    border-radius: 999px;
+    background: #7c3aed;
+    box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+  }
+
+  .pet-timeline-content {
+    background: #faf7ff;
+    border: 1px solid rgba(124, 58, 237, 0.10);
+    border-radius: 16px;
+    padding: 14px 16px;
+  }
+
+  .pet-timeline-titulo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .pet-timeline-titulo strong {
+    color: #3b0764;
+    font-size: 14px;
+  }
+
+  .pet-timeline-status {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6d28d9;
+    background: #ede9fe;
+    border-radius: 999px;
+    padding: 4px 8px;
+  }
+
+  .pet-timeline-detalhes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .pet-timeline-detalhes div {
+    font-size: 13px;
+    color: #374151;
+  }
+
+  .pet-timeline-detalhes span {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #8a8fa3;
+    margin-bottom: 4px;
+  }
+
+  @media (max-width: 1100px) {
+    .pet-resumo-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pet-info-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 768px) {
+    .pet-historico-dialog,
+    .pet-confirm-dialog {
+      width: calc(100vw - 16px);
+      max-height: calc(100vh - 16px);
+      margin: 8px auto;
+      border-radius: 18px;
+    }
+
+    .pet-historico-header,
+    .pet-historico-body,
+    .pet-confirm-header,
+    .pet-confirm-body,
+    .pet-confirm-footer {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .pet-resumo-grid,
+    .pet-info-grid,
+    .pet-timeline-detalhes {
+      grid-template-columns: 1fr;
+    }
+
+    .pet-resumo-card.full {
+      grid-column: span 1;
+    }
+
+    .pet-atendimento-topo {
+      flex-direction: column;
+    }
+
+    .pet-confirm-footer {
+      flex-direction: column-reverse;
+    }
+
+    .pet-confirm-btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<script src="/static/js/pets.js"></script>
 {% endblock %}

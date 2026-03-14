@@ -10,6 +10,11 @@ class Servico(Base):
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
 
     nome = Column(String(120), nullable=False)
+
+    # PETSHOP ou VETERINARIO
+    tipo_servico = Column(String(20), nullable=False, default="PETSHOP", index=True)
+
+    # G1 - Mini até G5 - Gigante
     porte_referencia = Column(String(10), nullable=False)
 
     custo = Column(Numeric(10, 2), nullable=False)

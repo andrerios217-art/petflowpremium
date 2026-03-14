@@ -7,6 +7,7 @@ from app.models.agendamento import Agendamento
 from app.schemas.producao import (
     ProducaoAvancarEtapa,
     ProducaoCardResponse,
+    ProducaoHistoricoResponse,
     ProducaoIniciarEtapa,
 )
 
@@ -74,7 +75,10 @@ def iniciar_etapa(
     if not ordem:
         raise HTTPException(status_code=404, detail="Card de produção não encontrado.")
 
-    ordem = crud_producao.iniciar_etapa(db, ordem, payload.funcionario_id)
+    try:
+        ordem = crud_producao.iniciar_etapa(db, ordem, payload.funcionario_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     if not ordem:
         raise HTTPException(status_code=400, detail="Não foi possível iniciar a etapa.")
@@ -112,3 +116,43 @@ def avancar_para_proxima_etapa(
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{producao_id}/historico", response_model=ProducaoHistoricoResponse)
+def historico_producao(
+    producao_id: int,
+    db: Session = Depends(get_db)
+):
+    ordem = crud_producao.buscar_por_id(db, producao_id)
+
+    if not ordem:
+        raise HTTPException(status_code=404, detail="Produção não encontrada.")
+
+    historico_ordenado = sorted(
+        ordem.historicos or [],
+        key=lambda h: (
+            h.iniciado_em is None,
+            h.iniciado_em,
+            h.id,
+        )
+    )
+
+    historico = []
+
+    for h in historico_ordenado:
+        historico.append({
+            "etapa": h.etapa,
+            "status": h.status,
+            "funcionario_id": h.funcionario_id,
+            "funcionario_nome": h.funcionario.nome if h.funcionario else None,
+            "inicio": h.iniciado_em,
+            "fim": h.finalizado_em,
+            "tempo_minutos": h.tempo_gasto_minutos,
+            "intercorrencia": h.intercorrencia,
+            "observacoes": h.observacoes,
+        })
+
+    return {
+        "producao_id": ordem.id,
+        "historico": historico,
+    }
