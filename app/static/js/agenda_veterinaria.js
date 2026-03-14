@@ -7,6 +7,7 @@
         pets: [],
         funcionarios: [],
         servicos: [],
+        servicosSelecionados: [],
         agendamentoAtual: null,
         historicoAberto: false,
         atendimentoClinicoId: null,
@@ -33,7 +34,9 @@
         agVetDataHora: document.getElementById("agVetDataHora"),
         agVetPrioridade: document.getElementById("agVetPrioridade"),
         agVetStatus: document.getElementById("agVetStatus"),
-        agVetServicosChecklist: document.getElementById("agVetServicosChecklist"),
+        agVetServicoSelect: document.getElementById("agVetServicoSelect"),
+        btnAdicionarServicoVet: document.getElementById("btnAdicionarServicoVet"),
+        agVetServicosSelecionados: document.getElementById("agVetServicosSelecionados"),
         agVetObservacoes: document.getElementById("agVetObservacoes"),
 
         modalAtendimentoClinicoOverlay: document.getElementById("modalAtendimentoClinicoOverlay"),
@@ -119,6 +122,10 @@
             });
         }
 
+        if (el.btnAdicionarServicoVet) {
+            el.btnAdicionarServicoVet.addEventListener("click", adicionarServicoVetSelecionado);
+        }
+
         if (el.agVetCliente) {
             el.agVetCliente.addEventListener("change", async (event) => {
                 const clienteId = event.target.value;
@@ -170,6 +177,13 @@
             if (btnVerHistorico) {
                 const petId = Number(btnVerHistorico.dataset.petId);
                 abrirHistoricoPetPorId(petId);
+                return;
+            }
+
+            const btnRemoverServico = event.target.closest("[data-action='remover-servico-vet']");
+            if (btnRemoverServico) {
+                const servicoId = Number(btnRemoverServico.dataset.servicoId);
+                removerServicoVetSelecionado(servicoId);
             }
         });
 
@@ -445,6 +459,7 @@
                     (funcionario) => `
                         <option value="${Number(funcionario.id || 0)}">
                             ${escapeHtml(funcionario.nome || "")}
+                            ${funcionario.funcao ? ` • ${escapeHtml(funcionario.funcao)}` : ""}
                         </option>
                     `
                 )
@@ -461,47 +476,105 @@
             );
 
             state.servicos = Array.isArray(data) ? data : [];
-            preencherChecklistServicos();
+            preencherSelectServicosVet();
         } catch (error) {
             console.error(error);
         }
     }
 
-    function preencherChecklistServicos() {
-        if (!el.agVetServicosChecklist) return;
+    function preencherSelectServicosVet() {
+        if (!el.agVetServicoSelect) return;
 
-        if (!state.servicos.length) {
-            el.agVetServicosChecklist.innerHTML = `
+        el.agVetServicoSelect.innerHTML = `
+            <option value="">Selecione um serviço veterinário</option>
+            ${state.servicos
+                .map(
+                    (servico) => `
+                        <option value="${Number(servico.id || 0)}">
+                            ${escapeHtml(servico.nome || "")}
+                            ${servico.porte_referencia ? ` • ${escapeHtml(servico.porte_referencia)}` : ""}
+                            • ${formatCurrency(servico.valor || 0)}
+                        </option>
+                    `
+                )
+                .join("")}
+        `;
+    }
+
+    function renderServicosSelecionadosVet() {
+        if (!el.agVetServicosSelecionados) return;
+
+        if (!state.servicosSelecionados.length) {
+            el.agVetServicosSelecionados.innerHTML = `
                 <div class="empty-state">
-                    <h4>Sem serviços veterinários</h4>
-                    <p>Cadastre ou ajuste serviços com tipo VETERINARIO.</p>
+                    <h4>Nenhum serviço selecionado</h4>
+                    <p>Adicione ao menos um serviço veterinário para o agendamento.</p>
                 </div>
             `;
             return;
         }
 
-        el.agVetServicosChecklist.innerHTML = state.servicos
+        el.agVetServicosSelecionados.innerHTML = state.servicosSelecionados
             .map(
                 (servico) => `
-                    <label class="check-item">
-                        <input type="checkbox" name="agVetServico" value="${Number(servico.id || 0)}">
+                    <div class="selected-service-item">
                         <span>
                             ${escapeHtml(servico.nome || "")}
-                            ${escapeHtml(servico.porte_referencia || "-")}
-                            | ${formatCurrency(servico.valor || 0)}
+                            ${servico.porte_referencia ? ` • ${escapeHtml(servico.porte_referencia)}` : ""}
+                            • ${formatCurrency(servico.valor || 0)}
                         </span>
-                    </label>
+                        <button
+                            type="button"
+                            class="remove-service-btn"
+                            data-action="remover-servico-vet"
+                            data-servico-id="${Number(servico.id || 0)}"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 `
             )
             .join("");
     }
 
-    function obterServicosSelecionados() {
-        if (!el.agVetServicosChecklist) return [];
+    function adicionarServicoVetSelecionado() {
+        const servicoId = Number(el.agVetServicoSelect?.value || 0);
 
-        return Array.from(
-            el.agVetServicosChecklist.querySelectorAll("input[name='agVetServico']:checked")
-        ).map((input) => Number(input.value));
+        if (!servicoId) {
+            showToast("Selecione um serviço veterinário.", "error");
+            return;
+        }
+
+        const servico = state.servicos.find((item) => Number(item.id) === servicoId);
+        if (!servico) {
+            showToast("Serviço veterinário não encontrado.", "error");
+            return;
+        }
+
+        const jaExiste = state.servicosSelecionados.some((item) => Number(item.id) === servicoId);
+        if (jaExiste) {
+            showToast("Esse serviço já foi adicionado.", "error");
+            if (el.agVetServicoSelect) el.agVetServicoSelect.value = "";
+            return;
+        }
+
+        state.servicosSelecionados.push(servico);
+        renderServicosSelecionadosVet();
+
+        if (el.agVetServicoSelect) {
+            el.agVetServicoSelect.value = "";
+        }
+    }
+
+    function removerServicoVetSelecionado(servicoId) {
+        state.servicosSelecionados = state.servicosSelecionados.filter(
+            (item) => Number(item.id) !== Number(servicoId)
+        );
+        renderServicosSelecionadosVet();
+    }
+
+    function obterServicosSelecionados() {
+        return state.servicosSelecionados.map((item) => Number(item.id)).filter(Boolean);
     }
 
     function abrirModalAgendamentoVet() {
@@ -531,14 +604,10 @@
         if (el.agVetPrioridade) el.agVetPrioridade.value = "NORMAL";
         if (el.agVetStatus) el.agVetStatus.value = "AGUARDANDO";
         if (el.agVetObservacoes) el.agVetObservacoes.value = "";
+        if (el.agVetServicoSelect) el.agVetServicoSelect.value = "";
 
-        if (el.agVetServicosChecklist) {
-            el.agVetServicosChecklist
-                .querySelectorAll("input[name='agVetServico']")
-                .forEach((input) => {
-                    input.checked = false;
-                });
-        }
+        state.servicosSelecionados = [];
+        renderServicosSelecionadosVet();
     }
 
     async function salvarAgendamentoVet() {
@@ -558,6 +627,7 @@
 
             if (!payload.cliente_id) throw new Error("Selecione o tutor.");
             if (!payload.pet_id) throw new Error("Selecione o pet.");
+            if (!payload.funcionario_id) throw new Error("Selecione o responsável veterinário.");
             if (!payload.data_agendamento) throw new Error("Informe a data/hora.");
             if (!payload.servico_ids.length) {
                 throw new Error("Selecione ao menos um serviço veterinário.");
@@ -646,9 +716,6 @@
             state.atendimentoClinicoModo = "backend";
 
             await carregarDetalheAtendimentoClinico(data.id);
-
-            // Removido propositalmente:
-            // showToast("Atendimento clínico iniciado.");
         } catch (error) {
             console.error(error);
 

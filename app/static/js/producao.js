@@ -219,13 +219,83 @@ function mostrarMensagemAcao(texto) {
   if (el) el.innerText = texto;
 }
 
+function garantirToggleSecagem() {
+  const grupoAcaoBanho = document.getElementById("grupo-acao-banho");
+  if (!grupoAcaoBanho) return;
+
+  let wrapper = document.getElementById("acao-banho-toggle-wrapper");
+  if (!wrapper) {
+    wrapper = document.createElement("div");
+    wrapper.id = "acao-banho-toggle-wrapper";
+    wrapper.className = "form-group";
+    wrapper.innerHTML = `
+      <label style="display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%;">
+        <span>Enviar para secagem</span>
+        <span style="display:flex; align-items:center; gap:10px;">
+          <span id="acao-banho-toggle-texto" style="font-weight:600; color:var(--muted);">Não</span>
+          <span class="switch">
+            <input type="checkbox" id="acao-banho-toggle-secagem">
+            <span class="slider"></span>
+          </span>
+        </span>
+      </label>
+    `;
+    grupoAcaoBanho.appendChild(wrapper);
+  }
+
+  const selectOriginal = document.getElementById("acao-banho-opcao");
+  if (selectOriginal) {
+    const blocoOriginal = selectOriginal.closest(".form-group") || selectOriginal.parentElement;
+    if (blocoOriginal) {
+      blocoOriginal.classList.add("hidden");
+    } else {
+      selectOriginal.classList.add("hidden");
+    }
+  }
+
+  const toggle = document.getElementById("acao-banho-toggle-secagem");
+  const texto = document.getElementById("acao-banho-toggle-texto");
+  const grupoSecagem = document.getElementById("grupo-secagem");
+
+  if (!toggle || !texto || !grupoSecagem) return;
+
+  const atualizarUI = () => {
+    if (toggle.checked) {
+      texto.innerText = "Sim";
+      grupoSecagem.classList.remove("hidden");
+    } else {
+      texto.innerText = "Não";
+      grupoSecagem.classList.add("hidden");
+      const inputTempo = document.getElementById("acao-secagem-tempo");
+      if (inputTempo) inputTempo.value = "";
+    }
+  };
+
+  toggle.onchange = atualizarUI;
+  atualizarUI();
+}
+
 function limparCamposModalAcao() {
   document.getElementById("acao-producao-id").value = "";
   document.getElementById("acao-producao-coluna-atual").value = "";
   document.getElementById("acao-producao-tipo").value = "";
   document.getElementById("acao-producao-finaliza").value = "";
 
-  document.getElementById("acao-banho-opcao").value = "";
+  const campoAcaoBanho = document.getElementById("acao-banho-opcao");
+  if (campoAcaoBanho) {
+    campoAcaoBanho.value = "";
+  }
+
+  const toggleSecagem = document.getElementById("acao-banho-toggle-secagem");
+  if (toggleSecagem) {
+    toggleSecagem.checked = false;
+  }
+
+  const textoToggle = document.getElementById("acao-banho-toggle-texto");
+  if (textoToggle) {
+    textoToggle.innerText = "Não";
+  }
+
   document.getElementById("acao-secagem-tempo").value = "";
   document.getElementById("acao-descricao-intercorrencia").value = "";
   document.getElementById("acao-observacoes-gerais").value = "";
@@ -275,8 +345,9 @@ async function abrirModalAcao({ tipo, card }) {
       subtitulo.innerText = "A próxima etapa será definida automaticamente pelo agendamento.";
       document.getElementById("grupo-intercorrencias").classList.remove("hidden");
     } else if (card.coluna === "BANHO") {
-      subtitulo.innerText = "Escolha se o pet vai para secagem ou finalização do banho.";
+      subtitulo.innerText = "Ative o botão abaixo se o pet for para secagem.";
       document.getElementById("grupo-acao-banho").classList.remove("hidden");
+      garantirToggleSecagem();
     } else if (card.coluna === "SECAGEM") {
       subtitulo.innerText = "Finalize a secagem para seguir automaticamente para a próxima etapa.";
     } else {
@@ -508,14 +579,10 @@ async function confirmarAcaoProducao() {
     }
 
     if (cardAcaoAtual?.coluna === "BANHO") {
-      const opcaoBanho = document.getElementById("acao-banho-opcao").value;
+      const toggleSecagem = document.getElementById("acao-banho-toggle-secagem");
+      const vaiParaSecagem = !!toggleSecagem?.checked;
 
-      if (!opcaoBanho) {
-        mostrarMensagemAcao("Selecione a ação do banho.");
-        return;
-      }
-
-      if (opcaoBanho === "SECAGEM") {
+      if (vaiParaSecagem) {
         payload.usar_secagem = true;
 
         const tempo = Number(document.getElementById("acao-secagem-tempo").value);
@@ -525,6 +592,8 @@ async function confirmarAcaoProducao() {
         }
 
         payload.secagem_tempo = tempo;
+      } else {
+        payload.usar_secagem = false;
       }
     }
 
@@ -614,18 +683,6 @@ function configurarEventosModal() {
   document.addEventListener("visibilitychange", async () => {
     if (!document.hidden && !modalAcaoAberto()) {
       await carregarProducao(false);
-    }
-  });
-
-  document.getElementById("acao-banho-opcao")?.addEventListener("change", (e) => {
-    const valor = String(e.target.value || "").toUpperCase();
-    const grupoSecagem = document.getElementById("grupo-secagem");
-
-    if (valor === "SECAGEM") {
-      grupoSecagem.classList.remove("hidden");
-    } else {
-      grupoSecagem.classList.add("hidden");
-      document.getElementById("acao-secagem-tempo").value = "";
     }
   });
 

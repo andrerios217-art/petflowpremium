@@ -37,41 +37,6 @@
   --danger-soft-hover: rgba(220, 38, 38, 0.14);
 }
 
-:root[data-theme="dark"] {
-  --bg: #0f1724;
-  --primary: #5aa2ff;
-  --primary-soft: rgba(90, 162, 255, 0.14);
-  --text: #e8eef8;
-  --muted: #94a3b8;
-  --glass: rgba(18, 24, 38, 0.72);
-  --glass-strong: rgba(18, 24, 38, 0.84);
-  --border: rgba(255, 255, 255, 0.08);
-  --shadow: 0 18px 45px rgba(0, 0, 0, 0.30);
-  --shadow-hover: 0 24px 55px rgba(0, 0, 0, 0.40);
-
-  --page-bg-gradient-1: rgba(90, 162, 255, 0.12);
-  --page-bg-gradient-2: rgba(0, 106, 255, 0.06);
-
-  --surface: #111827;
-  --surface-soft: #182233;
-  --surface-muted: #1f2937;
-  --border-soft: rgba(255, 255, 255, 0.08);
-
-  --input-bg: rgba(17, 24, 39, 0.92);
-  --input-border: rgba(255, 255, 255, 0.08);
-  --input-focus: rgba(90, 162, 255, 0.55);
-  --input-focus-ring: rgba(90, 162, 255, 0.12);
-
-  --table-border: rgba(255, 255, 255, 0.08);
-  --overlay: rgba(2, 6, 23, 0.52);
-
-  --topbar-bg: rgba(17, 24, 39, 0.70);
-  --topbar-border: rgba(255, 255, 255, 0.08);
-
-  --danger-soft: rgba(220, 38, 38, 0.16);
-  --danger-soft-hover: rgba(220, 38, 38, 0.22);
-}
-
 * {
   box-sizing: border-box;
   font-family: "Plus Jakarta Sans", Arial, sans-serif;
@@ -321,36 +286,6 @@ html, body {
   color: var(--muted);
 }
 
-.theme-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--border-soft);
-  border-radius: 16px;
-  padding: 10px 14px;
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  font-weight: 700;
-  transition: all 0.2s ease;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
-}
-
-.theme-toggle-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-hover);
-}
-
-.theme-toggle-icon {
-  font-size: 16px;
-  line-height: 1;
-}
-
-.theme-toggle-text {
-  font-size: 0.92rem;
-  line-height: 1;
-}
-
 .page-header {
   display: flex;
   align-items: center;
@@ -370,6 +305,13 @@ html, body {
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 0.98rem;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .stats-grid {
@@ -479,11 +421,6 @@ html, body {
   .topbar-global-right {
     justify-content: flex-end;
   }
-
-  .theme-toggle-btn {
-    width: 100%;
-    justify-content: center;
-  }
 }
 
 /* PREMIUM LOGIN */
@@ -494,13 +431,6 @@ html, body {
     radial-gradient(circle at top left, rgba(0, 106, 255, 0.18), transparent 30%),
     radial-gradient(circle at bottom right, rgba(0, 106, 255, 0.12), transparent 32%),
     linear-gradient(135deg, #f6f9fc 0%, #eef4fb 100%);
-}
-
-:root[data-theme="dark"] .premium-login-page {
-  background:
-    radial-gradient(circle at top left, rgba(90, 162, 255, 0.16), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(0, 106, 255, 0.12), transparent 32%),
-    linear-gradient(135deg, #0f1724 0%, #111827 100%);
 }
 
 .premium-login-shell {
@@ -827,6 +757,10 @@ html, body {
   gap: 18px;
 }
 
+.form-grid.form-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -839,16 +773,24 @@ html, body {
   color: var(--text);
 }
 
-.form-group input {
+.form-group input,
+.form-group select,
+.form-group textarea,
+.input {
   border: 1px solid var(--input-border);
   border-radius: 18px;
   padding: 14px 16px;
   background: var(--input-bg);
   color: var(--text);
   outline: none;
+  width: 100%;
+  font-size: 0.95rem;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus,
+.input:focus {
   border-color: var(--input-focus);
   box-shadow: 0 0 0 4px var(--input-focus-ring);
 }
@@ -877,23 +819,10 @@ html, body {
 }
 
 @media (max-width: 900px) {
-  .form-grid {
+  .form-grid,
+  .form-grid.form-grid-2 {
     grid-template-columns: 1fr;
   }
-}
-
-.form-group select {
-  border: 1px solid var(--input-border);
-  border-radius: 18px;
-  padding: 14px 16px;
-  background: var(--input-bg);
-  color: var(--text);
-  outline: none;
-}
-
-.form-group select:focus {
-  border-color: var(--input-focus);
-  box-shadow: 0 0 0 4px var(--input-focus-ring);
 }
 
 .full-width {
@@ -1128,10 +1057,6 @@ html, body {
   background: rgba(255,255,255,0.4);
 }
 
-:root[data-theme="dark"] .agenda-column-header {
-  background: rgba(17, 24, 39, 0.38);
-}
-
 .agenda-column-header span {
   color: var(--muted);
   margin-left: 6px;
@@ -1273,15 +1198,29 @@ html, body {
   display: none !important;
 }
 
-.modal-backdrop {
+.modal-backdrop,
+.modal-overlay {
   position: fixed;
   inset: 0;
   background: var(--overlay);
   backdrop-filter: blur(6px);
-  display: grid;
-  place-items: center;
   z-index: 1000;
   padding: 20px;
+}
+
+.modal-backdrop {
+  display: grid;
+  place-items: center;
+}
+
+.modal-overlay {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
 }
 
 .modal-card {
@@ -1293,10 +1232,17 @@ html, body {
   backdrop-filter: blur(18px);
   box-shadow: 0 26px 60px rgba(31, 41, 55, 0.16);
   padding: 28px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
 }
 
-.modal-large {
+.modal-large,
+.modal-card-lg {
   max-width: 980px;
+}
+
+.modal-card-xl {
+  max-width: 1240px;
 }
 
 .modal-header {
@@ -1327,6 +1273,21 @@ html, body {
   height: 40px;
   border-radius: 14px;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.modal-footer {
+  margin-top: 22px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .search-results {
@@ -1364,7 +1325,8 @@ html, body {
   margin-top: 14px;
 }
 
-.selected-service-item {
+.selected-service-item,
+.tag {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -1372,6 +1334,9 @@ html, body {
   border-radius: 999px;
   background: var(--primary-soft);
   border: 1px solid rgba(0,106,255,0.12);
+  color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .remove-service-btn {
@@ -1382,29 +1347,23 @@ html, body {
   color: #c73535;
 }
 
-@media (max-width: 1400px) {
-  .agenda-board {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.empty-state {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.44);
+  border: 1px dashed rgba(0, 0, 0, 0.08);
+  border-radius: 22px;
 }
 
-@media (max-width: 900px) {
-  .agenda-board {
-    grid-template-columns: 1fr;
-  }
+.empty-state h3,
+.empty-state h4 {
+  margin: 0 0 8px;
+  color: var(--text);
 }
 
-.agenda-card-servicos {
-  font-size: 0.85rem;
-  margin-top: 6px;
-  opacity: 0.9;
-}
-
-.agenda-card-func {
-  font-size: 0.82rem;
-  margin-top: 6px;
-  font-weight: 600;
-  opacity: 0.8;
+.empty-state p {
+  margin: 0;
 }
 
 /* =========================================================
@@ -1490,10 +1449,11 @@ html, body {
 }
 
 .success-btn,
+.btn,
 .danger-btn {
   border: none;
-  border-radius: 12px;
-  padding: 10px 16px;
+  border-radius: 16px;
+  padding: 11px 16px;
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s ease;
@@ -1509,15 +1469,440 @@ html, body {
   color: #fff;
 }
 
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), #4da0ff);
+  color: #ffffff;
+  box-shadow: 0 14px 30px rgba(0, 106, 255, 0.18);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.btn-light {
+  background: var(--surface);
+  color: var(--primary);
+  border: 1px solid rgba(0, 106, 255, 0.14);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
 .success-btn:hover,
-.danger-btn:hover {
+.danger-btn:hover,
+.btn:hover {
   transform: translateY(-1px);
   filter: brightness(1.02);
 }
 
+/* ======================================================
+   AGENDA VETERINÁRIA PREMIUM
+====================================================== */
+
+.agenda-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: var(--glass-strong);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+}
+
+.agenda-toolbar-left,
+.agenda-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agenda-toolbar-right {
+  min-width: 320px;
+}
+
+.agenda-periodo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.96rem;
+}
+
+.agenda-periodo strong {
+  font-weight: 800;
+}
+
+.agenda-vet-wrapper {
+  margin-top: 8px;
+}
+
+.agenda-vet-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.agenda-vet-day {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 45px rgba(31, 41, 55, 0.06);
+  min-height: 620px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.agenda-vet-day-header {
+  padding: 18px 18px 16px;
+  border-bottom: 1px solid var(--table-border);
+  background: rgba(255, 255, 255, 0.40);
+}
+
+.agenda-vet-day-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.agenda-vet-day-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agenda-vet-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 22px;
+  padding: 14px;
+  box-shadow: 0 12px 26px rgba(31, 41, 55, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.agenda-vet-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(31, 41, 55, 0.12);
+}
+
+.agenda-vet-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.agenda-vet-card h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.agenda-vet-card p {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.agenda-vet-card p:last-of-type {
+  margin-bottom: 0;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.agenda-vet-servicos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 8px;
+}
+
+.agenda-vet-servicos strong {
+  font-size: 0.86rem;
+  color: var(--text);
+}
+
+.agenda-vet-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.checklist-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--border-soft);
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.check-item:hover {
+  border-color: rgba(0, 106, 255, 0.20);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.check-item input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.check-item span {
+  font-size: 0.92rem;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.atendimento-clinico-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.atendimento-main,
+.atendimento-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary-card {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--border-soft);
+  border-radius: 22px;
+  padding: 16px 18px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.summary-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-card strong {
+  display: block;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.summary-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.clinico-resumo-top {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.side-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.side-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.historico-drawer {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  padding: 16px;
+  min-height: 640px;
+  max-height: 760px;
+  overflow-y: auto;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.historico-section {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--table-border);
+}
+
+.historico-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.historico-section h4 {
+  margin: 0 0 10px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.historico-section p {
+  margin: 0 0 8px;
+  color: var(--text);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.historico-item {
+  padding: 12px 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  margin-bottom: 10px;
+}
+
+.historico-item:last-child {
+  margin-bottom: 0;
+}
+
+.error-state {
+  border-style: solid;
+  border-color: rgba(220, 38, 38, 0.16);
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.toast-container {
+  position: fixed;
+  top: 22px;
+  right: 22px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  min-width: 280px;
+  max-width: 420px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(35, 50, 74, 0.96);
+  color: #ffffff;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.20);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #0f9f6e, #0b7d57);
+}
+
+.toast-error {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+@media (max-width: 1400px) {
+  .agenda-board,
+  .agenda-vet-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1200px) {
+  .atendimento-clinico-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .historico-drawer {
+    min-height: 380px;
+    max-height: 480px;
+  }
+}
+
 @media (max-width: 900px) {
-  .detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .agenda-board,
+  .agenda-vet-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid,
+  .clinico-resumo-top,
+  .checklist-group {
+    grid-template-columns: 1fr;
+  }
+
+  .agenda-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agenda-toolbar-right {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .modal-card,
+  .modal-card-lg,
+  .modal-card-xl {
+    max-width: 100%;
+    width: 100%;
+    padding: 22px;
+  }
+
+  .agenda-vet-day {
+    min-height: auto;
   }
 }
 
@@ -1537,7 +1922,37 @@ html, body {
   }
 
   .detail-actions-left button,
-  .detail-actions-right button {
+  .detail-actions-right button,
+  .agenda-vet-card-actions .btn,
+  .page-header-actions .btn,
+  .side-actions .btn,
+  .modal-footer .btn {
     flex: 1;
+  }
+
+  .page-header-actions,
+  .agenda-vet-card-actions,
+  .side-actions,
+  .modal-footer {
+    width: 100%;
+  }
+
+  .page-header-actions .btn,
+  .agenda-vet-card-actions .btn,
+  .side-actions .btn,
+  .modal-footer .btn {
+    width: 100%;
+  }
+
+  .toast-container {
+    left: 16px;
+    right: 16px;
+    top: 16px;
+  }
+
+  .toast {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
   }
 }

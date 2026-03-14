@@ -47,10 +47,6 @@ def _servico_valor(servico: Servico) -> Decimal:
 
 
 def _servico_tempo_previsto(servico: Servico) -> int:
-    """
-    Retorna o tempo previsto em minutos.
-    Ajuste aqui se o seu model de Servico usar outro nome de campo.
-    """
     candidatos = [
         getattr(servico, "tempo_previsto", None),
         getattr(servico, "duracao_minutos", None),
@@ -515,6 +511,8 @@ async def criar_agendamento_veterinario(
         raise HTTPException(status_code=400, detail="Cliente é obrigatório.")
     if not pet_id:
         raise HTTPException(status_code=400, detail="Pet é obrigatório.")
+    if not funcionario_id:
+        raise HTTPException(status_code=400, detail="Responsável veterinário é obrigatório.")
     if not data_agendamento:
         raise HTTPException(status_code=400, detail="Data/hora do agendamento é obrigatória.")
     if not servico_ids:
@@ -536,16 +534,14 @@ async def criar_agendamento_veterinario(
     if hasattr(Pet, "cliente_id") and getattr(pet, "cliente_id", None) != cliente_id:
         raise HTTPException(status_code=400, detail="O pet selecionado não pertence ao cliente informado.")
 
-    funcionario = None
-    if funcionario_id:
-        funcionario = db.query(Funcionario).filter(Funcionario.id == funcionario_id).first()
-        if not funcionario:
-            raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
-        if not _funcionario_eh_veterinario(funcionario):
-            raise HTTPException(
-                status_code=400,
-                detail="A agenda veterinária aceita apenas funcionários com função de veterinário."
-            )
+    funcionario = db.query(Funcionario).filter(Funcionario.id == funcionario_id).first()
+    if not funcionario:
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+    if not _funcionario_eh_veterinario(funcionario):
+        raise HTTPException(
+            status_code=400,
+            detail="A agenda veterinária aceita apenas funcionários com função de veterinário."
+        )
 
     empresa_id = _resolver_empresa_id(
         cliente=cliente,
@@ -662,7 +658,12 @@ def iniciar_atendimento_veterinario(
         raise HTTPException(status_code=400, detail="Este agendamento não pertence à agenda veterinária.")
 
     funcionario = _buscar_funcionario(db, getattr(agendamento, "funcionario_id", None))
-    if funcionario and not _funcionario_eh_veterinario(funcionario):
+    if not funcionario:
+        raise HTTPException(
+            status_code=400,
+            detail="O agendamento veterinário precisa ter um responsável veterinário definido."
+        )
+    if not _funcionario_eh_veterinario(funcionario):
         raise HTTPException(
             status_code=400,
             detail="O responsável do agendamento veterinário precisa ser um veterinário."

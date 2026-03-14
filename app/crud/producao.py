@@ -233,7 +233,7 @@ def StringValue(valor: Optional[str]) -> str:
     return str(valor or "").strip()
 
 
-def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento):
+def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento, commit: bool = True):
     ordem_existente = buscar_por_agendamento(db, agendamento.id)
     if ordem_existente:
         return ordem_existente
@@ -246,10 +246,14 @@ def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento):
         finalizado=False,
     )
     db.add(ordem)
-    db.commit()
-    db.refresh(ordem)
+    db.flush()
 
-    return buscar_por_id(db, ordem.id)
+    if commit:
+        db.commit()
+        db.refresh(ordem)
+        return buscar_por_id(db, ordem.id)
+
+    return ordem
 
 
 def iniciar_etapa(db: Session, ordem: Producao, funcionario_id: int):
