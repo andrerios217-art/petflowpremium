@@ -1,6 +1,7 @@
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 from typing import Optional
+import unicodedata
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import or_
@@ -21,7 +22,7 @@ router = APIRouter(tags=["Agenda Veterinária"])
 
 def _get_week_range(data_ref: date):
     inicio = data_ref - timedelta(days=data_ref.weekday())
-    fim = inicio + timedelta(days=6)
+    fim = inicio + timedelta(days=5)  # segunda a sábado
     return inicio, fim
 
 
@@ -66,6 +67,39 @@ def _servico_tempo_previsto(servico: Servico) -> int:
             continue
 
     return 60
+
+
+def _normalizar_texto(value: Optional[str]) -> str:
+    texto = str(value or "").strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(ch for ch in texto if not unicodedata.combining(ch))
+    return texto
+
+
+def _funcionario_eh_veterinario(funcionario: Optional[Funcionario]) -> bool:
+    if not funcionario:
+        return False
+
+    funcao = _normalizar_texto(getattr(funcionario, "funcao", ""))
+
+    if not funcao:
+        return False
+
+    termos_validos = {
+        "veterinario",
+        "veterinaria",
+        "medico veterinario",
+        "medica veterinaria",
+        "medico-veterinario",
+        "medica-veterinaria",
+        "dr veterinario",
+        "dra veterinaria",
+    }
+
+    if funcao in termos_validos:
+        return True
+
+    return "veterin" in funcao
 
 
 def _buscar_servicos_do_agendamento(db: Session, agendamento_id: int):
@@ -151,6 +185,7 @@ def _serialize_agendamento(db: Session, agendamento: Agendamento):
         "funcionario": {
             "id": getattr(funcionario, "id", None) if funcionario else None,
             "nome": getattr(funcionario, "nome", "") if funcionario else "",
+            "funcao": getattr(funcionario, "funcao", "") if funcionario else "",
         },
         "servicos": servicos,
     }
@@ -266,7 +301,7 @@ def listar_agenda_veterinaria_semana(
         dias.append(
             {
                 "data": cursor.isoformat(),
-                "label": cursor.strftime("%d/%m/%Y"),
+                "label": cursor.strftime("%d/%m"),
                 "dia_semana": [
                     "Segunda",
                     "Terça",
@@ -274,7 +309,6 @@ def listar_agenda_veterinaria_semana(
                     "Quinta",
                     "Sexta",
                     "Sábado",
-                    "Domingo",
                 ][cursor.weekday()],
             }
         )
@@ -415,12 +449,14 @@ def listar_funcionarios(
     if hasattr(Funcionario, "ativo"):
         query = query.filter(Funcionario.ativo == True)  # noqa: E712
 
-    funcionarios = query.order_by(Funcionario.nome.asc()).limit(50).all()
+    funcionarios = query.order_by(Funcionario.nome.asc()).limit(100).all()
+    funcionarios = [item for item in funcionarios if _funcionario_eh_veterinario(item)]
 
     return [
         {
             "id": getattr(item, "id", None),
             "nome": getattr(item, "nome", ""),
+            "funcao": getattr(item, "funcao", ""),
         }
         for item in funcionarios
     ]
@@ -505,6 +541,11 @@ async def criar_agendamento_veterinario(
         funcionario = db.query(Funcionario).filter(Funcionario.id == funcionario_id).first()
         if not funcionario:
             raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+        if not _funcionario_eh_veterinario(funcionario):
+            raise HTTPException(
+                status_code=400,
+                detail="A agenda veterinária aceita apenas funcionários com função de veterinário."
+            )
 
     empresa_id = _resolver_empresa_id(
         cliente=cliente,
@@ -619,6 +660,13 @@ def iniciar_atendimento_veterinario(
     servicos = _buscar_servicos_do_agendamento(db, agendamento_id)
     if not servicos:
         raise HTTPException(status_code=400, detail="Este agendamento não pertence à agenda veterinária.")
+
+    funcionario = _buscar_funcionario(db, getattr(agendamento, "funcionario_id", None))
+    if funcionario and not _funcionario_eh_veterinario(funcionario):
+        raise HTTPException(
+            status_code=400,
+            detail="O responsável do agendamento veterinário precisa ser um veterinário."
+        )
 
     payload = _serialize_agendamento(db, agendamento)
 
