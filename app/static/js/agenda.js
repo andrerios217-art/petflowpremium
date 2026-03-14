@@ -149,6 +149,22 @@ function gerarSnapshotDetalhe(item) {
   });
 }
 
+async function lerRespostaComoJsonOuTexto(response) {
+  const texto = await response.text();
+
+  if (!texto) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(texto);
+  } catch (error) {
+    return {
+      detail: texto
+    };
+  }
+}
+
 function modalAgendamentoAberto() {
   const modal = document.getElementById("agendamento-modal");
   return !!modal && !modal.classList.contains("hidden");
@@ -358,7 +374,6 @@ async function carregarAgenda(forcarRender = false) {
   }
 
   const inicio = startOfWeek(semanaAtual);
-  const fim = addDays(inicio, 5);
 
   const dataBaseInput = document.getElementById("data-base");
   if (dataBaseInput) dataBaseInput.value = formatDateISO(inicio);
@@ -370,7 +385,7 @@ async function carregarAgenda(forcarRender = false) {
 
   try {
     const response = await fetch(
-      `/api/agenda/semana?empresa_id=1&data_inicio=${formatDateISO(inicio)}&data_fim=${formatDateISO(fim)}`,
+      `/api/agenda/semana?data_ref=${encodeURIComponent(formatDateISO(inicio))}`,
       { cache: "no-store" }
     );
 
@@ -898,7 +913,7 @@ async function alterarStatusAgendamento(novoStatus) {
           { method: "PUT" }
         );
 
-        const resposta = await response.json().catch(() => ({}));
+        const resposta = await lerRespostaComoJsonOuTexto(response);
 
         if (!response.ok) {
           mostrarMensagemDetalhe(resposta.detail || resposta.message || "Erro ao alterar status.");
@@ -935,7 +950,7 @@ async function excluirAgendamentoAtual() {
           method: "DELETE"
         });
 
-        const resposta = await response.json().catch(() => ({}));
+        const resposta = await lerRespostaComoJsonOuTexto(response);
 
         if (!response.ok) {
           mostrarMensagemDetalhe(resposta.detail || resposta.message || "Não foi possível excluir.");
@@ -1069,7 +1084,7 @@ async function salvarNovoAgendamento() {
     ...montarPayloadAgendamento()
   };
 
-  return fetch("/api/agenda/", {
+  return fetch("/api/agenda", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -1118,7 +1133,7 @@ async function salvarAgendamento(e) {
       ? await salvarEdicaoAgendamento()
       : await salvarNovoAgendamento();
 
-    const resposta = await response.json().catch(() => ({}));
+    const resposta = await lerRespostaComoJsonOuTexto(response);
 
     if (!response.ok) {
       mostrarMensagemAgenda(resposta.detail || resposta.message || "Erro ao salvar agendamento.");
