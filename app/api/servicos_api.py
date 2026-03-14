@@ -11,9 +11,10 @@ router = APIRouter(prefix="/api/servicos", tags=["servicos"])
 @router.get("/", response_model=list[ServicoOut])
 def listar(
     q: str | None = Query(default=None),
+    tipo_servico: str | None = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    return servico_crud.list_all(db, q=q)
+    return servico_crud.list_all(db, q=q, tipo_servico=tipo_servico)
 
 
 @router.get("/{servico_id}")
@@ -26,6 +27,7 @@ def obter(servico_id: int, db: Session = Depends(get_db)):
         "id": servico.id,
         "empresa_id": servico.empresa_id,
         "nome": servico.nome,
+        "tipo_servico": servico.tipo_servico,
         "porte_referencia": servico.porte_referencia,
         "custo": float(servico.custo) if servico.custo is not None else None,
         "venda": float(servico.venda) if servico.venda is not None else None,

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -38,6 +38,29 @@ class ProducaoCardResponse(BaseModel):
     observacoes: Optional[str] = None
     intercorrencias: Optional[str] = None
     proximo_destino_automatico: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProducaoHistoricoItemResponse(BaseModel):
+    etapa: str
+    status: str
+    funcionario_id: Optional[int] = None
+    funcionario_nome: Optional[str] = None
+    inicio: Optional[datetime] = None
+    fim: Optional[datetime] = None
+    tempo_minutos: Optional[int] = None
+    intercorrencia: Optional[str] = None
+    observacoes: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProducaoHistoricoResponse(BaseModel):
+    producao_id: int
+    historico: List[ProducaoHistoricoItemResponse]
 
     class Config:
         from_attributes = True

@@ -33,9 +33,17 @@ def _query_base(db: Session):
             joinedload(Agendamento.cliente),
             joinedload(Agendamento.pet),
             joinedload(Agendamento.funcionario),
+            joinedload(Agendamento.producao),
             joinedload(Agendamento.servicos_agendamento).joinedload(AgendamentoServico.servico),
         )
     )
+
+
+def _texto_intercorrencias_agendamento(ag: Agendamento):
+    if getattr(ag, "producao", None) and getattr(ag.producao, "intercorrencias", None):
+        return ag.producao.intercorrencias
+
+    return None
 
 
 def _serialize_agendamento(ag: Agendamento):
@@ -51,6 +59,7 @@ def _serialize_agendamento(ag: Agendamento):
         "prioridade": ag.prioridade,
         "observacoes": ag.observacoes,
         "tem_intercorrencia": bool(ag.tem_intercorrencia),
+        "intercorrencias": _texto_intercorrencias_agendamento(ag),
         "cliente_nome": ag.cliente.nome if ag.cliente else "-",
         "pet_nome": ag.pet.nome if ag.pet else "-",
         "funcionario_nome": ag.funcionario.nome if ag.funcionario else None,

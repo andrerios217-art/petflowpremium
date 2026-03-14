@@ -16,6 +16,13 @@ let agendamentoEditandoId = null;
 
 let confirmAction = null;
 let agendaAutoRefresh = null;
+let carregandoAgenda = false;
+let carregandoDetalheAgenda = false;
+let ultimoSnapshotAgenda = "";
+let ultimoSnapshotDetalhe = "";
+let ultimoRefreshManualAgenda = 0;
+
+const TIPO_SERVICO_AGENDA = "PETSHOP";
 
 /* =========================================================
    UTIL
@@ -98,6 +105,71 @@ function obterTextoServicos(servicos) {
     })
     .filter(Boolean)
     .join(", ");
+}
+
+function gerarSnapshotAgenda(agendamentos) {
+  const base = (Array.isArray(agendamentos) ? agendamentos : []).map((item) => ({
+    id: item.id,
+    data: item.data,
+    hora: item.hora,
+    status: item.status,
+    prioridade: item.prioridade,
+    cliente_nome: item.cliente_nome,
+    pet_nome: item.pet_nome,
+    funcionario_nome: item.funcionario_nome,
+    funcionario_id: item.funcionario_id,
+    tem_intercorrencia: item.tem_intercorrencia,
+    observacoes: item.observacoes,
+    intercorrencias: item.intercorrencias,
+    servicos: item.servicos || [],
+  }));
+
+  return JSON.stringify(base);
+}
+
+function gerarSnapshotDetalhe(item) {
+  if (!item) return "";
+
+  return JSON.stringify({
+    id: item.id,
+    data: item.data,
+    hora: item.hora,
+    status: item.status,
+    prioridade: item.prioridade,
+    cliente_id: item.cliente_id,
+    cliente_nome: item.cliente_nome,
+    pet_id: item.pet_id,
+    pet_nome: item.pet_nome,
+    funcionario_id: item.funcionario_id,
+    funcionario_nome: item.funcionario_nome,
+    observacoes: item.observacoes,
+    tem_intercorrencia: item.tem_intercorrencia,
+    intercorrencias: item.intercorrencias,
+    servicos: item.servicos || [],
+  });
+}
+
+function modalAgendamentoAberto() {
+  const modal = document.getElementById("agendamento-modal");
+  return !!modal && !modal.classList.contains("hidden");
+}
+
+function modalDetalheAberto() {
+  const modal = document.getElementById("detalhe-agendamento-modal");
+  return !!modal && !modal.classList.contains("hidden");
+}
+
+function modalConfirmAberto() {
+  const modal = document.getElementById("confirm-modal");
+  return !!modal && !modal.classList.contains("hidden");
+}
+
+function podeExecutarAutoRefreshAgenda() {
+  if (document.hidden) return false;
+  if (modalAgendamentoAberto()) return false;
+  if (modalConfirmAberto()) return false;
+  if (carregandoAgenda) return false;
+  return true;
 }
 
 /* =========================================================
@@ -223,10 +295,6 @@ function criarCardAgendamento(item) {
   const hora = formatarHora(item.hora);
   const servicos = obterTextoServicos(item.servicos);
 
-  const alertaIntercorrencia = item.tem_intercorrencia
-    ? `<div class="agenda-card-alerta">⚠ Intercorrência registrada</div>`
-    : "";
-
   card.innerHTML = `
     <div class="agenda-card-top">
       <span class="agenda-time">${escapeHtml(hora)}</span>
@@ -248,7 +316,6 @@ function criarCardAgendamento(item) {
     </div>
 
     <div class="agenda-card-status">${escapeHtml(textoStatus(item.status))}</div>
-    ${alertaIntercorrencia}
   `;
 
   return card;
@@ -267,8 +334,28 @@ function removerCardNoDOM(id) {
   if (card) card.remove();
 }
 
-async function carregarAgenda() {
+function renderizarAgenda(agendamentos, inicio) {
   limparColunas();
+
+  agendamentos.forEach((item) => {
+    const dataItem = new Date(item.data + "T00:00:00");
+    const index = Math.round((dataItem - inicio) / (1000 * 60 * 60 * 24));
+
+    if (index < 0 || index > 5) return;
+
+    const card = criarCardAgendamento(item);
+    const coluna = document.getElementById(`col-${index}`);
+    if (coluna) coluna.appendChild(card);
+  });
+}
+
+async function carregarAgenda(forcarRender = false) {
+  if (carregandoAgenda) return;
+
+  const agora = Date.now();
+  if (!forcarRender && agora - ultimoRefreshManualAgenda < 1200) {
+    return;
+  }
 
   const inicio = startOfWeek(semanaAtual);
   const fim = addDays(inicio, 5);
@@ -278,6 +365,8 @@ async function carregarAgenda() {
 
   montarCabecalhosSemana(inicio);
   ativarCliqueNasColunas(inicio);
+
+  carregandoAgenda = true;
 
   try {
     const response = await fetch(
@@ -291,19 +380,46 @@ async function carregarAgenda() {
     }
 
     const agendamentos = await response.json();
+    const snapshotAtual = gerarSnapshotAgenda(agendamentos);
 
-    agendamentos.forEach((item) => {
-      const dataItem = new Date(item.data + "T00:00:00");
-      const index = Math.round((dataItem - inicio) / (1000 * 60 * 60 * 24));
+    if (!forcarRender && snapshotAtual === ultimoSnapshotAgenda) {
+      return;
+    }
 
-      if (index < 0 || index > 5) return;
-
-      const card = criarCardAgendamento(item);
-      const coluna = document.getElementById(`col-${index}`);
-      if (coluna) coluna.appendChild(card);
-    });
+    ultimoSnapshotAgenda = snapshotAtual;
+    renderizarAgenda(agendamentos, inicio);
   } catch (error) {
     console.error("Erro ao carregar agenda:", error);
+  } finally {
+    carregandoAgenda = false;
+  }
+}
+
+async function atualizarDetalheAutomaticamente() {
+  if (!agendamentoDetalheAtual?.id) return;
+  if (!modalDetalheAberto()) return;
+  if (carregandoDetalheAgenda) return;
+
+  carregandoDetalheAgenda = true;
+
+  try {
+    const response = await fetch(`/api/agenda/${agendamentoDetalheAtual.id}`, { cache: "no-store" });
+    if (!response.ok) return;
+
+    const data = await response.json();
+    const snapshotDetalhe = gerarSnapshotDetalhe(data);
+
+    if (snapshotDetalhe === ultimoSnapshotDetalhe) {
+      return;
+    }
+
+    agendamentoDetalheAtual = data;
+    ultimoSnapshotDetalhe = snapshotDetalhe;
+    renderDetalhe(data);
+  } catch (error) {
+    console.error("Erro ao atualizar detalhe automaticamente:", error);
+  } finally {
+    carregandoDetalheAgenda = false;
   }
 }
 
@@ -311,21 +427,13 @@ function iniciarAutoRefreshAgenda() {
   if (agendaAutoRefresh) clearInterval(agendaAutoRefresh);
 
   agendaAutoRefresh = setInterval(async () => {
-    await carregarAgenda();
-
-    if (agendamentoDetalheAtual?.id) {
-      try {
-        const response = await fetch(`/api/agenda/${agendamentoDetalheAtual.id}`, { cache: "no-store" });
-        if (response.ok) {
-          const data = await response.json();
-          agendamentoDetalheAtual = data;
-          renderDetalhe(data);
-        }
-      } catch (error) {
-        console.error("Erro ao atualizar detalhe automaticamente:", error);
-      }
+    if (!podeExecutarAutoRefreshAgenda()) {
+      return;
     }
-  }, 5000);
+
+    await carregarAgenda(false);
+    await atualizarDetalheAutomaticamente();
+  }, 12000);
 }
 
 /* =========================================================
@@ -350,7 +458,9 @@ function atualizarSelectServicosPorPet() {
 
   select.innerHTML = `<option value="">Selecione um serviço</option>`;
 
-  let servicosFiltrados = servicosCache.filter((servico) => servico.ativo);
+  let servicosFiltrados = servicosCache.filter((servico) => {
+    return servico.ativo && String(servico.tipo_servico || "").toUpperCase() === TIPO_SERVICO_AGENDA;
+  });
 
   if (portePet) {
     servicosFiltrados = servicosFiltrados.filter((servico) => {
@@ -368,7 +478,7 @@ function atualizarSelectServicosPorPet() {
 }
 
 async function carregarServicos() {
-  const response = await fetch("/api/servicos/");
+  const response = await fetch(`/api/servicos/?tipo_servico=${encodeURIComponent(TIPO_SERVICO_AGENDA)}`);
   servicosCache = await response.json();
   atualizarSelectServicosPorPet();
 }
@@ -613,6 +723,7 @@ function preencherModalEdicao(ag) {
     return {
       id: item.servico_id,
       nome: item.nome || cache?.nome || "Serviço",
+      tipo_servico: cache?.tipo_servico || TIPO_SERVICO_AGENDA,
       porte_referencia: cache?.porte_referencia || "",
       venda: cache?.venda ?? item.preco ?? 0,
       tempo_minutos: cache?.tempo_minutos ?? item.tempo_previsto ?? 0,
@@ -639,6 +750,7 @@ function fecharModalDetalhe() {
 
   mostrarMensagemDetalhe("");
   agendamentoDetalheAtual = null;
+  ultimoSnapshotDetalhe = "";
 }
 
 function setDetalheLoading(loading) {
@@ -703,6 +815,35 @@ function renderServicosDetalhe(servicos) {
   });
 }
 
+function renderObservacoesDetalhe(data) {
+  const observacoesEl = document.getElementById("detalhe-observacoes");
+  if (!observacoesEl) return;
+
+  const observacoesTexto = data?.observacoes ? escapeHtml(data.observacoes) : "Sem observações.";
+  const intercorrenciasTexto = data?.intercorrencias ? escapeHtml(data.intercorrencias) : "";
+
+  let html = `<div>${observacoesTexto}</div>`;
+
+  if (data?.tem_intercorrencia) {
+    html += `
+      <div style="
+        margin-top: 12px;
+        background:#ede9fe;
+        color:#5b21b6;
+        border:1px solid #c4b5fd;
+        border-radius:12px;
+        padding:12px 14px;
+        line-height:1.5;
+      ">
+        <div style="font-weight:800; margin-bottom:6px;">⚠ Intercorrências registradas</div>
+        <div>${intercorrenciasTexto || "Intercorrência registrada neste atendimento."}</div>
+      </div>
+    `;
+  }
+
+  observacoesEl.innerHTML = html;
+}
+
 function renderDetalhe(data) {
   document.getElementById("detalhe-cliente").innerText = data.cliente_nome || "-";
   document.getElementById("detalhe-pet").innerText = data.pet_nome || "-";
@@ -710,8 +851,8 @@ function renderDetalhe(data) {
   document.getElementById("detalhe-data").innerText = formatarDataBR(data.data);
   document.getElementById("detalhe-hora").innerText = formatarHora(data.hora);
   document.getElementById("detalhe-status").innerText = textoStatus(data.status);
-  document.getElementById("detalhe-observacoes").innerText = data.observacoes || "Sem observações.";
 
+  renderObservacoesDetalhe(data);
   renderServicosDetalhe(data.servicos || []);
   renderAcoesDetalhe(data.status);
 }
@@ -730,6 +871,7 @@ async function abrirModalDetalhe(id) {
 
     const data = await response.json();
     agendamentoDetalheAtual = data;
+    ultimoSnapshotDetalhe = gerarSnapshotDetalhe(data);
     renderDetalhe(data);
   } catch (error) {
     console.error(error);
@@ -748,6 +890,7 @@ async function alterarStatusAgendamento(novoStatus) {
     confirmText: "Confirmar",
     onConfirm: async () => {
       mostrarMensagemDetalhe("");
+      ultimoRefreshManualAgenda = Date.now();
 
       try {
         const response = await fetch(
@@ -763,9 +906,10 @@ async function alterarStatusAgendamento(novoStatus) {
         }
 
         agendamentoDetalheAtual = resposta;
+        ultimoSnapshotDetalhe = gerarSnapshotDetalhe(resposta);
         renderDetalhe(agendamentoDetalheAtual);
         atualizarCardNoDOM(agendamentoDetalheAtual);
-        await carregarAgenda();
+        await carregarAgenda(true);
 
         mostrarMensagemDetalhe(`Status alterado para ${textoStatus(agendamentoDetalheAtual.status)}.`);
       } catch (error) {
@@ -784,6 +928,8 @@ async function excluirAgendamentoAtual() {
     text: "Deseja realmente excluir este agendamento?",
     confirmText: "Excluir",
     onConfirm: async () => {
+      ultimoRefreshManualAgenda = Date.now();
+
       try {
         const response = await fetch(`/api/agenda/${agendamentoDetalheAtual.id}`, {
           method: "DELETE"
@@ -798,6 +944,7 @@ async function excluirAgendamentoAtual() {
 
         removerCardNoDOM(agendamentoDetalheAtual.id);
         fecharModalDetalhe();
+        await carregarAgenda(true);
       } catch (error) {
         console.error(error);
         mostrarMensagemDetalhe("Erro de comunicação com o servidor.");
@@ -881,6 +1028,12 @@ function adicionarServicoSelecionado() {
     return;
   }
 
+  if (String(servico.tipo_servico || "").toUpperCase() !== TIPO_SERVICO_AGENDA) {
+    mostrarMensagemAgenda("Este serviço não pertence à agenda pet shop.");
+    select.value = "";
+    return;
+  }
+
   servicosSelecionados.push(servico);
   renderServicosEscolhidos();
   mostrarMensagemAgenda("");
@@ -958,6 +1111,8 @@ async function salvarAgendamento(e) {
     return;
   }
 
+  ultimoRefreshManualAgenda = Date.now();
+
   try {
     const response = modoEdicao
       ? await salvarEdicaoAgendamento()
@@ -978,7 +1133,7 @@ async function salvarAgendamento(e) {
       mostrarMensagemAgenda("Agendamento criado com sucesso.");
     }
 
-    await carregarAgenda();
+    await carregarAgenda(true);
 
     setTimeout(() => {
       fecharModal();
@@ -997,7 +1152,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await carregarClientesPetsBase();
   await carregarServicos();
   await carregarFuncionarios();
-  await carregarAgenda();
+  await carregarAgenda(true);
 
   iniciarAutoRefreshAgenda();
 
@@ -1012,18 +1167,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("confirm-ok")?.addEventListener("click", confirmarAcaoModal);
 
   document.getElementById("semana-anterior")?.addEventListener("click", async () => {
+    ultimoRefreshManualAgenda = Date.now();
     semanaAtual = addDays(startOfWeek(semanaAtual), -7);
-    await carregarAgenda();
+    await carregarAgenda(true);
   });
 
   document.getElementById("proxima-semana")?.addEventListener("click", async () => {
+    ultimoRefreshManualAgenda = Date.now();
     semanaAtual = addDays(startOfWeek(semanaAtual), 7);
-    await carregarAgenda();
+    await carregarAgenda(true);
   });
 
   document.getElementById("data-base")?.addEventListener("change", async (e) => {
+    ultimoRefreshManualAgenda = Date.now();
     semanaAtual = new Date(e.target.value + "T00:00:00");
-    await carregarAgenda();
+    await carregarAgenda(true);
   });
 
   document.getElementById("busca-cliente-pet")?.addEventListener("input", (e) => {
@@ -1039,4 +1197,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("btn-cancelar-agendamento")?.addEventListener("click", () => alterarStatusAgendamento("CANCELADO"));
   document.getElementById("btn-excluir-agendamento")?.addEventListener("click", excluirAgendamentoAtual);
   document.getElementById("btn-editar-agendamento")?.addEventListener("click", editarAgendamentoAtual);
+
+  document.addEventListener("visibilitychange", async () => {
+    if (!document.hidden && !modalAgendamentoAberto() && !modalConfirmAberto()) {
+      await carregarAgenda(false);
+      await atualizarDetalheAutomaticamente();
+    }
+  });
 });

@@ -5,12 +5,15 @@ from fastapi.templating import Jinja2Templates
 
 from app.core.database import Base, engine
 from app.models import *  # noqa
+
 from app.api import auth, empresas, usuarios, configuracoes
 from app.api import clientes_api
 from app.api import pets_api
 from app.api import servicos_api
 from app.api import funcionarios_api
 from app.api import agenda_api
+from app.api.agenda_veterinaria_api import router as agenda_veterinaria_router
+from app.api.atendimento_clinico_api import router as atendimento_clinico_router
 from app.api.producao_api import router as producao_router
 
 Base.metadata.create_all(bind=engine)
@@ -29,6 +32,8 @@ app.include_router(pets_api.router)
 app.include_router(servicos_api.router)
 app.include_router(funcionarios_api.router)
 app.include_router(agenda_api.router)
+app.include_router(agenda_veterinaria_router)
+app.include_router(atendimento_clinico_router)
 app.include_router(producao_router)
 
 
@@ -83,6 +88,19 @@ def funcionarios_page(request: Request):
 @app.get("/agenda", response_class=HTMLResponse)
 def agenda_page(request: Request):
     return templates.TemplateResponse("agenda.html", {"request": request})
+
+
+@app.get("/agenda-veterinaria", response_class=HTMLResponse)
+def agenda_veterinaria_page(request: Request):
+    return templates.TemplateResponse("agenda_veterinaria.html", {"request": request})
+
+
+@app.get("/atendimento-clinico/{agendamento_id}", response_class=HTMLResponse)
+def atendimento_clinico_page(request: Request, agendamento_id: int):
+    return templates.TemplateResponse(
+        "atendimento_clinico.html",
+        {"request": request, "agendamento_id": agendamento_id}
+    )
 
 
 @app.get("/producao", response_class=HTMLResponse)

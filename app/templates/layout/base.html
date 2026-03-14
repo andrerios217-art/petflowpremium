@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pet Flow Premium</title>
 
+  <script>
+    (function () {
+      try {
+        const temaSalvo = localStorage.getItem("petflow_theme") || "light";
+        document.documentElement.setAttribute("data-theme", temaSalvo);
+      } catch (error) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    })();
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,7 +25,27 @@
 <body>
   <div class="app-shell">
     {% include "layout/sidebar.html" %}
+
     <main class="main-content">
+      <div class="topbar-global">
+        <div class="topbar-global-left">
+          <span class="topbar-global-label">Pet Flow Premium</span>
+        </div>
+
+        <div class="topbar-global-right">
+          <button
+            type="button"
+            id="theme-toggle-btn"
+            class="theme-toggle-btn"
+            aria-label="Alternar tema"
+            title="Alternar modo claro e escuro"
+          >
+            <span class="theme-toggle-icon" id="theme-toggle-icon">🌙</span>
+            <span class="theme-toggle-text" id="theme-toggle-text">Modo escuro</span>
+          </button>
+        </div>
+      </div>
+
       {% block content %}{% endblock %}
     </main>
   </div>

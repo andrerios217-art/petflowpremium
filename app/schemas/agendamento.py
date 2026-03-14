@@ -1,39 +1,13 @@
-from pydantic import BaseModel
 from datetime import date, time
-from typing import List, Optional
+from typing import Optional, List
+
+from pydantic import BaseModel
 
 
-class AgendamentoServicoCreate(BaseModel):
+class AgendamentoServicoPayload(BaseModel):
     servico_id: int
     preco: float
     tempo_previsto: int
-
-
-class AgendamentoCreate(BaseModel):
-    empresa_id: int
-    cliente_id: int
-    pet_id: int
-    funcionario_id: Optional[int] = None
-
-    data: date
-    hora: time
-
-    prioridade: Optional[str] = "NORMAL"
-    observacoes: Optional[str] = None
-
-    servicos: List[AgendamentoServicoCreate]
-
-
-class AgendamentoUpdate(BaseModel):
-    funcionario_id: Optional[int] = None
-
-    data: date
-    hora: time
-
-    prioridade: Optional[str] = "NORMAL"
-    observacoes: Optional[str] = None
-
-    servicos: List[AgendamentoServicoCreate]
 
 
 class AgendamentoServicoOut(BaseModel):
@@ -43,27 +17,49 @@ class AgendamentoServicoOut(BaseModel):
     preco: float
     tempo_previsto: int
 
+    class Config:
+        from_attributes = True
 
-class AgendamentoOut(BaseModel):
-    id: int
 
+class AgendamentoCreate(BaseModel):
     empresa_id: int
     cliente_id: int
     pet_id: int
-    funcionario_id: Optional[int]
-
+    funcionario_id: Optional[int] = None
     data: date
     hora: time
+    prioridade: str = "NORMAL"
+    observacoes: Optional[str] = None
+    servicos: List[AgendamentoServicoPayload]
 
+
+class AgendamentoUpdate(BaseModel):
+    funcionario_id: Optional[int] = None
+    data: date
+    hora: time
+    prioridade: str = "NORMAL"
+    observacoes: Optional[str] = None
+    servicos: List[AgendamentoServicoPayload]
+
+
+class AgendamentoOut(BaseModel):
+    id: int
+    empresa_id: int
+    cliente_id: int
+    pet_id: int
+    funcionario_id: Optional[int] = None
+    data: date
+    hora: time
     status: str
-    prioridade: Optional[str]
+    prioridade: str
+    observacoes: Optional[str] = None
+    tem_intercorrencia: bool = False
+    intercorrencias: Optional[str] = None
 
-    observacoes: Optional[str]
-
-    cliente_nome: Optional[str]
-    pet_nome: Optional[str]
-    funcionario_nome: Optional[str]
-
-    tem_intercorrencia: Optional[bool] = False
-
+    cliente_nome: str
+    pet_nome: str
+    funcionario_nome: Optional[str] = None
     servicos: List[AgendamentoServicoOut]
+
+    class Config:
+        from_attributes = True

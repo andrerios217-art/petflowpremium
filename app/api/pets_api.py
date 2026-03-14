@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
 from app.crud import pet as pet_crud
-from app.schemas.pet import PetCreate, PetOut
+from app.schemas.pet import PetCreate, PetOut, PetHistoricoResponseSchema
 
 router = APIRouter(prefix="/api/pets", tags=["pets"])
 
@@ -39,3 +39,13 @@ def toggle_pet(pet_id: int, db: Session = Depends(get_db)):
 
     pet = pet_crud.toggle_ativo(db, pet)
     return {"id": pet.id, "ativo": pet.ativo}
+
+
+@router.get("/{pet_id}/historico", response_model=PetHistoricoResponseSchema)
+def obter_historico_pet(pet_id: int, db: Session = Depends(get_db)):
+    historico = pet_crud.obter_historico_pet(db, pet_id)
+
+    if not historico:
+        raise HTTPException(status_code=404, detail="Pet não encontrado.")
+
+    return historico
