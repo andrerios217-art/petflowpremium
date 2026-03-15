@@ -38,6 +38,7 @@
         <option value="Tosador">Tosador</option>
         <option value="Recepção">Recepção</option>
         <option value="Gerente">Gerente</option>
+        <option value="Veterinário">Veterinário</option>
       </select>
     </div>
 
@@ -98,6 +99,14 @@
     }
 
     if (funcao === "Recepção") {
+      document.getElementById("acesso_dashboard").checked = true;
+      document.getElementById("acesso_clientes").checked = true;
+      document.getElementById("acesso_pets").checked = true;
+      document.getElementById("acesso_agenda").checked = true;
+      document.getElementById("acesso_servicos").checked = true;
+    }
+
+    if (funcao === "Veterinário") {
       document.getElementById("acesso_dashboard").checked = true;
       document.getElementById("acesso_clientes").checked = true;
       document.getElementById("acesso_pets").checked = true;

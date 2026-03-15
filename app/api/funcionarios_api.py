@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
 from app.crud import funcionario as funcionario_crud
-from app.schemas.funcionario import FuncionarioCreate, FuncionarioOut
+from app.schemas.funcionario import FuncionarioCreate, FuncionarioOut, FUNCOES_VALIDAS
 
 router = APIRouter(prefix="/api/funcionarios", tags=["funcionarios"])
 
@@ -69,6 +69,7 @@ def criar(payload: FuncionarioCreate, db: Session = Depends(get_db)):
     existente = funcionario_crud.get_by_email(db, payload.email)
     if existente:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado para outro funcionário.")
+
     return funcionario_crud.create(db, payload)
 
 
@@ -81,6 +82,12 @@ def editar(funcionario_id: int, payload: dict, db: Session = Depends(get_db)):
     outro = funcionario_crud.get_by_email(db, payload.get("email"))
     if outro and outro.id != funcionario_id:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado para outro funcionário.")
+
+    funcao = (payload.get("funcao") or "").strip()
+    if funcao not in FUNCOES_VALIDAS:
+        raise HTTPException(status_code=400, detail="Função inválida.")
+
+    payload["funcao"] = funcao
 
     funcionario = funcionario_crud.update(db, funcionario, payload)
     return {"id": funcionario.id, "message": "Funcionário atualizado com sucesso."}

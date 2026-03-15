@@ -1,7 +1,13 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
-FUNCOES_VALIDAS = {"Banhista", "Tosador", "Recepção", "Gerente"}
+FUNCOES_VALIDAS = {
+    "Banhista",
+    "Tosador",
+    "Recepção",
+    "Gerente",
+    "Veterinário",
+}
 
 
 class FuncionarioCreate(BaseModel):
@@ -25,6 +31,16 @@ class FuncionarioCreate(BaseModel):
     acesso_crm: bool = False
     acesso_relatorios: bool = False
     acesso_configuracoes: bool = False
+
+    @field_validator("funcao")
+    @classmethod
+    def validar_funcao(cls, value: str) -> str:
+        value = value.strip()
+
+        if value not in FUNCOES_VALIDAS:
+            raise ValueError("Função inválida.")
+
+        return value
 
 
 class FuncionarioOut(BaseModel):
