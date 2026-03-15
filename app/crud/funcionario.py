@@ -13,7 +13,7 @@ def create(db: Session, data: FuncionarioCreate) -> Funcionario:
         cpf=data.cpf,
         email=data.email,
         telefone=data.telefone,
-        funcao=data.funcao,
+        funcao=data.funcao.strip(),
         senha_hash=hash_password(data.senha),
 
         acesso_dashboard=data.acesso_dashboard,
@@ -65,7 +65,7 @@ def update(db: Session, funcionario: Funcionario, data: dict):
     funcionario.nome = data.get("nome")
     funcionario.email = data.get("email")
     funcionario.telefone = data.get("telefone")
-    funcionario.funcao = data.get("funcao")
+    funcionario.funcao = (data.get("funcao") or "").strip()
 
     if data.get("senha"):
         funcionario.senha_hash = hash_password(data.get("senha"))

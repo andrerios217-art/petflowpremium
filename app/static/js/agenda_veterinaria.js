@@ -845,7 +845,7 @@
         try {
             renderHistoricoVazio(
                 "Carregando histórico...",
-                "Buscando atendimentos, intercorrências e timeline do pet."
+                "Buscando consultas anteriores, anamnese, intercorrências e timeline do pet."
             );
 
             const data = await fetchJsonSafe(
@@ -869,50 +869,111 @@
         if (!el.clinicoHistoricoConteudo) return;
 
         const pet = data?.pet || {};
-        const atendimentos = Array.isArray(data?.atendimentos) ? data.atendimentos : [];
-        const intercorrencias = Array.isArray(data?.intercorrencias) ? data.intercorrencias : [];
+        const consultasVeterinarias = Array.isArray(data?.consultas_veterinarias)
+            ? data.consultas_veterinarias
+            : [];
+        const atendimentosGrooming = Array.isArray(data?.atendimentos_grooming)
+            ? data.atendimentos_grooming
+            : Array.isArray(data?.atendimentos)
+                ? data.atendimentos
+                : [];
+        const intercorrencias = Array.isArray(data?.intercorrencias_grooming)
+            ? data.intercorrencias_grooming
+            : Array.isArray(data?.intercorrencias)
+                ? data.intercorrencias
+                : [];
         const timeline = Array.isArray(data?.timeline_producao) ? data.timeline_producao : [];
 
         el.clinicoHistoricoConteudo.innerHTML = `
             <section class="historico-section">
                 <h4>Resumo do Pet</h4>
                 <p><strong>Nome:</strong> ${escapeHtml(pet.nome || "-")}</p>
+                <p><strong>Tutor:</strong> ${escapeHtml(pet.tutor || "-")}</p>
                 <p><strong>Espécie:</strong> ${escapeHtml(pet.especie || "-")}</p>
                 <p><strong>Raça:</strong> ${escapeHtml(pet.raca || "-")}</p>
                 <p><strong>Porte:</strong> ${escapeHtml(pet.porte || "-")}</p>
                 <p><strong>Sexo:</strong> ${escapeHtml(pet.sexo || "-")}</p>
+                <p><strong>Peso:</strong> ${escapeHtml(formatPeso(pet.peso))}</p>
+                <p><strong>Temperamento:</strong> ${escapeHtml(pet.temperamento || "-")}</p>
+                <p><strong>Observações cadastrais:</strong> ${escapeHtml(pet.observacoes_cadastrais || "-")}</p>
             </section>
 
             <section class="historico-section">
-                <h4>Atendimentos anteriores</h4>
+                <h4>Consultas veterinárias anteriores</h4>
                 ${
-                    atendimentos.length
-                        ? atendimentos
+                    consultasVeterinarias.length
+                        ? consultasVeterinarias
                               .map(
                                   (item) => `
                                     <div class="historico-item">
-                                        <p><strong>Data:</strong> ${escapeHtml(item.data || item.data_agendamento || "-")}</p>
+                                        <p><strong>Início:</strong> ${escapeHtml(formatDateTime(item.data_inicio))}</p>
+                                        <p><strong>Fim:</strong> ${escapeHtml(formatDateTime(item.data_fim))}</p>
                                         <p><strong>Status:</strong> ${escapeHtml(item.status || "-")}</p>
-                                        <p><strong>Serviços:</strong> ${escapeHtml((item.servicos || []).join(", ") || "-")}</p>
-                                        <p><strong>Observações:</strong> ${escapeHtml(item.observacoes || "-")}</p>
+                                        <p><strong>Veterinário:</strong> ${escapeHtml(item.veterinario || "-")}</p>
+                                        <p><strong>Serviços executados:</strong> ${escapeHtml(joinList(item.servicos_executados))}</p>
+                                        <p><strong>Observações da recepção:</strong> ${escapeHtml(item.observacoes_recepcao || "-")}</p>
+                                        <p><strong>Observações clínicas:</strong> ${escapeHtml(item.observacoes_clinicas || "-")}</p>
+
+                                        <hr>
+
+                                        <p><strong>Anamnese</strong></p>
+                                        <p><strong>Queixa principal:</strong> ${escapeHtml(item.anamnese?.queixa_principal || "-")}</p>
+                                        <p><strong>Histórico atual:</strong> ${escapeHtml(item.anamnese?.historico_atual || "-")}</p>
+                                        <p><strong>Alimentação:</strong> ${escapeHtml(item.anamnese?.alimentacao || "-")}</p>
+                                        <p><strong>Alergias:</strong> ${escapeHtml(item.anamnese?.alergias || "-")}</p>
+                                        <p><strong>Uso de medicação atual:</strong> ${escapeHtml(item.anamnese?.uso_medicacao_atual || "-")}</p>
+                                        <p><strong>Observações da anamnese:</strong> ${escapeHtml(item.anamnese?.observacoes || "-")}</p>
+
+                                        <hr>
+
+                                        <p><strong>Prontuário</strong></p>
+                                        <p><strong>Exame físico:</strong> ${escapeHtml(item.prontuario?.exame_fisico || "-")}</p>
+                                        <p><strong>Diagnóstico:</strong> ${escapeHtml(item.prontuario?.diagnostico || "-")}</p>
+                                        <p><strong>Conduta:</strong> ${escapeHtml(item.prontuario?.conduta || "-")}</p>
+                                        <p><strong>Observações do prontuário:</strong> ${escapeHtml(item.prontuario?.observacoes || "-")}</p>
                                     </div>
                                 `
                               )
                               .join("")
-                        : `<p>Nenhum atendimento encontrado no histórico.</p>`
+                        : `<p>Nenhuma consulta veterinária encontrada no histórico.</p>`
                 }
             </section>
 
             <section class="historico-section">
-                <h4>Intercorrências</h4>
+                <h4>Atendimentos anteriores de banho e tosa</h4>
+                ${
+                    atendimentosGrooming.length
+                        ? atendimentosGrooming
+                              .map(
+                                  (item) => `
+                                    <div class="historico-item">
+                                        <p><strong>Data:</strong> ${escapeHtml(formatDateLabel(item.data, item.hora))}</p>
+                                        <p><strong>Status:</strong> ${escapeHtml(item.status_final || item.status || "-")}</p>
+                                        <p><strong>Funcionário responsável:</strong> ${escapeHtml(item.funcionario_responsavel || "-")}</p>
+                                        <p><strong>Serviços:</strong> ${escapeHtml(joinList(item.servicos_executados || item.servicos))}</p>
+                                        <p><strong>Intercorrências:</strong> ${escapeHtml(joinList(item.intercorrencias))}</p>
+                                        <p><strong>Observações gerais:</strong> ${escapeHtml(item.observacoes_gerais || item.observacoes || "-")}</p>
+                                        <p><strong>Observações da produção:</strong> ${escapeHtml(item.observacoes_producao || "-")}</p>
+                                        <p><strong>Tempo total:</strong> ${escapeHtml(formatMinutes(item.tempo_total_atendimento_minutos))}</p>
+                                    </div>
+                                `
+                              )
+                              .join("")
+                        : `<p>Nenhum atendimento de banho e tosa encontrado no histórico.</p>`
+                }
+            </section>
+
+            <section class="historico-section">
+                <h4>Intercorrências de banho e tosa</h4>
                 ${
                     intercorrencias.length
                         ? intercorrencias
                               .map(
                                   (item) => `
                                     <div class="historico-item">
-                                        <p><strong>Data:</strong> ${escapeHtml(item.data || "-")}</p>
-                                        <p><strong>Descrição:</strong> ${escapeHtml(item.descricao || "-")}</p>
+                                        <p><strong>Data:</strong> ${escapeHtml(formatDateLabel(item.data, item.hora))}</p>
+                                        <p><strong>Funcionário:</strong> ${escapeHtml(item.funcionario || "-")}</p>
+                                        <p><strong>Descrição:</strong> ${escapeHtml(item.descricao || item.intercorrencia || "-")}</p>
                                     </div>
                                 `
                               )
@@ -929,9 +990,15 @@
                               .map(
                                   (item) => `
                                     <div class="historico-item">
+                                        <p><strong>Data:</strong> ${escapeHtml(formatDateLabel(item.data, item.hora, item.iniciado_em || item.finalizado_em || item.data_hora))}</p>
                                         <p><strong>Etapa:</strong> ${escapeHtml(item.etapa || "-")}</p>
-                                        <p><strong>Data/Hora:</strong> ${escapeHtml(item.data_hora || "-")}</p>
-                                        <p><strong>Observação:</strong> ${escapeHtml(item.observacao || "-")}</p>
+                                        <p><strong>Status:</strong> ${escapeHtml(item.status || "-")}</p>
+                                        <p><strong>Funcionário:</strong> ${escapeHtml(item.funcionario || "-")}</p>
+                                        <p><strong>Início:</strong> ${escapeHtml(formatDateTime(item.iniciado_em))}</p>
+                                        <p><strong>Fim:</strong> ${escapeHtml(formatDateTime(item.finalizado_em))}</p>
+                                        <p><strong>Intercorrência:</strong> ${escapeHtml(item.intercorrencia || "-")}</p>
+                                        <p><strong>Observação:</strong> ${escapeHtml(item.observacoes || item.observacao || "-")}</p>
+                                        <p><strong>Tempo gasto:</strong> ${escapeHtml(formatMinutes(item.tempo_gasto_minutos))}</p>
                                     </div>
                                 `
                               )
@@ -1106,14 +1173,69 @@
         if (!value) return "-";
 
         const date = new Date(value);
-        if (isNaN(date.getTime())) return value;
+        if (isNaN(date.getTime())) return String(value);
 
         return date.toLocaleString("pt-BR", {
             day: "2-digit",
             month: "2-digit",
+            year: "numeric",
             hour: "2-digit",
             minute: "2-digit",
         });
+    }
+
+    function formatDateLabel(dateValue, timeValue = null, fallbackDateTime = null) {
+        if (dateValue) {
+            const data = String(dateValue);
+            const hora = timeValue ? String(timeValue).slice(0, 5) : "";
+
+            if (data.includes("-")) {
+                const [ano, mes, dia] = data.split("-");
+                return hora ? `${dia}/${mes}/${ano} ${hora}` : `${dia}/${mes}/${ano}`;
+            }
+
+            return hora ? `${data} ${hora}` : data;
+        }
+
+        if (fallbackDateTime) {
+            return formatDateTime(fallbackDateTime);
+        }
+
+        return "-";
+    }
+
+    function formatMinutes(value) {
+        if (value === null || value === undefined || value === "") return "-";
+
+        const total = Number(value);
+        if (!Number.isFinite(total)) return String(value);
+
+        if (total < 60) return `${total} min`;
+
+        const horas = Math.floor(total / 60);
+        const minutos = total % 60;
+
+        return minutos ? `${horas}h ${minutos}min` : `${horas}h`;
+    }
+
+    function joinList(list) {
+        if (!Array.isArray(list) || !list.length) return "-";
+
+        const itens = list
+            .map((item) => {
+                if (item === null || item === undefined) return "";
+                if (typeof item === "string") return item.trim();
+                if (typeof item === "object" && item.nome) return String(item.nome).trim();
+                return String(item).trim();
+            })
+            .filter(Boolean);
+
+        return itens.length ? itens.join(", ") : "-";
+    }
+
+    function formatPeso(value) {
+        if (value === null || value === undefined || value === "") return "-";
+        return `${String(value)} kg`;
     }
 
     function formatCurrency(value) {

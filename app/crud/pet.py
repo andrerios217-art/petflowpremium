@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.agendamento import Agendamento
 from app.models.agendamento_servico import AgendamentoServico
+from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.cliente import Cliente
 from app.models.pet import Pet
 from app.models.producao import Producao
@@ -190,6 +191,30 @@ def _calcular_tempo_total_atendimento_minutos(
     return None
 
 
+def _normalizar_lista_unica(itens: List[str]) -> List[str]:
+    resultado = []
+    vistos = set()
+
+    for item in itens:
+        texto = str(item or "").strip()
+        chave = texto.lower()
+        if texto and chave not in vistos:
+            vistos.add(chave)
+            resultado.append(texto)
+
+    return resultado
+
+
+def _ordenar_timeline_item(item: dict):
+    return (
+        item.get("iniciado_em")
+        or item.get("finalizado_em")
+        or datetime.min,
+        item.get("agendamento_id") or 0,
+        item.get("etapa") or "",
+    )
+
+
 def obter_historico_pet(db: Session, pet_id: int):
     pet = db.query(Pet).filter(Pet.id == pet_id).first()
     if not pet:
@@ -203,6 +228,7 @@ def obter_historico_pet(db: Session, pet_id: int):
         .options(
             joinedload(Agendamento.funcionario),
             selectinload(Agendamento.servicos_agendamento).joinedload(AgendamentoServico.servico),
+            joinedload(Agendamento.producao).joinedload(Producao.funcionario),
             joinedload(Agendamento.producao)
             .selectinload(Producao.historicos)
             .joinedload(ProducaoHistorico.funcionario),
@@ -213,6 +239,8 @@ def obter_historico_pet(db: Session, pet_id: int):
     )
 
     atendimentos = []
+    timeline_producao = []
+    intercorrencias_grooming = []
 
     for agendamento in agendamentos:
         producao = agendamento.producao
@@ -225,17 +253,31 @@ def obter_historico_pet(db: Session, pet_id: int):
 
         timeline = []
         if producao and producao.historicos:
-            for historico in producao.historicos:
-                timeline.append(
+            historicos_ordenados = sorted(
+                producao.historicos,
+                key=lambda h: (
+                    h.iniciado_em or h.finalizado_em or datetime.min,
+                    h.id or 0,
+                )
+            )
+            for historico in historicos_ordenados:
+                timeline_item = {
+                    "etapa": historico.etapa,
+                    "status": historico.status,
+                    "iniciado_em": historico.iniciado_em,
+                    "finalizado_em": historico.finalizado_em,
+                    "funcionario": _obter_nome_generico(historico.funcionario),
+                    "intercorrencia": historico.intercorrencia,
+                    "observacoes": historico.observacoes,
+                    "tempo_gasto_minutos": historico.tempo_gasto_minutos,
+                }
+                timeline.append(timeline_item)
+                timeline_producao.append(
                     {
-                        "etapa": historico.etapa,
-                        "status": historico.status,
-                        "iniciado_em": historico.iniciado_em,
-                        "finalizado_em": historico.finalizado_em,
-                        "funcionario": _obter_nome_generico(historico.funcionario),
-                        "intercorrencia": historico.intercorrencia,
-                        "observacoes": historico.observacoes,
-                        "tempo_gasto_minutos": historico.tempo_gasto_minutos,
+                        "agendamento_id": agendamento.id,
+                        "data": agendamento.data,
+                        "hora": agendamento.hora,
+                        **timeline_item,
                     }
                 )
 
@@ -247,17 +289,23 @@ def obter_historico_pet(db: Session, pet_id: int):
             if item_timeline.get("intercorrencia"):
                 intercorrencias.extend(_texto_para_lista(item_timeline.get("intercorrencia")))
 
-        intercorrencias_unicas = []
-        vistos = set()
-        for item in intercorrencias:
-            chave = item.strip().lower()
-            if chave and chave not in vistos:
-                vistos.add(chave)
-                intercorrencias_unicas.append(item.strip())
+        intercorrencias_unicas = _normalizar_lista_unica(intercorrencias)
 
         funcionario_responsavel = _obter_nome_generico(agendamento.funcionario)
         if not funcionario_responsavel and producao and producao.funcionario:
             funcionario_responsavel = _obter_nome_generico(producao.funcionario)
+
+        for descricao in intercorrencias_unicas:
+            intercorrencias_grooming.append(
+                {
+                    "agendamento_id": agendamento.id,
+                    "data": agendamento.data,
+                    "hora": agendamento.hora,
+                    "descricao": descricao,
+                    "funcionario": funcionario_responsavel,
+                    "origem": "GROOMING",
+                }
+            )
 
         tempo_total = _calcular_tempo_total_atendimento_minutos(producao, timeline)
 
@@ -282,6 +330,78 @@ def obter_historico_pet(db: Session, pet_id: int):
             }
         )
 
+    consultas = (
+        db.query(AtendimentoClinico)
+        .options(
+            joinedload(AtendimentoClinico.veterinario),
+            joinedload(AtendimentoClinico.anamnese),
+            joinedload(AtendimentoClinico.prontuario),
+            joinedload(AtendimentoClinico.agendamento)
+            .selectinload(Agendamento.servicos_agendamento)
+            .joinedload(AgendamentoServico.servico),
+        )
+        .filter(AtendimentoClinico.pet_id == pet_id)
+        .order_by(AtendimentoClinico.data_inicio.desc(), AtendimentoClinico.id.desc())
+        .all()
+    )
+
+    consultas_veterinarias = []
+
+    for consulta in consultas:
+        servicos_consulta = []
+        if consulta.agendamento and consulta.agendamento.servicos_agendamento:
+            for item in consulta.agendamento.servicos_agendamento:
+                nome_servico = _obter_nome_generico(getattr(item, "servico", None))
+                if nome_servico:
+                    servicos_consulta.append(nome_servico)
+
+        anamnese = consulta.anamnese
+        prontuario = consulta.prontuario
+
+        consultas_veterinarias.append(
+            {
+                "atendimento_id": consulta.id,
+                "agendamento_id": consulta.agendamento_id,
+                "data_inicio": consulta.data_inicio,
+                "data_fim": consulta.data_fim,
+                "status": consulta.status,
+                "veterinario": _obter_nome_generico(consulta.veterinario),
+                "observacoes_recepcao": consulta.observacoes_recepcao,
+                "observacoes_clinicas": consulta.observacoes_clinicas,
+                "servicos_executados": _normalizar_lista_unica(servicos_consulta),
+                "anamnese": {
+                    "queixa_principal": anamnese.queixa_principal if anamnese else None,
+                    "historico_atual": anamnese.historico_atual if anamnese else None,
+                    "alimentacao": anamnese.alimentacao if anamnese else None,
+                    "alergias": anamnese.alergias if anamnese else None,
+                    "uso_medicacao_atual": anamnese.uso_medicacao_atual if anamnese else None,
+                    "observacoes": anamnese.observacoes if anamnese else None,
+                },
+                "prontuario": {
+                    "exame_fisico": prontuario.exame_fisico if prontuario else None,
+                    "diagnostico": prontuario.diagnostico if prontuario else None,
+                    "conduta": prontuario.conduta if prontuario else None,
+                    "observacoes": prontuario.observacoes if prontuario else None,
+                },
+            }
+        )
+
+    timeline_producao = sorted(
+        timeline_producao,
+        key=_ordenar_timeline_item,
+        reverse=True,
+    )
+
+    intercorrencias_grooming = sorted(
+        intercorrencias_grooming,
+        key=lambda item: (
+            item.get("data") or datetime.min.date(),
+            item.get("hora") or datetime.min.time(),
+            item.get("agendamento_id") or 0
+        ),
+        reverse=True,
+    )
+
     return {
         "pet": {
             "id": pet.id,
@@ -301,4 +421,8 @@ def obter_historico_pet(db: Session, pet_id: int):
             "ativo": pet.ativo,
         },
         "atendimentos": atendimentos,
+        "atendimentos_grooming": atendimentos,
+        "consultas_veterinarias": consultas_veterinarias,
+        "intercorrencias_grooming": intercorrencias_grooming,
+        "timeline_producao": timeline_producao,
     }

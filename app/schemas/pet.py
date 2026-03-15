@@ -89,7 +89,7 @@ class PetResumoHistoricoSchema(BaseModel):
 class PetHistoricoTimelineItemSchema(BaseModel):
     etapa: str
     status: str
-    iniciado_em: datetime
+    iniciado_em: Optional[datetime] = None
     finalizado_em: Optional[datetime] = None
     funcionario: Optional[str] = None
     intercorrencia: Optional[str] = None
@@ -100,8 +100,17 @@ class PetHistoricoTimelineItemSchema(BaseModel):
         orm_mode = True
 
 
+class PetHistoricoTimelineProducaoItemSchema(PetHistoricoTimelineItemSchema):
+    agendamento_id: Optional[int] = None
+    data: Optional[date] = None
+    hora: Optional[time] = None
+
+    class Config:
+        orm_mode = True
+
+
 # ==========================================================
-# HISTÓRICO DO PET - ATENDIMENTO
+# HISTÓRICO DO PET - ATENDIMENTO GROOMING
 # ==========================================================
 
 class PetHistoricoAtendimentoSchema(BaseModel):
@@ -122,6 +131,61 @@ class PetHistoricoAtendimentoSchema(BaseModel):
         orm_mode = True
 
 
+class PetHistoricoIntercorrenciaGroomingSchema(BaseModel):
+    agendamento_id: Optional[int] = None
+    data: Optional[date] = None
+    hora: Optional[time] = None
+    descricao: str
+    funcionario: Optional[str] = None
+    origem: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+# ==========================================================
+# HISTÓRICO DO PET - CONSULTAS VETERINÁRIAS
+# ==========================================================
+
+class PetHistoricoConsultaAnamneseSchema(BaseModel):
+    queixa_principal: Optional[str] = None
+    historico_atual: Optional[str] = None
+    alimentacao: Optional[str] = None
+    alergias: Optional[str] = None
+    uso_medicacao_atual: Optional[str] = None
+    observacoes: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+class PetHistoricoConsultaProntuarioSchema(BaseModel):
+    exame_fisico: Optional[str] = None
+    diagnostico: Optional[str] = None
+    conduta: Optional[str] = None
+    observacoes: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+class PetHistoricoConsultaVeterinariaSchema(BaseModel):
+    atendimento_id: int
+    agendamento_id: Optional[int] = None
+    data_inicio: Optional[datetime] = None
+    data_fim: Optional[datetime] = None
+    status: str
+    veterinario: Optional[str] = None
+    observacoes_recepcao: Optional[str] = None
+    observacoes_clinicas: Optional[str] = None
+    servicos_executados: List[str] = []
+    anamnese: PetHistoricoConsultaAnamneseSchema = PetHistoricoConsultaAnamneseSchema()
+    prontuario: PetHistoricoConsultaProntuarioSchema = PetHistoricoConsultaProntuarioSchema()
+
+    class Config:
+        orm_mode = True
+
+
 # ==========================================================
 # HISTÓRICO DO PET - RESPOSTA FINAL
 # ==========================================================
@@ -129,6 +193,10 @@ class PetHistoricoAtendimentoSchema(BaseModel):
 class PetHistoricoResponseSchema(BaseModel):
     pet: PetResumoHistoricoSchema
     atendimentos: List[PetHistoricoAtendimentoSchema] = []
+    atendimentos_grooming: List[PetHistoricoAtendimentoSchema] = []
+    consultas_veterinarias: List[PetHistoricoConsultaVeterinariaSchema] = []
+    intercorrencias_grooming: List[PetHistoricoIntercorrenciaGroomingSchema] = []
+    timeline_producao: List[PetHistoricoTimelineProducaoItemSchema] = []
 
     class Config:
         orm_mode = True
