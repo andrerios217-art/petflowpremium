@@ -65,6 +65,7 @@ class PetResumoHistoricoSchema(BaseModel):
     id: int
     nome: str
     tutor: Optional[str] = None
+    especie: Optional[str] = None
     raca: Optional[str] = None
     porte: Optional[str] = None
     peso: Optional[Decimal] = None
@@ -89,21 +90,12 @@ class PetResumoHistoricoSchema(BaseModel):
 class PetHistoricoTimelineItemSchema(BaseModel):
     etapa: str
     status: str
-    iniciado_em: Optional[datetime] = None
+    iniciado_em: datetime
     finalizado_em: Optional[datetime] = None
     funcionario: Optional[str] = None
     intercorrencia: Optional[str] = None
     observacoes: Optional[str] = None
     tempo_gasto_minutos: Optional[int] = None
-
-    class Config:
-        orm_mode = True
-
-
-class PetHistoricoTimelineProducaoItemSchema(PetHistoricoTimelineItemSchema):
-    agendamento_id: Optional[int] = None
-    data: Optional[date] = None
-    hora: Optional[time] = None
 
     class Config:
         orm_mode = True
@@ -131,20 +123,8 @@ class PetHistoricoAtendimentoSchema(BaseModel):
         orm_mode = True
 
 
-class PetHistoricoIntercorrenciaGroomingSchema(BaseModel):
-    agendamento_id: Optional[int] = None
-    data: Optional[date] = None
-    hora: Optional[time] = None
-    descricao: str
-    funcionario: Optional[str] = None
-    origem: Optional[str] = None
-
-    class Config:
-        orm_mode = True
-
-
 # ==========================================================
-# HISTÓRICO DO PET - CONSULTAS VETERINÁRIAS
+# HISTÓRICO DO PET - CONSULTA VETERINÁRIA
 # ==========================================================
 
 class PetHistoricoConsultaAnamneseSchema(BaseModel):
@@ -176,11 +156,12 @@ class PetHistoricoConsultaVeterinariaSchema(BaseModel):
     data_fim: Optional[datetime] = None
     status: str
     veterinario: Optional[str] = None
+    servicos_previstos: List[str] = []
+    servicos_executados: List[str] = []
     observacoes_recepcao: Optional[str] = None
     observacoes_clinicas: Optional[str] = None
-    servicos_executados: List[str] = []
-    anamnese: PetHistoricoConsultaAnamneseSchema = PetHistoricoConsultaAnamneseSchema()
-    prontuario: PetHistoricoConsultaProntuarioSchema = PetHistoricoConsultaProntuarioSchema()
+    anamnese: PetHistoricoConsultaAnamneseSchema
+    prontuario: PetHistoricoConsultaProntuarioSchema
 
     class Config:
         orm_mode = True
@@ -192,11 +173,8 @@ class PetHistoricoConsultaVeterinariaSchema(BaseModel):
 
 class PetHistoricoResponseSchema(BaseModel):
     pet: PetResumoHistoricoSchema
-    atendimentos: List[PetHistoricoAtendimentoSchema] = []
-    atendimentos_grooming: List[PetHistoricoAtendimentoSchema] = []
     consultas_veterinarias: List[PetHistoricoConsultaVeterinariaSchema] = []
-    intercorrencias_grooming: List[PetHistoricoIntercorrenciaGroomingSchema] = []
-    timeline_producao: List[PetHistoricoTimelineProducaoItemSchema] = []
+    atendimentos: List[PetHistoricoAtendimentoSchema] = []
 
     class Config:
         orm_mode = True

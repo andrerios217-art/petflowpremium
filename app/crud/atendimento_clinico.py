@@ -49,6 +49,16 @@ def _get_atendimento_or_404(db: Session, atendimento_id: int) -> AtendimentoClin
     return atendimento
 
 
+def _finalizar_agendamento_vinculado_se_existir(atendimento: AtendimentoClinico):
+    agendamento = getattr(atendimento, "agendamento", None)
+
+    if not agendamento:
+        return
+
+    if hasattr(agendamento, "status"):
+        agendamento.status = "FINALIZADO"
+
+
 def iniciar_atendimento(db: Session, payload: AtendimentoClinicoIniciar) -> AtendimentoClinico:
     empresa = db.query(Empresa).filter(Empresa.id == payload.empresa_id).first()
     if not empresa:
@@ -73,14 +83,16 @@ def iniciar_atendimento(db: Session, payload: AtendimentoClinicoIniciar) -> Aten
         if not veterinario:
             raise HTTPException(status_code=404, detail="Veterinário/funcionário não encontrado.")
 
-    agendamento = None
     if payload.agendamento_id:
         agendamento = db.query(Agendamento).filter(Agendamento.id == payload.agendamento_id).first()
         if not agendamento:
             raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
 
         if hasattr(agendamento, "pet_id") and getattr(agendamento, "pet_id", None) != payload.pet_id:
-            raise HTTPException(status_code=400, detail="O agendamento não pertence ao pet informado.")
+            raise HTTPException(
+                status_code=400,
+                detail="O agendamento não pertence ao pet informado.",
+            )
 
     atendimento_existente = None
     if payload.agendamento_id:
@@ -199,12 +211,14 @@ def salvar_anamnese(
     anamnese = atendimento.anamnese
     if not anamnese:
         anamnese = PetAnamnese()
+
         if hasattr(anamnese, "atendimento_id"):
             anamnese.atendimento_id = atendimento.id
         if hasattr(anamnese, "pet_id"):
             anamnese.pet_id = atendimento.pet_id
         if hasattr(anamnese, "created_at"):
             anamnese.created_at = datetime.utcnow()
+
         db.add(anamnese)
         db.flush()
 
@@ -225,6 +239,7 @@ def salvar_anamnese(
         anamnese.updated_at = datetime.utcnow()
 
     _touch_updated_at(atendimento)
+
     db.commit()
     db.refresh(anamnese)
 
@@ -241,12 +256,14 @@ def salvar_prontuario(
     prontuario = atendimento.prontuario
     if not prontuario:
         prontuario = PetProntuario()
+
         if hasattr(prontuario, "atendimento_id"):
             prontuario.atendimento_id = atendimento.id
         if hasattr(prontuario, "pet_id"):
             prontuario.pet_id = atendimento.pet_id
         if hasattr(prontuario, "created_at"):
             prontuario.created_at = datetime.utcnow()
+
         db.add(prontuario)
         db.flush()
 
@@ -264,7 +281,18 @@ def salvar_prontuario(
     if hasattr(prontuario, "updated_at"):
         prontuario.updated_at = datetime.utcnow()
 
+    if hasattr(atendimento, "observacoes_clinicas"):
+        atendimento.observacoes_clinicas = payload.observacoes
+
+    if hasattr(atendimento, "status"):
+        atendimento.status = "FINALIZADO"
+
+    if hasattr(atendimento, "data_fim"):
+        atendimento.data_fim = datetime.utcnow()
+
+    _finalizar_agendamento_vinculado_se_existir(atendimento)
     _touch_updated_at(atendimento)
+
     db.commit()
     db.refresh(prontuario)
 
@@ -305,7 +333,9 @@ def adicionar_item(
         item.valor_total = (payload.quantidade or 0) * (payload.valor_unitario or 0)
 
     db.add(item)
+
     _touch_updated_at(atendimento)
+
     db.commit()
     db.refresh(item)
 
@@ -361,7 +391,9 @@ def gerar_payload_pdv(db: Session, atendimento_id: int) -> dict:
                 "data_referencia": (
                     atendimento.data_fim.isoformat()
                     if atendimento.data_fim
-                    else atendimento.data_inicio.isoformat() if atendimento.data_inicio else None
+                    else atendimento.data_inicio.isoformat()
+                    if atendimento.data_inicio
+                    else None
                 ),
             }
         )
@@ -376,7 +408,9 @@ def gerar_payload_pdv(db: Session, atendimento_id: int) -> dict:
         "data_atendimento": (
             atendimento.data_fim.isoformat()
             if atendimento.data_fim
-            else atendimento.data_inicio.isoformat() if atendimento.data_inicio else None
+            else atendimento.data_inicio.isoformat()
+            if atendimento.data_inicio
+            else None
         ),
         "itens": itens_payload,
         "total_faturavel": total,
@@ -397,7 +431,9 @@ def finalizar_atendimento(db: Session, atendimento_id: int) -> AtendimentoClinic
         atendimento.status = "FINALIZADO"
         atendimento.data_fim = datetime.utcnow()
 
+    _finalizar_agendamento_vinculado_se_existir(atendimento)
     _touch_updated_at(atendimento)
+
     db.commit()
 
     return _get_atendimento_or_404(db, atendimento_id)
@@ -412,6 +448,7 @@ def marcar_enviado_pdv(db: Session, atendimento_id: int) -> AtendimentoClinico:
         atendimento.enviado_pdv = True
 
     _touch_updated_at(atendimento)
+
     db.commit()
 
     return _get_atendimento_or_404(db, atendimento_id)

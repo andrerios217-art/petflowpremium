@@ -1,4 +1,4 @@
-from datetime import datetime, date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Optional
 import unicodedata
@@ -15,7 +15,6 @@ from app.models.cliente import Cliente
 from app.models.funcionario import Funcionario
 from app.models.pet import Pet
 from app.models.servico import Servico
-
 
 router = APIRouter(tags=["Agenda Veterinária"])
 
@@ -77,7 +76,6 @@ def _funcionario_eh_veterinario(funcionario: Optional[Funcionario]) -> bool:
         return False
 
     funcao = _normalizar_texto(getattr(funcionario, "funcao", ""))
-
     if not funcao:
         return False
 
@@ -140,6 +138,14 @@ def _buscar_funcionario(db: Session, funcionario_id: Optional[int]):
     return db.query(Funcionario).filter(Funcionario.id == funcionario_id).first()
 
 
+def _agendamento_veterinario_finalizado(agendamento: Optional[Agendamento]) -> bool:
+    if not agendamento:
+        return False
+
+    status = str(getattr(agendamento, "status", "") or "").strip().upper()
+    return status in {"FINALIZADO", "SALVO"}
+
+
 def _serialize_agendamento(db: Session, agendamento: Agendamento):
     cliente = _buscar_cliente(db, getattr(agendamento, "cliente_id", None))
     pet = _buscar_pet(db, getattr(agendamento, "pet_id", None))
@@ -199,7 +205,10 @@ def _normalizar_servico_ids(servico_ids):
         try:
             valor = int(item)
         except (TypeError, ValueError):
-            raise HTTPException(status_code=400, detail="Há IDs de serviços inválidos na requisição.")
+            raise HTTPException(
+                status_code=400,
+                detail="Há IDs de serviços inválidos na requisição.",
+            )
 
         if valor > 0 and valor not in ids_normalizados:
             ids_normalizados.append(valor)
@@ -244,11 +253,10 @@ def _validar_consistencia_multiempresa(cliente=None, pet=None, funcionario=None,
         empresa_ids_encontradas.append(empresa_id)
 
     empresa_ids_unicas = {item for item in empresa_ids_encontradas if item is not None}
-
     if len(empresa_ids_unicas) > 1:
         raise HTTPException(
             status_code=400,
-            detail="Cliente, pet e responsável pertencem a empresas diferentes."
+            detail="Cliente, pet e responsável pertencem a empresas diferentes.",
         )
 
 
@@ -482,6 +490,7 @@ def detalhar_agendamento_veterinario(
         if payload["pet"]["id"]
         else None
     )
+
     return payload
 
 
@@ -537,10 +546,11 @@ async def criar_agendamento_veterinario(
     funcionario = db.query(Funcionario).filter(Funcionario.id == funcionario_id).first()
     if not funcionario:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+
     if not _funcionario_eh_veterinario(funcionario):
         raise HTTPException(
             status_code=400,
-            detail="A agenda veterinária aceita apenas funcionários com função de veterinário."
+            detail="A agenda veterinária aceita apenas funcionários com função de veterinário.",
         )
 
     empresa_id = _resolver_empresa_id(
@@ -575,7 +585,6 @@ async def criar_agendamento_veterinario(
 
         if hasattr(novo_agendamento, "empresa_id") and empresa_id:
             novo_agendamento.empresa_id = empresa_id
-
         if hasattr(novo_agendamento, "cliente_id"):
             novo_agendamento.cliente_id = cliente_id
         if hasattr(novo_agendamento, "pet_id"):
@@ -601,13 +610,10 @@ async def criar_agendamento_veterinario(
 
             if hasattr(rel, "agendamento_id"):
                 rel.agendamento_id = novo_agendamento.id
-
             if hasattr(rel, "servico_id"):
                 rel.servico_id = servico.id
-
             if hasattr(rel, "preco"):
                 rel.preco = _servico_valor(servico)
-
             if hasattr(rel, "tempo_previsto"):
                 rel.tempo_previsto = _servico_tempo_previsto(servico)
 
@@ -620,13 +626,14 @@ async def criar_agendamento_veterinario(
         db.rollback()
         raise HTTPException(
             status_code=400,
-            detail=f"Não foi possível salvar o agendamento por restrição de integridade: {str(exc.orig)}"
+            detail=f"Não foi possível salvar o agendamento por restrição de integridade: {str(exc.orig)}",
         )
+
     except SQLAlchemyError:
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail="Erro de banco de dados ao criar o agendamento veterinário."
+            detail="Erro de banco de dados ao criar o agendamento veterinário.",
         )
 
     payload = _serialize_agendamento(db, novo_agendamento)
@@ -657,16 +664,23 @@ def iniciar_atendimento_veterinario(
     if not servicos:
         raise HTTPException(status_code=400, detail="Este agendamento não pertence à agenda veterinária.")
 
+    if _agendamento_veterinario_finalizado(agendamento):
+        raise HTTPException(
+            status_code=400,
+            detail="Este atendimento veterinário já foi salvo e finalizado.",
+        )
+
     funcionario = _buscar_funcionario(db, getattr(agendamento, "funcionario_id", None))
     if not funcionario:
         raise HTTPException(
             status_code=400,
-            detail="O agendamento veterinário precisa ter um responsável veterinário definido."
+            detail="O agendamento veterinário precisa ter um responsável veterinário definido.",
         )
+
     if not _funcionario_eh_veterinario(funcionario):
         raise HTTPException(
             status_code=400,
-            detail="O responsável do agendamento veterinário precisa ser um veterinário."
+            detail="O responsável do agendamento veterinário precisa ser um veterinário.",
         )
 
     payload = _serialize_agendamento(db, agendamento)
@@ -688,3 +702,52 @@ def iniciar_atendimento_veterinario(
             "permite_historico_sem_fechar_anamnese": True,
         },
     }
+
+
+@router.post("/api/agenda-veterinaria/agendamentos/{agendamento_id}/finalizar")
+def finalizar_agendamento_veterinario(
+    agendamento_id: int,
+    db: Session = Depends(get_db),
+):
+    agendamento = (
+        db.query(Agendamento)
+        .filter(Agendamento.id == agendamento_id)
+        .first()
+    )
+
+    if not agendamento:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+
+    servicos = _buscar_servicos_do_agendamento(db, agendamento_id)
+    if not servicos:
+        raise HTTPException(status_code=400, detail="Este agendamento não pertence à agenda veterinária.")
+
+    funcionario = _buscar_funcionario(db, getattr(agendamento, "funcionario_id", None))
+    if not funcionario:
+        raise HTTPException(
+            status_code=400,
+            detail="O agendamento veterinário precisa ter um responsável veterinário definido.",
+        )
+
+    if not _funcionario_eh_veterinario(funcionario):
+        raise HTTPException(
+            status_code=400,
+            detail="O responsável do agendamento veterinário precisa ser um veterinário.",
+        )
+
+    if hasattr(agendamento, "status"):
+        agendamento.status = "FINALIZADO"
+
+    db.add(agendamento)
+    db.commit()
+    db.refresh(agendamento)
+
+    payload = _serialize_agendamento(db, agendamento)
+    payload["message"] = "Agendamento veterinário finalizado com sucesso."
+    payload["historico_url"] = (
+        f"/api/pets/{payload['pet']['id']}/historico"
+        if payload["pet"]["id"]
+        else None
+    )
+
+    return payload

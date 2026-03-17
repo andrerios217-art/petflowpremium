@@ -61,25 +61,97 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function limparStoragesDeTema() {
+        const themeKeys = [
+            "petflow_theme",
+            "theme",
+            "color-theme",
+            "darkMode",
+            "modo_escuro",
+            "tema",
+        ];
+
+        themeKeys.forEach((key) => {
+            try {
+                localStorage.removeItem(key);
+            } catch (error) {
+                console.warn(`Não foi possível limpar ${key} do localStorage:`, error);
+            }
+
+            try {
+                sessionStorage.removeItem(key);
+            } catch (error) {
+                console.warn(`Não foi possível limpar ${key} do sessionStorage:`, error);
+            }
+        });
+    }
+
+    function removerClassesTemaEscuro(element) {
+        if (!element || !element.classList) {
+            return;
+        }
+
+        element.classList.remove(
+            "dark",
+            "theme-dark",
+            "dark-mode",
+            "modo-escuro",
+            "is-dark"
+        );
+    }
+
+    function removerBotoesTema() {
+        const seletores = [
+            "#theme-toggle-btn",
+            "[data-theme-toggle]",
+            "[data-action='toggle-theme']",
+            ".theme-toggle",
+            ".theme-switch",
+            ".dark-mode-toggle",
+        ];
+
+        seletores.forEach((seletor) => {
+            document.querySelectorAll(seletor).forEach((elemento) => elemento.remove());
+        });
+    }
+
     function garantirTemaClaro() {
+        limparStoragesDeTema();
+
         document.documentElement.removeAttribute("data-theme");
+        document.body?.removeAttribute("data-theme");
 
-        try {
-            localStorage.removeItem("petflow_theme");
-        } catch (error) {
-            console.warn("Não foi possível limpar tema salvo no localStorage:", error);
-        }
+        removerClassesTemaEscuro(document.documentElement);
+        removerClassesTemaEscuro(document.body);
 
-        try {
-            sessionStorage.removeItem("petflow_theme");
-        } catch (error) {
-            console.warn("Não foi possível limpar tema salvo no sessionStorage:", error);
-        }
+        removerBotoesTema();
+    }
 
-        const botaoTema = document.getElementById("theme-toggle-btn");
-        if (botaoTema) {
-            botaoTema.remove();
-        }
+    function observarMutacoesTema() {
+        const observer = new MutationObserver((mutations) => {
+            let deveReaplicarTemaClaro = false;
+
+            mutations.forEach((mutation) => {
+                if (mutation.type === "attributes") {
+                    deveReaplicarTemaClaro = true;
+                }
+
+                if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+                    deveReaplicarTemaClaro = true;
+                }
+            });
+
+            if (deveReaplicarTemaClaro) {
+                garantirTemaClaro();
+            }
+        });
+
+        observer.observe(document.documentElement, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ["data-theme", "class"],
+        });
     }
 
     function criarContainerToast() {
@@ -125,5 +197,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     garantirTemaClaro();
+    observarMutacoesTema();
     aplicarPermissoesSidebar();
 });

@@ -37,6 +37,42 @@
   --danger-soft-hover: rgba(220, 38, 38, 0.14);
 }
 
+/* FORÇA MODO CLARO MESMO SE ALGUMA CLASSE/ATRIBUTO DE TEMA ESCURO AINDA FOR INJETADO */
+html[data-theme="dark"],
+body[data-theme="dark"],
+html.dark,
+body.dark,
+html.theme-dark,
+body.theme-dark,
+html.dark-mode,
+body.dark-mode,
+html.modo-escuro,
+body.modo-escuro,
+html.is-dark,
+body.is-dark {
+  color-scheme: light;
+  background:
+    radial-gradient(circle at top left, var(--page-bg-gradient-1), transparent 30%),
+    radial-gradient(circle at bottom right, var(--page-bg-gradient-2), transparent 28%),
+    var(--bg) !important;
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] *,
+body[data-theme="dark"] *,
+html.dark *,
+body.dark *,
+html.theme-dark *,
+body.theme-dark *,
+html.dark-mode *,
+body.dark-mode *,
+html.modo-escuro *,
+body.modo-escuro *,
+html.is-dark *,
+body.is-dark * {
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
   font-family: "Plus Jakarta Sans", Arial, sans-serif;

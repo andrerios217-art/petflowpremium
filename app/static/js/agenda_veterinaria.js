@@ -169,6 +169,13 @@
             const btnIniciar = event.target.closest("[data-action='iniciar-atendimento']");
             if (btnIniciar) {
                 const agendamentoId = Number(btnIniciar.dataset.agendamentoId);
+                const status = String(btnIniciar.dataset.status || "").trim();
+
+                if (agendamentoEstaFinalizado(status)) {
+                    showToast("Este atendimento veterinário já foi salvo e finalizado.", "error");
+                    return;
+                }
+
                 iniciarAtendimento(agendamentoId);
                 return;
             }
@@ -308,31 +315,47 @@
     function renderCardAgendamento(item) {
         const dataHora = item.data_agendamento ? formatDateTime(item.data_agendamento) : "-";
         const servicos = Array.isArray(item.servicos) ? item.servicos : [];
+        const status = String(item.status || "AGUARDANDO");
+        const finalizado = agendamentoEstaFinalizado(status);
+
+        const cardStyle = finalizado
+            ? 'style="background: linear-gradient(135deg, #14532d 0%, #166534 100%); color: #ffffff; border: 1px solid #14532d; box-shadow: 0 12px 26px rgba(20, 83, 45, 0.28);"'
+            : "";
+
+        const textStyle = finalizado ? 'style="color: #ffffff;"' : "";
+        const strongStyle = finalizado ? 'style="color: #ffffff;"' : "";
+        const badgeStyle = finalizado
+            ? 'style="background: rgba(255,255,255,0.18); color: #ffffff; border: 1px solid rgba(255,255,255,0.18);"'
+            : "";
 
         return `
-            <article class="agenda-vet-card">
+            <article class="agenda-vet-card ${finalizado ? "status-finalizado" : ""}" ${cardStyle}>
                 <div class="agenda-vet-card-top">
-                    <h4>${escapeHtml(item.pet?.nome || "Pet não informado")}</h4>
-                    <span class="status-badge">${escapeHtml(item.status || "AGUARDANDO")}</span>
+                    <h4 ${textStyle}>${escapeHtml(item.pet?.nome || "Pet não informado")}</h4>
+                    <span class="status-badge" ${badgeStyle}>${escapeHtml(status)}</span>
                 </div>
 
-                <p><strong>Tutor:</strong> ${escapeHtml(item.cliente?.nome || "Tutor não informado")}</p>
-                <p><strong>Horário:</strong> ${escapeHtml(dataHora)}</p>
-                <p><strong>Responsável:</strong> ${escapeHtml(item.funcionario?.nome || "Não definido")}</p>
-                <p><strong>Prioridade:</strong> ${escapeHtml(item.prioridade || "NORMAL")}</p>
+                <p ${textStyle}><strong ${strongStyle}>Tutor:</strong> ${escapeHtml(item.cliente?.nome || "Tutor não informado")}</p>
+                <p ${textStyle}><strong ${strongStyle}>Horário:</strong> ${escapeHtml(dataHora)}</p>
+                <p ${textStyle}><strong ${strongStyle}>Responsável:</strong> ${escapeHtml(item.funcionario?.nome || "Não definido")}</p>
+                <p ${textStyle}><strong ${strongStyle}>Prioridade:</strong> ${escapeHtml(item.prioridade || "NORMAL")}</p>
 
                 <div class="agenda-vet-servicos">
-                    <strong>Serviços:</strong>
+                    <strong ${strongStyle}>Serviços:</strong>
                     <div class="tag-list">
                         ${
                             servicos.length
                                 ? servicos
-                                      .map(
-                                          (servico) =>
-                                              `<span class="tag">${escapeHtml(servico.nome || "")}</span>`
-                                      )
+                                      .map((servico) => {
+                                          if (finalizado) {
+                                              return `<span class="tag" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.18); color: #ffffff;">${escapeHtml(servico.nome || "")}</span>`;
+                                          }
+                                          return `<span class="tag">${escapeHtml(servico.nome || "")}</span>`;
+                                      })
                                       .join("")
-                                : `<span class="tag">Sem serviços</span>`
+                                : finalizado
+                                    ? `<span class="tag" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.18); color: #ffffff;">Sem serviços</span>`
+                                    : `<span class="tag">Sem serviços</span>`
                         }
                     </div>
                 </div>
@@ -340,26 +363,43 @@
                 ${
                     item.observacoes
                         ? `
-                    <p><strong>Observações:</strong> ${escapeHtml(item.observacoes)}</p>
+                    <p ${textStyle}><strong ${strongStyle}>Observações:</strong> ${escapeHtml(item.observacoes)}</p>
                 `
                         : ""
                 }
 
                 <div class="agenda-vet-card-actions">
-                    <button
-                        type="button"
-                        class="btn btn-primary"
-                        data-action="iniciar-atendimento"
-                        data-agendamento-id="${Number(item.id || 0)}"
-                    >
-                        Iniciar Atendimento
-                    </button>
+                    ${
+                        finalizado
+                            ? `
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            disabled
+                            style="opacity: 1; background: rgba(255,255,255,0.16); color: #ffffff; border: 1px solid rgba(255,255,255,0.18); cursor: not-allowed;"
+                        >
+                            Atendimento Salvo
+                        </button>
+                    `
+                            : `
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            data-action="iniciar-atendimento"
+                            data-agendamento-id="${Number(item.id || 0)}"
+                            data-status="${escapeHtml(status)}"
+                        >
+                            Iniciar Atendimento
+                        </button>
+                    `
+                    }
 
                     <button
                         type="button"
-                        class="btn btn-secondary"
+                        class="btn ${finalizado ? "btn-secondary" : "btn-secondary"}"
                         data-action="historico-rapido"
                         data-pet-id="${Number(item?.pet?.id || 0)}"
+                        ${finalizado ? 'style="background: rgba(255,255,255,0.16); color: #ffffff; border: 1px solid rgba(255,255,255,0.18);"' : ""}
                     >
                         Histórico do Pet
                     </button>
@@ -665,6 +705,12 @@
 
     async function iniciarAtendimento(agendamentoId) {
         try {
+            const itemAgenda = state.agenda.find((item) => Number(item.id) === Number(agendamentoId));
+            if (itemAgenda && agendamentoEstaFinalizado(itemAgenda.status)) {
+                showToast("Este atendimento veterinário já foi salvo e finalizado.", "error");
+                return;
+            }
+
             const data = await fetchJsonSafe(
                 `/api/agenda-veterinaria/agendamentos/${agendamentoId}/iniciar-atendimento`,
                 {
@@ -699,7 +745,8 @@
 
         if (!empresaId) {
             restaurarRascunhoClinicoLocal(agendamentoId);
-            showToast("Atendimento aberto em modo local. Empresa não identificada para persistência clínica.");
+            state.atendimentoClinicoId = null;
+            state.atendimentoClinicoModo = "local";
             return;
         }
 
@@ -723,7 +770,6 @@
             state.atendimentoClinicoModo = "local";
 
             restaurarRascunhoClinicoLocal(agendamentoId);
-            showToast("Atendimento aberto em modo local. A persistência clínica ainda não foi iniciada no backend.");
         }
     }
 
@@ -753,6 +799,7 @@
     function preencherFormularioClinicoComBackend(data) {
         const anamnese = data?.anamnese || {};
         const prontuario = data?.prontuario || {};
+        const observacoesClinicas = extrairObservacoesClinicas(prontuario.observacoes || "");
 
         if (el.clinicoQueixaPrincipal) {
             el.clinicoQueixaPrincipal.value = anamnese.queixa_principal || "";
@@ -763,7 +810,10 @@
         }
 
         if (el.clinicoObservacoesGerais) {
-            el.clinicoObservacoesGerais.value = anamnese.observacoes || prontuario.observacoes || "";
+            el.clinicoObservacoesGerais.value =
+                observacoesClinicas.observacoes_gerais ||
+                anamnese.observacoes ||
+                "";
         }
 
         if (el.clinicoServicosExecutados) {
@@ -771,15 +821,18 @@
         }
 
         if (el.clinicoMedicacoes) {
-            el.clinicoMedicacoes.value = "";
+            el.clinicoMedicacoes.value = observacoesClinicas.medicacoes || "";
         }
 
         if (el.clinicoExames) {
-            el.clinicoExames.value = prontuario.diagnostico || "";
+            el.clinicoExames.value =
+                observacoesClinicas.exames ||
+                prontuario.diagnostico ||
+                "";
         }
 
         if (el.clinicoReceita) {
-            el.clinicoReceita.value = "";
+            el.clinicoReceita.value = observacoesClinicas.receita || "";
         }
     }
 
@@ -931,6 +984,10 @@
                                         <p><strong>Diagnóstico:</strong> ${escapeHtml(item.prontuario?.diagnostico || "-")}</p>
                                         <p><strong>Conduta:</strong> ${escapeHtml(item.prontuario?.conduta || "-")}</p>
                                         <p><strong>Observações do prontuário:</strong> ${escapeHtml(item.prontuario?.observacoes || "-")}</p>
+                                        <p><strong>Observações gerais:</strong> ${escapeHtml(item.prontuario?.observacoes_gerais || "-")}</p>
+                                        <p><strong>Medicações:</strong> ${escapeHtml(item.prontuario?.medicacoes || "-")}</p>
+                                        <p><strong>Exames:</strong> ${escapeHtml(item.prontuario?.exames || "-")}</p>
+                                        <p><strong>Receita:</strong> ${escapeHtml(item.prontuario?.receita || "-")}</p>
                                     </div>
                                 `
                               )
@@ -1024,10 +1081,17 @@
         try {
             salvarRascunhoClinicoLocal();
 
+            if (!state.agendamentoAtual?.id) {
+                showToast("Nenhum agendamento clínico aberto.", "error");
+                return;
+            }
+
             if (!state.atendimentoClinicoId) {
                 showToast("Rascunho clínico salvo localmente.");
                 return;
             }
+
+            const observacoesClinicasSerializadas = serializarObservacoesClinicas();
 
             const payloadAnamnese = {
                 queixa_principal: el.clinicoQueixaPrincipal?.value || "",
@@ -1038,7 +1102,7 @@
             const payloadProntuario = {
                 conduta: el.clinicoServicosExecutados?.value || "",
                 diagnostico: el.clinicoExames?.value || "",
-                observacoes: el.clinicoObservacoesGerais?.value || "",
+                observacoes: observacoesClinicasSerializadas,
             };
 
             const [dataAnamnese, dataProntuario] = await Promise.all([
@@ -1070,7 +1134,27 @@
                 throw new Error("Erro ao salvar prontuário.");
             }
 
-            showToast("Atendimento clínico salvo no sistema.");
+            await fetchJsonSafe(
+                `/api/clinico/${state.atendimentoClinicoId}/finalizar`,
+                { method: "POST" },
+                "Erro ao finalizar atendimento clínico."
+            );
+
+            await fetchJsonSafe(
+                `/api/agenda-veterinaria/agendamentos/${state.agendamentoAtual.id}/finalizar`,
+                { method: "POST" },
+                "Erro ao finalizar agendamento veterinário."
+            );
+
+            if (state.agendamentoAtual) {
+                state.agendamentoAtual.status = "FINALIZADO";
+            }
+
+            await carregarAgendaSemana();
+            await abrirHistoricoPetPorId(state.agendamentoAtual.pet.id);
+
+            fecharModalAtendimentoClinico();
+            showToast("Atendimento clínico salvo e finalizado com sucesso.");
         } catch (error) {
             console.error(error);
             showToast(error.message || "Erro ao salvar atendimento clínico.", "error");
@@ -1137,6 +1221,53 @@
         };
     }
 
+    function serializarObservacoesClinicas() {
+        const observacoesGerais = (el.clinicoObservacoesGerais?.value || "").trim();
+        const medicacoes = (el.clinicoMedicacoes?.value || "").trim();
+        const exames = (el.clinicoExames?.value || "").trim();
+        const receita = (el.clinicoReceita?.value || "").trim();
+
+        return [
+            "[OBSERVACOES_GERAIS]",
+            observacoesGerais,
+            "",
+            "[MEDICACOES]",
+            medicacoes,
+            "",
+            "[EXAMES]",
+            exames,
+            "",
+            "[RECEITA]",
+            receita,
+        ].join("\n");
+    }
+
+    function extrairObservacoesClinicas(texto) {
+        const bruto = String(texto || "");
+
+        if (!bruto.includes("[OBSERVACOES_GERAIS]")) {
+            return {
+                observacoes_gerais: bruto.trim(),
+                medicacoes: "",
+                exames: "",
+                receita: "",
+            };
+        }
+
+        return {
+            observacoes_gerais: extrairBlocoObservacao(bruto, "OBSERVACOES_GERAIS"),
+            medicacoes: extrairBlocoObservacao(bruto, "MEDICACOES"),
+            exames: extrairBlocoObservacao(bruto, "EXAMES"),
+            receita: extrairBlocoObservacao(bruto, "RECEITA"),
+        };
+    }
+
+    function extrairBlocoObservacao(texto, chave) {
+        const regex = new RegExp(`\\[${chave}\\]\\n?([\\s\\S]*?)(?=\\n\\[[A-Z_]+\\]|$)`, "i");
+        const match = String(texto || "").match(regex);
+        return match?.[1]?.trim() || "";
+    }
+
     function resolveEmpresaId() {
         const candidates = [
             window.APP_EMPRESA_ID,
@@ -1167,6 +1298,11 @@
                 <p>${escapeHtml(message || "Falha inesperada.")}</p>
             </div>
         `;
+    }
+
+    function agendamentoEstaFinalizado(status) {
+        const normalizado = String(status || "").trim().toUpperCase();
+        return normalizado === "FINALIZADO" || normalizado === "SALVO";
     }
 
     function formatDateTime(value) {
