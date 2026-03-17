@@ -1,27 +1,138 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
-<section class="page-header">
-  <div>
-    <h1>Configurações</h1>
-    <p>Parâmetros, segurança e personalização do sistema.</p>
+<link rel="stylesheet" href="/static/css/configuracoes_comissao.css" />
+
+<section class="commission-page">
+  <div class="commission-hero">
+    <div class="commission-hero-text">
+      <span class="commission-kicker">Configurações • Comissão</span>
+      <h1>Comissão de Banho e Tosa</h1>
+      <p>
+        Configure a pontuação por etapa, as faixas de pagamento em reais e as
+        regras operacionais da loja com visual premium e validação automática.
+      </p>
+    </div>
+
+    <div class="commission-hero-stats">
+      <div class="commission-stat-card">
+        <span class="commission-stat-label">Etapas comissionáveis</span>
+        <strong>Banho • Tosa • Finalização</strong>
+      </div>
+
+      <div class="commission-stat-card">
+        <span class="commission-stat-label">Regra financeira</span>
+        <strong>Faixas de pontos → valor fixo</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="commission-grid">
+    <section class="commission-card">
+      <div class="commission-card-header">
+        <div>
+          <h2>Pontuação por Etapa</h2>
+          <p>Defina quantos pontos cada etapa entrega ao funcionário que iniciou o atendimento.</p>
+        </div>
+      </div>
+
+      <div class="commission-form-grid commission-form-grid-3">
+        <label class="commission-field">
+          <span>Banho</span>
+          <input type="number" id="pontos_banho" class="commission-input" min="0" step="1" value="0" />
+        </label>
+
+        <label class="commission-field">
+          <span>Tosa</span>
+          <input type="number" id="pontos_tosa" class="commission-input" min="0" step="1" value="0" />
+        </label>
+
+        <label class="commission-field">
+          <span>Finalização</span>
+          <input type="number" id="pontos_finalizacao" class="commission-input" min="0" step="1" value="0" />
+        </label>
+      </div>
+
+      <div class="commission-info-box">
+        <strong>Regra operacional fixa</strong>
+        <p>
+          Os pontos sempre pertencem ao profissional que <strong>iniciou</strong> a etapa.
+          A captura ocorre no encerramento da etapa no sistema.
+        </p>
+      </div>
+    </section>
+
+    <section class="commission-card">
+      <div class="commission-card-header">
+        <div>
+          <h2>Regras Operacionais</h2>
+          <p>Defina os dados básicos usados no acompanhamento e fechamento mensal.</p>
+        </div>
+      </div>
+
+      <div class="commission-form-grid commission-form-grid-2">
+        <label class="commission-field">
+          <span>Dias trabalhados no mês</span>
+          <input type="number" id="dias_trabalhados_mes" class="commission-input" min="1" step="1" value="26" />
+        </label>
+
+        <label class="commission-field">
+          <span>Responsável pela aprovação</span>
+          <input type="text" id="responsavel_aprovacao" class="commission-input" placeholder="Ex.: Gerente da unidade" />
+        </label>
+      </div>
+
+      <div class="commission-info-box soft">
+        <strong>Auditoria</strong>
+        <p>
+          O responsável poderá auditar e aprovar os valores captados pelo sistema,
+          sem editar manualmente os pontos já registrados.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section class="commission-card commission-card-full">
+    <div class="commission-card-header commission-card-header-space">
+      <div>
+        <h2>Faixas de Comissão</h2>
+        <p>
+          Configure as faixas de pontuação e o valor fixo em reais para cada intervalo.
+        </p>
+      </div>
+
+      <button type="button" class="btn btn-primary commission-add-btn" id="btn-add-faixa">
+        + Adicionar faixa
+      </button>
+    </div>
+
+    <div class="commission-range-head">
+      <div>De</div>
+      <div>Até</div>
+      <div>Faixa aberta</div>
+      <div>Valor (R$)</div>
+      <div>Ação</div>
+    </div>
+
+    <div id="faixas-container" class="commission-range-list"></div>
+
+    <div id="faixa-warning" class="commission-warning hidden"></div>
+
+    <div class="commission-preview-wrap">
+      <div class="commission-preview-card">
+        <span class="commission-preview-label">Prévia da regra</span>
+        <div id="commission-preview" class="commission-preview-content">
+          Nenhuma faixa configurada.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="commission-actions">
+    <button type="button" class="btn btn-secondary" id="btn-reset">Resetar</button>
+    <button type="button" class="btn btn-success" id="btn-salvar">Salvar configuração</button>
   </div>
 </section>
 
-<section class="content-grid">
-  <div class="glass-card large-card">
-    <h2>Configurações</h2>
-    <p>Esta área terá senha master, parâmetros da loja, permissões e integrações.</p>
-  </div>
-
-  <div class="glass-card">
-    <h2>Status</h2>
-    <p>Estrutura pronta.</p>
-  </div>
-
-  <div class="glass-card">
-    <h2>Próximo passo</h2>
-    <p>Implementar parâmetros administrativos.</p>
-  </div>
-</section>
+<script src="/static/js/configuracoes_comissao.js"></script>
 {% endblock %}
