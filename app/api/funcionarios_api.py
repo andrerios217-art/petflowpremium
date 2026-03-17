@@ -17,6 +17,7 @@ def serializar_funcionario(funcionario):
         "email": funcionario.email,
         "telefone": funcionario.telefone,
         "funcao": funcionario.funcao,
+        "crmv": funcionario.crmv,
         "acesso_dashboard": funcionario.acesso_dashboard,
         "acesso_clientes": funcionario.acesso_clientes,
         "acesso_pets": funcionario.acesso_pets,
@@ -39,7 +40,7 @@ def listar(
     empresa_id: int | None = Query(default=None),
     apenas_ativos: bool = Query(default=True),
     apenas_producao: bool = Query(default=False),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     funcionarios = funcionario_crud.list_all(db, q=q)
 
@@ -87,7 +88,12 @@ def editar(funcionario_id: int, payload: dict, db: Session = Depends(get_db)):
     if funcao not in FUNCOES_VALIDAS:
         raise HTTPException(status_code=400, detail="Função inválida.")
 
+    crmv = (payload.get("crmv") or "").strip() or None
+    if funcao == "Veterinário" and not crmv:
+        raise HTTPException(status_code=400, detail="CRMV é obrigatório para veterinário.")
+
     payload["funcao"] = funcao
+    payload["crmv"] = crmv if funcao == "Veterinário" else None
 
     funcionario = funcionario_crud.update(db, funcionario, payload)
     return {"id": funcionario.id, "message": "Funcionário atualizado com sucesso."}

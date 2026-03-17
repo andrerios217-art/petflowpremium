@@ -42,6 +42,11 @@
       </select>
     </div>
 
+    <div class="form-group" id="crmv-group" style="display: none;">
+      <label>CRMV</label>
+      <input type="text" id="crmv" />
+    </div>
+
     <div class="form-group">
       <label id="senha-label">Senha de acesso</label>
       <input type="password" id="senha" required />
@@ -119,12 +124,31 @@
     }
   }
 
+  function atualizarCampoCrmv() {
+    const funcao = document.getElementById("funcao").value;
+    const crmvGroup = document.getElementById("crmv-group");
+    const crmvInput = document.getElementById("crmv");
+
+    if (funcao === "Veterinário") {
+      crmvGroup.style.display = "block";
+      crmvInput.required = true;
+    } else {
+      crmvGroup.style.display = "none";
+      crmvInput.required = false;
+      crmvInput.value = "";
+    }
+  }
+
   document.getElementById("funcao").addEventListener("change", function () {
     aplicarPermissoesPorFuncao(this.value);
+    atualizarCampoCrmv();
   });
 
   async function carregarFuncionarioEdicao() {
-    if (!funcionarioId) return;
+    if (!funcionarioId) {
+      atualizarCampoCrmv();
+      return;
+    }
 
     document.getElementById("form-title").innerText = "Editar Funcionário";
     document.getElementById("senha-label").innerText = "Nova senha (opcional)";
@@ -138,6 +162,7 @@
     document.getElementById("email").value = data.email || "";
     document.getElementById("telefone").value = data.telefone || "";
     document.getElementById("funcao").value = data.funcao || "";
+    document.getElementById("crmv").value = data.crmv || "";
 
     document.getElementById("acesso_dashboard").checked = data.acesso_dashboard;
     document.getElementById("acesso_clientes").checked = data.acesso_clientes;
@@ -151,10 +176,20 @@
     document.getElementById("acesso_crm").checked = data.acesso_crm;
     document.getElementById("acesso_relatorios").checked = data.acesso_relatorios;
     document.getElementById("acesso_configuracoes").checked = data.acesso_configuracoes;
+
+    atualizarCampoCrmv();
   }
 
   document.getElementById("funcionario-form").addEventListener("submit", async function (e) {
     e.preventDefault();
+
+    const funcao = document.getElementById("funcao").value;
+    const crmv = document.getElementById("crmv").value.trim();
+
+    if (funcao === "Veterinário" && !crmv) {
+      document.getElementById("funcionario-message").innerText = "CRMV é obrigatório para veterinário.";
+      return;
+    }
 
     const payload = {
       empresa_id: 1,
@@ -162,7 +197,8 @@
       cpf: document.getElementById("cpf").value,
       email: document.getElementById("email").value,
       telefone: document.getElementById("telefone").value,
-      funcao: document.getElementById("funcao").value,
+      funcao: funcao,
+      crmv: funcao === "Veterinário" ? crmv : null,
       senha: document.getElementById("senha").value || null,
 
       acesso_dashboard: document.getElementById("acesso_dashboard").checked,

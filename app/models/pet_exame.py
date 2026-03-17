@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, ForeignKey, String, Text, DateTime
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -18,28 +18,12 @@ class PetExame(Base):
         index=True,
     )
 
-    pet_id = Column(
-        Integer,
-        ForeignKey("pets.id"),
-        nullable=False,
-        index=True,
-    )
-
-    nome = Column(String(255), nullable=False)
+    nome = Column(String(150), nullable=True)
     tipo = Column(String(100), nullable=True)
-    status = Column(String(50), nullable=True, default="SOLICITADO")
+    descricao = Column(Text, nullable=True)
     resultado = Column(Text, nullable=True)
     observacoes = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-    atendimento = relationship(
-        "AtendimentoClinico",
-        back_populates="exames",
-    )
-
-    pet = relationship("Pet")
-
-    def __repr__(self):
-        return f"<PetExame id={self.id} atendimento_id={self.atendimento_id} nome={self.nome}>"
+    atendimento = relationship("AtendimentoClinico", back_populates="exames")

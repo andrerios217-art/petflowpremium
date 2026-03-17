@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+
 from app.core.database import Base
 
 
@@ -13,6 +14,7 @@ class Funcionario(Base):
     email = Column(String(150), nullable=False, unique=True)
     telefone = Column(String(20), nullable=False)
     funcao = Column(String(30), nullable=False)
+    crmv = Column(String(30), nullable=True)
     senha_hash = Column(String(255), nullable=False)
 
     acesso_dashboard = Column(Boolean, default=False, nullable=False)
