@@ -1,27 +1,90 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
-<section class="page-header">
-  <div>
-    <h1>Configurações</h1>
-    <p>Parâmetros, segurança e personalização do sistema.</p>
-  </div>
-</section>
 
-<section class="content-grid">
-  <div class="glass-card large-card">
-    <h2>Configurações</h2>
-    <p>Esta área terá senha master, parâmetros da loja, permissões e integrações.</p>
+<div class="config-page">
+
+  <div class="config-header">
+    <h1>Configuração de Comissão</h1>
+    <p>Defina regras de pontuação e faixas de pagamento para banho e tosa</p>
   </div>
 
-  <div class="glass-card">
-    <h2>Status</h2>
-    <p>Estrutura pronta.</p>
+  <!-- ========================
+       PONTUAÇÃO POR ETAPA
+  ========================= -->
+  <div class="config-card">
+    <h2>Pontuação por Etapa</h2>
+
+    <div class="config-grid-3">
+      <div class="form-group">
+        <label>Banho</label>
+        <input type="number" id="pontos_banho" min="0" value="0">
+      </div>
+
+      <div class="form-group">
+        <label>Tosa</label>
+        <input type="number" id="pontos_tosa" min="0" value="0">
+      </div>
+
+      <div class="form-group">
+        <label>Finalização</label>
+        <input type="number" id="pontos_finalizacao" min="0" value="0">
+      </div>
+    </div>
   </div>
 
-  <div class="glass-card">
-    <h2>Próximo passo</h2>
-    <p>Implementar parâmetros administrativos.</p>
+  <!-- ========================
+       FAIXAS DE COMISSÃO
+  ========================= -->
+  <div class="config-card">
+    <div class="config-card-header">
+      <h2>Faixas de Comissão</h2>
+      <button class="btn-primary" id="btn-add-faixa">+ Adicionar faixa</button>
+    </div>
+
+    <div class="faixa-table">
+      <div class="faixa-row header">
+        <span>De</span>
+        <span>Até</span>
+        <span>Valor (R$)</span>
+        <span></span>
+      </div>
+
+      <div id="faixas-container"></div>
+    </div>
+
+    <div class="faixa-warning" id="faixa-warning"></div>
   </div>
-</section>
+
+  <!-- ========================
+       REGRAS OPERACIONAIS
+  ========================= -->
+  <div class="config-card">
+    <h2>Regras Operacionais</h2>
+
+    <div class="config-grid-2">
+      <div class="form-group">
+        <label>Dias trabalhados no mês</label>
+        <input type="number" id="dias_trabalhados" min="1" value="26">
+      </div>
+
+      <div class="form-group">
+        <label>Responsável pela aprovação</label>
+        <input type="text" id="responsavel_nome" placeholder="Nome do responsável">
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================
+       AÇÕES
+  ========================= -->
+  <div class="config-actions">
+    <button class="btn-secondary" id="btn-reset">Resetar</button>
+    <button class="btn-success" id="btn-salvar">Salvar Configuração</button>
+  </div>
+
+</div>
+
+<script src="/static/js/configuracoes_comissao.js"></script>
+
 {% endblock %}

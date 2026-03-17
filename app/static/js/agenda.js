@@ -500,7 +500,23 @@ async function carregarServicos() {
 
 async function carregarFuncionarios() {
   const response = await fetch("/api/funcionarios/");
-  funcionariosCache = await response.json();
+  const funcionarios = await response.json();
+
+  funcionariosCache = Array.isArray(funcionarios)
+    ? funcionarios.filter((func) => {
+        if (!func?.ativo) return false;
+
+        const funcao = normalizarTexto(func.funcao || "");
+
+        if (!funcao) return true;
+
+        if (funcao.includes("veterin")) return false;
+        if (funcao.includes("medico veterin")) return false;
+        if (funcao.includes("medica veterin")) return false;
+
+        return true;
+      })
+    : [];
 
   const select = document.getElementById("ag_funcionario");
   if (!select) return;
@@ -508,12 +524,10 @@ async function carregarFuncionarios() {
   select.innerHTML = `<option value="">Selecione</option>`;
 
   funcionariosCache.forEach((func) => {
-    if (func.ativo) {
-      const opt = document.createElement("option");
-      opt.value = String(func.id);
-      opt.textContent = `${func.nome} • ${func.funcao}`;
-      select.appendChild(opt);
-    }
+    const opt = document.createElement("option");
+    opt.value = String(func.id);
+    opt.textContent = `${func.nome} • ${func.funcao}`;
+    select.appendChild(opt);
   });
 }
 
