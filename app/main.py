@@ -15,6 +15,7 @@ from app.api import agenda_api
 from app.api.agenda_veterinaria_api import router as agenda_veterinaria_router
 from app.api.atendimento_clinico_api import router as atendimento_clinico_router
 from app.api.producao_api import router as producao_router
+from app.api.comissao import router as comissao_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +36,7 @@ app.include_router(agenda_api.router)
 app.include_router(agenda_veterinaria_router)
 app.include_router(atendimento_clinico_router)
 app.include_router(producao_router)
+app.include_router(comissao_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -61,7 +63,7 @@ def clientes_form_page(request: Request):
 def clientes_edit_page(request: Request, cliente_id: int):
     return templates.TemplateResponse(
         "clientes_form.html",
-        {"request": request, "cliente_id": cliente_id}
+        {"request": request, "cliente_id": cliente_id},
     )
 
 
@@ -99,7 +101,7 @@ def agenda_veterinaria_page(request: Request):
 def atendimento_clinico_page(request: Request, agendamento_id: int):
     return templates.TemplateResponse(
         "atendimento_clinico.html",
-        {"request": request, "agendamento_id": agendamento_id}
+        {"request": request, "agendamento_id": agendamento_id},
     )
 
 
@@ -142,7 +144,7 @@ def servicos_form_page(request: Request):
 def servicos_edit_page(request: Request, servico_id: int):
     return templates.TemplateResponse(
         "servicos_form.html",
-        {"request": request, "servico_id": servico_id}
+        {"request": request, "servico_id": servico_id},
     )
 
 
@@ -155,5 +157,5 @@ def funcionarios_form_page(request: Request):
 def funcionarios_edit_page(request: Request, funcionario_id: int):
     return templates.TemplateResponse(
         "funcionarios_form.html",
-        {"request": request, "funcionario_id": funcionario_id}
+        {"request": request, "funcionario_id": funcionario_id},
     )

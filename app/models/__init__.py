@@ -2,6 +2,10 @@ from app.models.agendamento import Agendamento
 from app.models.agendamento_servico import AgendamentoServico
 from app.models.auditoria import Auditoria
 from app.models.cliente import Cliente
+from app.models.comissao_configuracao import ComissaoConfiguracao
+from app.models.comissao_faixa import ComissaoFaixa
+from app.models.comissao_fechamento import ComissaoFechamento
+from app.models.comissao_lancamento import ComissaoLancamento
 from app.models.configuracao import Configuracao
 from app.models.empresa import Empresa
 from app.models.endereco import Endereco
@@ -12,10 +16,8 @@ from app.models.producao import Producao
 from app.models.producao_historico import ProducaoHistorico
 from app.models.servico import Servico
 from app.models.usuario import Usuario
-
 from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.atendimento_clinico_item import AtendimentoClinicoItem
-
 from app.models.pet_alergia import PetAlergia
 from app.models.pet_anamnese import PetAnamnese
 from app.models.pet_exame import PetExame

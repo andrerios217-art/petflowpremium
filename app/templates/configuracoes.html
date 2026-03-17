@@ -1,90 +1,138 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
+<link rel="stylesheet" href="/static/css/configuracoes_comissao.css" />
 
-<div class="config-page">
+<section class="commission-page">
+  <div class="commission-hero">
+    <div class="commission-hero-text">
+      <span class="commission-kicker">Configurações • Comissão</span>
+      <h1>Comissão de Banho e Tosa</h1>
+      <p>
+        Configure a pontuação por etapa, as faixas de pagamento em reais e as
+        regras operacionais da loja com visual premium e validação automática.
+      </p>
+    </div>
 
-  <div class="config-header">
-    <h1>Configuração de Comissão</h1>
-    <p>Defina regras de pontuação e faixas de pagamento para banho e tosa</p>
-  </div>
-
-  <!-- ========================
-       PONTUAÇÃO POR ETAPA
-  ========================= -->
-  <div class="config-card">
-    <h2>Pontuação por Etapa</h2>
-
-    <div class="config-grid-3">
-      <div class="form-group">
-        <label>Banho</label>
-        <input type="number" id="pontos_banho" min="0" value="0">
+    <div class="commission-hero-stats">
+      <div class="commission-stat-card">
+        <span class="commission-stat-label">Etapas comissionáveis</span>
+        <strong>Banho • Tosa • Finalização</strong>
       </div>
 
-      <div class="form-group">
-        <label>Tosa</label>
-        <input type="number" id="pontos_tosa" min="0" value="0">
-      </div>
-
-      <div class="form-group">
-        <label>Finalização</label>
-        <input type="number" id="pontos_finalizacao" min="0" value="0">
+      <div class="commission-stat-card">
+        <span class="commission-stat-label">Regra financeira</span>
+        <strong>Faixas de pontos → valor fixo</strong>
       </div>
     </div>
   </div>
 
-  <!-- ========================
-       FAIXAS DE COMISSÃO
-  ========================= -->
-  <div class="config-card">
-    <div class="config-card-header">
-      <h2>Faixas de Comissão</h2>
-      <button class="btn-primary" id="btn-add-faixa">+ Adicionar faixa</button>
-    </div>
-
-    <div class="faixa-table">
-      <div class="faixa-row header">
-        <span>De</span>
-        <span>Até</span>
-        <span>Valor (R$)</span>
-        <span></span>
+  <div class="commission-grid">
+    <section class="commission-card">
+      <div class="commission-card-header">
+        <div>
+          <h2>Pontuação por Etapa</h2>
+          <p>Defina quantos pontos cada etapa entrega ao funcionário que iniciou o atendimento.</p>
+        </div>
       </div>
 
-      <div id="faixas-container"></div>
-    </div>
+      <div class="commission-form-grid commission-form-grid-3">
+        <label class="commission-field">
+          <span>Banho</span>
+          <input type="number" id="pontos_banho" class="commission-input" min="0" step="1" value="0" />
+        </label>
 
-    <div class="faixa-warning" id="faixa-warning"></div>
-  </div>
+        <label class="commission-field">
+          <span>Tosa</span>
+          <input type="number" id="pontos_tosa" class="commission-input" min="0" step="1" value="0" />
+        </label>
 
-  <!-- ========================
-       REGRAS OPERACIONAIS
-  ========================= -->
-  <div class="config-card">
-    <h2>Regras Operacionais</h2>
-
-    <div class="config-grid-2">
-      <div class="form-group">
-        <label>Dias trabalhados no mês</label>
-        <input type="number" id="dias_trabalhados" min="1" value="26">
+        <label class="commission-field">
+          <span>Finalização</span>
+          <input type="number" id="pontos_finalizacao" class="commission-input" min="0" step="1" value="0" />
+        </label>
       </div>
 
-      <div class="form-group">
-        <label>Responsável pela aprovação</label>
-        <input type="text" id="responsavel_nome" placeholder="Nome do responsável">
+      <div class="commission-info-box">
+        <strong>Regra operacional fixa</strong>
+        <p>
+          Os pontos sempre pertencem ao profissional que <strong>iniciou</strong> a etapa.
+          A captura ocorre no encerramento da etapa no sistema.
+        </p>
+      </div>
+    </section>
+
+    <section class="commission-card">
+      <div class="commission-card-header">
+        <div>
+          <h2>Regras Operacionais</h2>
+          <p>Defina os dados básicos usados no acompanhamento e fechamento mensal.</p>
+        </div>
+      </div>
+
+      <div class="commission-form-grid commission-form-grid-2">
+        <label class="commission-field">
+          <span>Dias trabalhados no mês</span>
+          <input type="number" id="dias_trabalhados_mes" class="commission-input" min="1" step="1" value="26" />
+        </label>
+
+        <label class="commission-field">
+          <span>Responsável pela aprovação</span>
+          <input type="text" id="responsavel_aprovacao" class="commission-input" placeholder="Ex.: Gerente da unidade" />
+        </label>
+      </div>
+
+      <div class="commission-info-box soft">
+        <strong>Auditoria</strong>
+        <p>
+          O responsável poderá auditar e aprovar os valores captados pelo sistema,
+          sem editar manualmente os pontos já registrados.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section class="commission-card commission-card-full">
+    <div class="commission-card-header commission-card-header-space">
+      <div>
+        <h2>Faixas de Comissão</h2>
+        <p>
+          Configure as faixas de pontuação e o valor fixo em reais para cada intervalo.
+        </p>
+      </div>
+
+      <button type="button" class="btn btn-primary commission-add-btn" id="btn-add-faixa">
+        + Adicionar faixa
+      </button>
+    </div>
+
+    <div class="commission-range-head">
+      <div>De</div>
+      <div>Até</div>
+      <div>Faixa aberta</div>
+      <div>Valor (R$)</div>
+      <div>Ação</div>
+    </div>
+
+    <div id="faixas-container" class="commission-range-list"></div>
+
+    <div id="faixa-warning" class="commission-warning hidden"></div>
+
+    <div class="commission-preview-wrap">
+      <div class="commission-preview-card">
+        <span class="commission-preview-label">Prévia da regra</span>
+        <div id="commission-preview" class="commission-preview-content">
+          Nenhuma faixa configurada.
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ========================
-       AÇÕES
-  ========================= -->
-  <div class="config-actions">
-    <button class="btn-secondary" id="btn-reset">Resetar</button>
-    <button class="btn-success" id="btn-salvar">Salvar Configuração</button>
+  <div class="commission-actions">
+    <button type="button" class="btn btn-secondary" id="btn-reset">Resetar</button>
+    <button type="button" class="btn btn-success" id="btn-salvar">Salvar configuração</button>
   </div>
-
-</div>
+</section>
 
 <script src="/static/js/configuracoes_comissao.js"></script>
-
 {% endblock %}

@@ -1,0 +1,200 @@
+.relatorios-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.relatorios-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 20px 22px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+
+.relatorios-header h1 {
+    margin: 0 0 6px;
+    color: #23324a;
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+
+.relatorios-header p {
+    margin: 0;
+    color: #78859b;
+}
+
+.relatorios-filtros {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.relatorios-filtros input[type="month"] {
+    height: 48px;
+    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 0 14px;
+    color: #23324a;
+    outline: none;
+}
+
+.relatorios-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.relatorio-card {
+    background: rgba(255, 255, 255, 0.82);
+    border-radius: 24px;
+    padding: 22px;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.relatorio-header-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.relatorio-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.relatorio-title-row h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #23324a;
+}
+
+.relatorio-subtitle {
+    color: #78859b;
+    font-size: 0.92rem;
+}
+
+.relatorio-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.relatorio-badge-status {
+    background: rgba(0, 106, 255, 0.08);
+    color: #006aff;
+}
+
+.relatorio-badge-fechado {
+    background: rgba(20, 83, 45, 0.12);
+    color: #166534;
+}
+
+.relatorio-total {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.relatorio-total strong {
+    color: #23324a;
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.relatorio-total span {
+    color: #166534;
+    font-weight: 700;
+}
+
+.relatorio-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.relatorio-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f5f7fb;
+    padding: 10px 12px;
+    border-radius: 14px;
+    gap: 10px;
+}
+
+.relatorio-item-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.relatorio-etapa {
+    font-weight: 700;
+    color: #23324a;
+}
+
+.relatorio-item small {
+    color: #78859b;
+}
+
+.relatorio-actions {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.relatorio-empty {
+    text-align: center;
+    padding: 40px 24px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px dashed rgba(0, 0, 0, 0.08);
+    color: #78859b;
+}
+
+.relatorio-empty h3 {
+    margin: 0 0 8px;
+    color: #23324a;
+}
+
+@media (max-width: 768px) {
+    .relatorio-header-card {
+        flex-direction: column;
+    }
+
+    .relatorio-total {
+        text-align: left;
+    }
+
+    .relatorio-actions {
+        width: 100%;
+    }
+
+    .relatorio-actions .btn {
+        width: 100%;
+    }
+}

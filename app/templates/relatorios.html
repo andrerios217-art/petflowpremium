@@ -1,27 +1,23 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
-<section class="page-header">
-  <div>
-    <h1>Relatórios</h1>
-    <p>Indicadores e análises do sistema.</p>
-  </div>
-</section>
+<link rel="stylesheet" href="/static/css/relatorios_comissao.css">
 
-<section class="content-grid">
-  <div class="glass-card large-card">
-    <h2>Relatórios</h2>
-    <p>Esta área será usada para relatórios operacionais, financeiros e de produtividade.</p>
-  </div>
+<div class="relatorios-page">
+  <div class="relatorios-header">
+    <div>
+      <h1>Auditoria de Comissão</h1>
+      <p>Validação mensal dos pontos capturados automaticamente</p>
+    </div>
 
-  <div class="glass-card">
-    <h2>Status</h2>
-    <p>Estrutura pronta.</p>
+    <div class="relatorios-filtros">
+      <input type="month" id="filtro-competencia">
+      <button id="btn-carregar" class="btn btn-primary">Carregar</button>
+    </div>
   </div>
 
-  <div class="glass-card">
-    <h2>Próximo passo</h2>
-    <p>Implementar filtros e exportações.</p>
-  </div>
-</section>
+  <div id="relatorios-container" class="relatorios-container"></div>
+</div>
+
+<script src="/static/js/relatorios_comissao.js"></script>
 {% endblock %}
