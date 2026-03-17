@@ -27,10 +27,58 @@ def _touch_updated_at(atendimento: AtendimentoClinico):
         atendimento.updated_at = datetime.utcnow()
 
 
+def _valor_texto_limpo(valor):
+    if valor is None:
+        return ""
+    return str(valor).strip()
+
+
+def _resolver_logo_empresa(empresa):
+    if not empresa:
+        return None
+
+    for campo in ("logo_url", "logo", "logotipo", "url_logo", "imagem_logo"):
+        if hasattr(empresa, campo):
+            valor = _valor_texto_limpo(getattr(empresa, campo, None))
+            if valor:
+                return valor
+
+    return None
+
+
+def _montar_texto_exame(exame):
+    nome = _valor_texto_limpo(getattr(exame, "nome", None))
+    tipo = _valor_texto_limpo(getattr(exame, "tipo", None))
+    descricao = _valor_texto_limpo(getattr(exame, "descricao", None))
+    resultado = _valor_texto_limpo(getattr(exame, "resultado", None))
+    observacoes = _valor_texto_limpo(getattr(exame, "observacoes", None))
+
+    partes = []
+
+    if nome and tipo:
+        partes.append(f"{nome} ({tipo})")
+    elif nome:
+        partes.append(nome)
+    elif tipo:
+        partes.append(tipo)
+
+    if descricao:
+        partes.append(descricao)
+
+    if resultado:
+        partes.append(f"Resultado: {resultado}")
+
+    if observacoes:
+        partes.append(f"Observações: {observacoes}")
+
+    return " - ".join([parte for parte in partes if parte])
+
+
 def _get_atendimento_or_404(db: Session, atendimento_id: int) -> AtendimentoClinico:
     atendimento = (
         db.query(AtendimentoClinico)
         .options(
+            joinedload(AtendimentoClinico.empresa),
             joinedload(AtendimentoClinico.anamnese),
             joinedload(AtendimentoClinico.prontuario),
             joinedload(AtendimentoClinico.itens),
@@ -38,6 +86,8 @@ def _get_atendimento_or_404(db: Session, atendimento_id: int) -> AtendimentoClin
             joinedload(AtendimentoClinico.cliente),
             joinedload(AtendimentoClinico.veterinario),
             joinedload(AtendimentoClinico.agendamento),
+            joinedload(AtendimentoClinico.exames),
+            joinedload(AtendimentoClinico.receitas),
         )
         .filter(AtendimentoClinico.id == atendimento_id)
         .first()
@@ -452,3 +502,76 @@ def marcar_enviado_pdv(db: Session, atendimento_id: int) -> AtendimentoClinico:
     db.commit()
 
     return _get_atendimento_or_404(db, atendimento_id)
+
+
+def montar_contexto_receita_impressao(db: Session, atendimento_id: int) -> dict:
+    atendimento = _get_atendimento_or_404(db, atendimento_id)
+
+    veterinario = getattr(atendimento, "veterinario", None)
+    empresa = getattr(atendimento, "empresa", None)
+    pet = getattr(atendimento, "pet", None)
+    cliente = getattr(atendimento, "cliente", None)
+    prontuario = getattr(atendimento, "prontuario", None)
+
+    receitas = sorted(getattr(atendimento, "receitas", []) or [], key=lambda item: item.id or 0)
+    exames = sorted(getattr(atendimento, "exames", []) or [], key=lambda item: item.id or 0)
+
+    receitas_descricao = []
+    receitas_orientacoes = []
+    receitas_completas = []
+
+    for item in receitas:
+        descricao = _valor_texto_limpo(getattr(item, "descricao", None))
+        orientacoes = _valor_texto_limpo(getattr(item, "orientacoes", None))
+
+        if descricao:
+            receitas_descricao.append(descricao)
+
+        if orientacoes:
+            receitas_orientacoes.append(orientacoes)
+
+        if descricao or orientacoes:
+            receitas_completas.append(
+                {
+                    "descricao": descricao,
+                    "orientacoes": orientacoes,
+                }
+            )
+
+    exames_solicitados = []
+    for exame in exames:
+        texto_exame = _montar_texto_exame(exame)
+        if texto_exame:
+            exames_solicitados.append(texto_exame)
+
+    diagnostico = ""
+    if prontuario and getattr(prontuario, "diagnostico", None):
+        diagnostico = _valor_texto_limpo(prontuario.diagnostico)
+
+    data_documento = atendimento.data_fim or atendimento.data_inicio or datetime.utcnow()
+
+    veterinario_nome = _valor_texto_limpo(getattr(veterinario, "nome", None))
+    veterinario_crmv = _valor_texto_limpo(getattr(veterinario, "crmv", None))
+    veterinario_telefone = _valor_texto_limpo(getattr(veterinario, "telefone", None))
+    empresa_logo_url = _resolver_logo_empresa(empresa)
+
+    return {
+        "atendimento": atendimento,
+        "empresa": empresa,
+        "empresa_logo_url": empresa_logo_url,
+        "pet": pet,
+        "cliente": cliente,
+        "veterinario": veterinario,
+        "veterinario_nome": veterinario_nome,
+        "veterinario_crmv": veterinario_crmv,
+        "veterinario_telefone": veterinario_telefone,
+        "prontuario": prontuario,
+        "receitas": receitas,
+        "receitas_descricao": receitas_descricao,
+        "receitas_orientacoes": receitas_orientacoes,
+        "receitas_completas": receitas_completas,
+        "exames": exames,
+        "exames_solicitados": exames_solicitados,
+        "diagnostico": diagnostico,
+        "data_documento": data_documento,
+    }

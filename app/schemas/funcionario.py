@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 FUNCOES_VALIDAS = {
@@ -17,6 +19,7 @@ class FuncionarioCreate(BaseModel):
     email: EmailStr
     telefone: str
     funcao: str
+    crmv: Optional[str] = None
     senha: str = Field(..., min_length=4)
 
     acesso_dashboard: bool = False
@@ -42,6 +45,25 @@ class FuncionarioCreate(BaseModel):
 
         return value
 
+    @field_validator("crmv")
+    @classmethod
+    def normalizar_crmv(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+
+        value = value.strip()
+        return value or None
+
+    @model_validator(mode="after")
+    def validar_crmv_para_veterinario(self):
+        if self.funcao == "Veterinário" and not self.crmv:
+            raise ValueError("CRMV é obrigatório para funcionário com função Veterinário.")
+
+        if self.funcao != "Veterinário":
+            self.crmv = None
+
+        return self
+
 
 class FuncionarioOut(BaseModel):
     id: int
@@ -51,6 +73,7 @@ class FuncionarioOut(BaseModel):
     email: EmailStr
     telefone: str
     funcao: str
+    crmv: Optional[str] = None
 
     acesso_dashboard: bool
     acesso_clientes: bool

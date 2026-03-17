@@ -13,9 +13,9 @@ def create(db: Session, data: FuncionarioCreate) -> Funcionario:
         cpf=data.cpf,
         email=data.email,
         telefone=data.telefone,
-        funcao=data.funcao.strip(),
+        funcao=data.funcao,
+        crmv=data.crmv if data.funcao == "Veterinário" else None,
         senha_hash=hash_password(data.senha),
-
         acesso_dashboard=data.acesso_dashboard,
         acesso_clientes=data.acesso_clientes,
         acesso_pets=data.acesso_pets,
@@ -29,6 +29,7 @@ def create(db: Session, data: FuncionarioCreate) -> Funcionario:
         acesso_relatorios=data.acesso_relatorios,
         acesso_configuracoes=data.acesso_configuracoes,
     )
+
     db.add(funcionario)
     db.commit()
     db.refresh(funcionario)
@@ -55,6 +56,7 @@ def list_all(db: Session, q: str | None = None):
                 Funcionario.email.ilike(like),
                 Funcionario.telefone.ilike(like),
                 Funcionario.funcao.ilike(like),
+                Funcionario.crmv.ilike(like),
             )
         )
 
@@ -63,9 +65,15 @@ def list_all(db: Session, q: str | None = None):
 
 def update(db: Session, funcionario: Funcionario, data: dict):
     funcionario.nome = data.get("nome")
+    funcionario.cpf = data.get("cpf", funcionario.cpf)
     funcionario.email = data.get("email")
     funcionario.telefone = data.get("telefone")
-    funcionario.funcao = (data.get("funcao") or "").strip()
+    funcionario.funcao = data.get("funcao")
+    funcionario.crmv = (
+        (data.get("crmv") or "").strip() or None
+        if data.get("funcao") == "Veterinário"
+        else None
+    )
 
     if data.get("senha"):
         funcionario.senha_hash = hash_password(data.get("senha"))

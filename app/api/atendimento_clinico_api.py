@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
@@ -11,6 +13,7 @@ from app.crud.atendimento_clinico import (
     iniciar_por_agendamento,
     listar_itens,
     marcar_enviado_pdv,
+    montar_contexto_receita_impressao,
     obter_atendimento,
     salvar_anamnese,
     salvar_prontuario,
@@ -26,8 +29,8 @@ from app.schemas.atendimento_clinico import (
     AtendimentoClinicoResponse,
 )
 
-
 router = APIRouter(prefix="/api/clinico", tags=["Atendimento Clínico"])
+templates = Jinja2Templates(directory="app/templates")
 
 
 @router.post("/iniciar", response_model=AtendimentoClinicoResponse)
@@ -61,6 +64,23 @@ def obter_atendimento_clinico(
         anamnese=atendimento.anamnese,
         prontuario=atendimento.prontuario,
         itens=atendimento.itens or [],
+    )
+
+
+@router.get("/{atendimento_id}/receita/imprimir", response_class=HTMLResponse)
+def imprimir_receita_veterinaria(
+    request: Request,
+    atendimento_id: int,
+    db: Session = Depends(get_db),
+):
+    contexto = montar_contexto_receita_impressao(db, atendimento_id)
+
+    return templates.TemplateResponse(
+        "receita_veterinaria.html",
+        {
+            "request": request,
+            **contexto,
+        },
     )
 
 
