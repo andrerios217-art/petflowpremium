@@ -158,7 +158,7 @@ def _texto_para_lista(valor: Optional[str]) -> List[str]:
 
 def _calcular_tempo_total_atendimento_minutos(
     producao: Optional[Producao],
-    timeline: List[dict]
+    timeline: List[dict],
 ) -> Optional[int]:
     tempos = [
         item.get("tempo_gasto_minutos")
@@ -168,16 +168,8 @@ def _calcular_tempo_total_atendimento_minutos(
     if tempos:
         return int(sum(tempos))
 
-    datas_inicio = [
-        item.get("iniciado_em")
-        for item in timeline
-        if item.get("iniciado_em")
-    ]
-    datas_fim = [
-        item.get("finalizado_em")
-        for item in timeline
-        if item.get("finalizado_em")
-    ]
+    datas_inicio = [item.get("iniciado_em") for item in timeline if item.get("iniciado_em")]
+    datas_fim = [item.get("finalizado_em") for item in timeline if item.get("finalizado_em")]
 
     if datas_inicio and datas_fim:
         inicio = min(datas_inicio)
@@ -198,6 +190,7 @@ def _normalizar_lista_unica(itens: List[str]) -> List[str]:
     for item in itens:
         texto = str(item or "").strip()
         chave = texto.lower()
+
         if texto and chave not in vistos:
             vistos.add(chave)
             resultado.append(texto)
@@ -207,12 +200,67 @@ def _normalizar_lista_unica(itens: List[str]) -> List[str]:
 
 def _ordenar_timeline_item(item: dict):
     return (
-        item.get("iniciado_em")
-        or item.get("finalizado_em")
-        or datetime.min,
+        item.get("iniciado_em") or item.get("finalizado_em") or datetime.min,
         item.get("agendamento_id") or 0,
         item.get("etapa") or "",
     )
+
+
+def _extrair_bloco_clinico(texto: Optional[str], marcador: str) -> str:
+    bruto = str(texto or "")
+    inicio = f"[{marcador}]"
+
+    if inicio not in bruto:
+        return ""
+
+    trecho = bruto.split(inicio, 1)[1]
+
+    proximos_marcadores = [
+        "[OBSERVACOES_GERAIS]",
+        "[MEDICACOES]",
+        "[EXAMES]",
+        "[RECEITA]",
+    ]
+
+    fim_indices = []
+    for proximo in proximos_marcadores:
+        if proximo == inicio:
+            continue
+        indice = trecho.find(proximo)
+        if indice >= 0:
+            fim_indices.append(indice)
+
+    if fim_indices:
+        trecho = trecho[:min(fim_indices)]
+
+    return trecho.strip()
+
+
+def _extrair_observacoes_clinicas_estruturadas(texto: Optional[str]) -> dict:
+    bruto = str(texto or "").strip()
+
+    if not bruto:
+        return {
+            "observacoes_gerais": "",
+            "medicacoes": "",
+            "exames": "",
+            "receita": "",
+        }
+
+    if "[OBSERVACOES_GERAIS]" not in bruto:
+        return {
+            "observacoes_gerais": bruto,
+            "medicacoes": "",
+            "exames": "",
+            "receita": "",
+        }
+
+    return {
+        "observacoes_gerais": _extrair_bloco_clinico(bruto, "OBSERVACOES_GERAIS"),
+        "medicacoes": _extrair_bloco_clinico(bruto, "MEDICACOES"),
+        "exames": _extrair_bloco_clinico(bruto, "EXAMES"),
+        "receita": _extrair_bloco_clinico(bruto, "RECEITA"),
+    }
 
 
 def obter_historico_pet(db: Session, pet_id: int):
@@ -258,8 +306,9 @@ def obter_historico_pet(db: Session, pet_id: int):
                 key=lambda h: (
                     h.iniciado_em or h.finalizado_em or datetime.min,
                     h.id or 0,
-                )
+                ),
             )
+
             for historico in historicos_ordenados:
                 timeline_item = {
                     "etapa": historico.etapa,
@@ -272,6 +321,7 @@ def obter_historico_pet(db: Session, pet_id: int):
                     "tempo_gasto_minutos": historico.tempo_gasto_minutos,
                 }
                 timeline.append(timeline_item)
+
                 timeline_producao.append(
                     {
                         "agendamento_id": agendamento.id,
@@ -357,6 +407,9 @@ def obter_historico_pet(db: Session, pet_id: int):
 
         anamnese = consulta.anamnese
         prontuario = consulta.prontuario
+        observacoes_prontuario = _extrair_observacoes_clinicas_estruturadas(
+            prontuario.observacoes if prontuario else None
+        )
 
         consultas_veterinarias.append(
             {
@@ -382,6 +435,10 @@ def obter_historico_pet(db: Session, pet_id: int):
                     "diagnostico": prontuario.diagnostico if prontuario else None,
                     "conduta": prontuario.conduta if prontuario else None,
                     "observacoes": prontuario.observacoes if prontuario else None,
+                    "observacoes_gerais": observacoes_prontuario["observacoes_gerais"],
+                    "medicacoes": observacoes_prontuario["medicacoes"],
+                    "exames": observacoes_prontuario["exames"],
+                    "receita": observacoes_prontuario["receita"],
                 },
             }
         )
@@ -397,7 +454,7 @@ def obter_historico_pet(db: Session, pet_id: int):
         key=lambda item: (
             item.get("data") or datetime.min.date(),
             item.get("hora") or datetime.min.time(),
-            item.get("agendamento_id") or 0
+            item.get("agendamento_id") or 0,
         ),
         reverse=True,
     )
