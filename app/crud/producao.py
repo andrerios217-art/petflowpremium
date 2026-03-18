@@ -232,7 +232,7 @@ def StringValue(valor: Optional[str]) -> str:
     return str(valor or "").strip()
 
 
-def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento):
+def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento, commit: bool = True):
     ordem_existente = buscar_por_agendamento(db, agendamento.id)
     if ordem_existente:
         return ordem_existente

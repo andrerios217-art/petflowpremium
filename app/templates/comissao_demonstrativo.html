@@ -1,0 +1,205 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/relatorios_comissao.css">
+
+<div class="demonstrativo-page">
+    <div class="demonstrativo-header">
+        <div class="demonstrativo-header-content">
+            <h1>Demonstrativo de Comissão</h1>
+            <p>Resumo fechado da competência com detalhamento por etapa e auditoria do cálculo final.</p>
+        </div>
+
+        <div class="demonstrativo-header-meta">
+            <span class="demonstrativo-chip">Competência Fechada</span>
+            <span class="demonstrativo-chip">Snapshot Auditável</span>
+        </div>
+    </div>
+
+    <div id="demonstrativo-loading" class="demonstrativo-empty">
+        Carregando demonstrativo...
+    </div>
+
+    <div id="demonstrativo-content" style="display: none;">
+        <div class="demonstrativo-kpis">
+            <div class="demonstrativo-kpi">
+                <div class="demonstrativo-kpi-label">Funcionário</div>
+                <div id="kpi-funcionario" class="demonstrativo-kpi-value">-</div>
+                <div id="kpi-competencia-helper" class="demonstrativo-kpi-helper">Competência: -</div>
+            </div>
+
+            <div class="demonstrativo-kpi">
+                <div class="demonstrativo-kpi-label">Pontos Totais</div>
+                <div id="kpi-pontos" class="demonstrativo-kpi-value">0</div>
+                <div class="demonstrativo-kpi-helper">Total consolidado no fechamento mensal.</div>
+            </div>
+
+            <div class="demonstrativo-kpi">
+                <div class="demonstrativo-kpi-label">Valor Final</div>
+                <div id="kpi-valor" class="demonstrativo-kpi-value is-money">R$ 0,00</div>
+                <div id="kpi-faixa" class="demonstrativo-kpi-helper">Faixa aplicada: -</div>
+            </div>
+        </div>
+
+        <div class="demonstrativo-section">
+            <h2 class="demonstrativo-section-title">Detalhamento por Etapa</h2>
+            <div id="demonstrativo-etapas"></div>
+        </div>
+
+        <div class="demonstrativo-footer-note">
+            Este demonstrativo utiliza exclusivamente dados já fechados da comissão mensal. Após o fechamento, os valores permanecem travados para garantir segurança, rastreabilidade e consistência na auditoria.
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const fechamentoId = {{ fechamento_id|tojson }};
+    carregarDemonstrativo(fechamentoId);
+});
+
+async function carregarDemonstrativo(fechamentoId) {
+    const loading = document.getElementById("demonstrativo-loading");
+    const content = document.getElementById("demonstrativo-content");
+
+    try {
+        const response = await fetch("/api/comissao/demonstrativo/" + fechamentoId);
+        const raw = await response.text();
+
+        let data = {};
+        try {
+            data = raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            throw new Error("Resposta inválida da API.");
+        }
+
+        if (!response.ok) {
+            throw new Error(data.detail || data.message || "Erro ao carregar demonstrativo.");
+        }
+
+        preencherCabecalho(data);
+        preencherEtapas(data.detalhamento_por_etapa || []);
+
+        loading.style.display = "none";
+        content.style.display = "block";
+    } catch (error) {
+        loading.innerHTML =
+            "<strong>Não foi possível carregar o demonstrativo.</strong><br>" +
+            "<span>" + escapeHtml(error.message || "Erro ao carregar dados.") + "</span>";
+    }
+}
+
+function preencherCabecalho(data) {
+    document.getElementById("kpi-funcionario").textContent = data.funcionario_nome || "-";
+    document.getElementById("kpi-competencia-helper").textContent = "Competência: " + formatarCompetencia(data.competencia);
+    document.getElementById("kpi-pontos").textContent = Number(data.pontos_totais || 0);
+    document.getElementById("kpi-valor").textContent = formatarMoeda(data.valor_final || 0);
+    document.getElementById("kpi-faixa").textContent = "Faixa aplicada: " + (data.faixa_aplicada || "-");
+}
+
+function preencherEtapas(etapas) {
+    const container = document.getElementById("demonstrativo-etapas");
+    container.innerHTML = "";
+
+    if (!etapas.length) {
+        container.innerHTML = '<div class="demonstrativo-empty">Nenhum item encontrado para este fechamento.</div>';
+        return;
+    }
+
+    for (let i = 0; i < etapas.length; i++) {
+        const etapa = etapas[i];
+        const card = document.createElement("div");
+        card.className = "demonstrativo-etapa-card";
+
+        let linhas = "";
+
+        const itens = etapa.itens || [];
+        for (let j = 0; j < itens.length; j++) {
+            const item = itens[j];
+
+            linhas +=
+                "<tr>" +
+                    "<td>" +
+                        '<div class="demonstrativo-col-main">' +
+                            '<span class="demonstrativo-col-title">' + escapeHtml(item.descricao || "Lançamento de comissão") + "</span>" +
+                            '<span class="demonstrativo-col-meta">Status: ' + escapeHtml(item.status || "-") + "</span>" +
+                        "</div>" +
+                    "</td>" +
+                    "<td>" + escapeHtml(item.cliente_nome || "-") + "</td>" +
+                    "<td>" + escapeHtml(item.pet_nome || "-") + "</td>" +
+                    "<td>" + formatarMoeda(item.valor_base || 0) + "</td>" +
+                    "<td>" + Number(item.pontos || 0) + " pts</td>" +
+                    "<td>" + formatarMoeda(item.valor_comissao || 0) + "</td>" +
+                "</tr>";
+        }
+
+        card.innerHTML =
+            '<div class="demonstrativo-etapa-header">' +
+                '<div class="demonstrativo-etapa-title-wrap">' +
+                    '<h3 class="demonstrativo-etapa-title">' + escapeHtml(etapa.etapa || "Sem etapa") + "</h3>" +
+                    '<span class="demonstrativo-etapa-subtitle">' + Number(etapa.quantidade_itens || 0) + " item(ns) nesta etapa</span>" +
+                "</div>" +
+                '<div class="demonstrativo-etapa-totais">' +
+                    '<div class="demonstrativo-mini-kpi">' +
+                        '<span class="demonstrativo-mini-kpi-label">Pontos</span>' +
+                        "<strong>" + Number(etapa.pontos_total || 0) + " pts</strong>" +
+                    "</div>" +
+                    '<div class="demonstrativo-mini-kpi is-money">' +
+                        '<span class="demonstrativo-mini-kpi-label">Valor</span>' +
+                        "<strong>" + formatarMoeda(etapa.valor_total || 0) + "</strong>" +
+                    "</div>" +
+                "</div>" +
+            "</div>" +
+            '<div class="demonstrativo-table-wrap">' +
+                '<table class="demonstrativo-table">' +
+                    "<thead>" +
+                        "<tr>" +
+                            "<th>Descrição</th>" +
+                            "<th>Cliente</th>" +
+                            "<th>Pet</th>" +
+                            "<th>Valor Base</th>" +
+                            "<th>Pontos</th>" +
+                            "<th>Comissão</th>" +
+                        "</tr>" +
+                    "</thead>" +
+                    "<tbody>" + linhas + "</tbody>" +
+                "</table>" +
+            "</div>";
+
+        container.appendChild(card);
+    }
+}
+
+function formatarMoeda(valor) {
+    return Number(valor || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+    });
+}
+
+function formatarCompetencia(valor) {
+    if (!valor) return "-";
+
+    const texto = String(valor);
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+        return texto.slice(0, 7);
+    }
+
+    if (/^\d{4}-\d{2}$/.test(texto)) {
+        return texto;
+    }
+
+    return texto;
+}
+
+function escapeHtml(valor) {
+    return String(valor == null ? "" : valor)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+</script>
+{% endblock %}

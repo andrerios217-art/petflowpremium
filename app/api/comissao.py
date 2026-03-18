@@ -127,6 +127,40 @@ def _valor_faixa(config: ComissaoConfiguracao | None, pontos: int) -> float:
     return 0.0
 
 
+def _descricao_faixa(config: ComissaoConfiguracao | None, pontos: int, valor_final: Decimal | float | int | None = None) -> str | None:
+    if not config:
+        return None
+
+    faixas_ordenadas = sorted(config.faixas, key=lambda item: item.ordem)
+
+    faixa_por_pontos = None
+    for faixa in faixas_ordenadas:
+        minimo = int(faixa.pontos_min)
+        maximo = None if faixa.pontos_max is None else int(faixa.pontos_max)
+        if pontos >= minimo and (maximo is None or pontos <= maximo):
+            faixa_por_pontos = faixa
+            break
+
+    if faixa_por_pontos is None and valor_final is not None:
+        valor_decimal = Decimal(str(valor_final))
+        for faixa in faixas_ordenadas:
+            if Decimal(str(faixa.valor_reais or 0)) == valor_decimal:
+                faixa_por_pontos = faixa
+                break
+
+    if faixa_por_pontos is None:
+        return None
+
+    minimo = int(faixa_por_pontos.pontos_min)
+    maximo = None if faixa_por_pontos.pontos_max is None else int(faixa_por_pontos.pontos_max)
+    valor = float(faixa_por_pontos.valor_reais or 0)
+
+    if maximo is None:
+        return f"{minimo}+ pontos • R$ {valor:.2f}"
+
+    return f"{minimo} a {maximo} pontos • R$ {valor:.2f}"
+
+
 def _fechamento_existente(db: Session, empresa_id: int, funcionario_id: int, competencia_data: date):
     return (
         db.query(ComissaoFechamento)
@@ -158,6 +192,106 @@ def _resumir_status_funcionario(lancamentos: list[ComissaoLancamento], fechament
         return sorted(statuses)[0]
 
     return "CAPTURADO"
+
+
+def _to_float(valor) -> float:
+    if valor is None:
+        return 0.0
+    return float(valor)
+
+
+def _detalhar_fechamento(
+    db: Session,
+    fechamento: ComissaoFechamento,
+):
+    funcionario = db.query(Funcionario).filter(Funcionario.id == fechamento.funcionario_id).first()
+
+    config = (
+        db.query(ComissaoConfiguracao)
+        .filter(ComissaoConfiguracao.empresa_id == fechamento.empresa_id)
+        .first()
+    )
+
+    lancamentos = (
+        db.query(ComissaoLancamento)
+        .filter(
+            ComissaoLancamento.empresa_id == fechamento.empresa_id,
+            ComissaoLancamento.funcionario_id == fechamento.funcionario_id,
+            ComissaoLancamento.competencia == fechamento.competencia,
+            ComissaoLancamento.status == "FECHADO",
+        )
+        .order_by(ComissaoLancamento.created_at.asc(), ComissaoLancamento.id.asc())
+        .all()
+    )
+
+    detalhamento_por_etapa = {}
+    pontos_totais = int(getattr(fechamento, "pontos_total", 0) or 0)
+    valor_final = Decimal(str(getattr(fechamento, "valor_final", 0) or 0))
+    faixa_aplicada = _descricao_faixa(config, pontos_totais, valor_final)
+
+    for item in lancamentos:
+        etapa = (getattr(item, "etapa", None) or "Sem etapa").strip()
+
+        if etapa not in detalhamento_por_etapa:
+            detalhamento_por_etapa[etapa] = {
+                "etapa": etapa,
+                "pontos_total": 0,
+                "valor_total": 0.0,
+                "quantidade_itens": 0,
+                "itens": [],
+            }
+
+        valor_item = getattr(item, "valor_comissao", None)
+        if valor_item is None:
+            valor_item = getattr(item, "valor", None)
+        if valor_item is None:
+            valor_item = 0
+
+        valor_base = getattr(item, "valor_base", None)
+        if valor_base is None:
+            valor_base = getattr(item, "valor_servico", None)
+        if valor_base is None:
+            valor_base = getattr(item, "valor", None)
+
+        registro = {
+            "id": item.id,
+            "etapa": etapa,
+            "status": item.status,
+            "producao_id": getattr(item, "producao_id", None),
+            "agendamento_id": getattr(item, "agendamento_id", None),
+            "referencia_id": getattr(item, "referencia_id", None),
+            "referencia_tipo": getattr(item, "referencia_tipo", None),
+            "descricao": getattr(item, "descricao", None),
+            "cliente_nome": getattr(item, "cliente_nome", None),
+            "pet_nome": getattr(item, "pet_nome", None),
+            "valor_base": _to_float(valor_base),
+            "pontos": int(getattr(item, "pontos", 0) or 0),
+            "valor_comissao": _to_float(valor_item),
+            "created_at": item.created_at.isoformat() if getattr(item, "created_at", None) else None,
+        }
+
+        detalhamento_por_etapa[etapa]["pontos_total"] += registro["pontos"]
+        detalhamento_por_etapa[etapa]["valor_total"] += registro["valor_comissao"]
+        detalhamento_por_etapa[etapa]["quantidade_itens"] += 1
+        detalhamento_por_etapa[etapa]["itens"].append(registro)
+
+    etapas = list(detalhamento_por_etapa.values())
+    etapas.sort(key=lambda item: item["etapa"])
+
+    return {
+        "fechamento_id": fechamento.id,
+        "empresa_id": fechamento.empresa_id,
+        "funcionario_id": fechamento.funcionario_id,
+        "funcionario_nome": funcionario.nome if funcionario else None,
+        "competencia": fechamento.competencia.isoformat() if fechamento.competencia else None,
+        "status": fechamento.status,
+        "pontos_totais": pontos_totais,
+        "faixa_aplicada": faixa_aplicada,
+        "valor_final": float(valor_final),
+        "aprovado_por": getattr(fechamento, "aprovado_por", None),
+        "aprovado_em": fechamento.aprovado_em.isoformat() if getattr(fechamento, "aprovado_em", None) else None,
+        "detalhamento_por_etapa": etapas,
+    }
 
 
 @router.get("/configuracao", response_model=ComissaoConfiguracaoOut)
@@ -284,6 +418,8 @@ def listar_lancamentos_comissao(
                 "pontos_total": 0,
                 "valor_estimado": 0.0,
                 "fechado": bool(fechamento),
+                "fechamento_id": fechamento.id if fechamento else None,
+                "pontos_fechados": int(fechamento.pontos_total or 0) if fechamento else None,
                 "valor_fechado": float(fechamento.valor_final) if fechamento else None,
                 "lancamentos": [],
             }
@@ -325,6 +461,41 @@ def listar_lancamentos_comissao(
         "competencia": competencia,
         "funcionarios": list(agrupado_por_funcionario.values()),
     }
+
+
+@router.get("/demonstrativo")
+def obter_demonstrativo_comissao(
+    empresa_id: int = Query(..., ge=1),
+    funcionario_id: int = Query(..., ge=1),
+    competencia: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    competencia_data = _parse_competencia(competencia)
+
+    fechamento = _fechamento_existente(
+        db=db,
+        empresa_id=empresa_id,
+        funcionario_id=funcionario_id,
+        competencia_data=competencia_data,
+    )
+
+    if not fechamento:
+        raise HTTPException(status_code=404, detail="Nenhum fechamento encontrado para os filtros informados.")
+
+    return _detalhar_fechamento(db, fechamento)
+
+
+@router.get("/demonstrativo/{fechamento_id}")
+def obter_demonstrativo_comissao_por_fechamento(
+    fechamento_id: int,
+    db: Session = Depends(get_db),
+):
+    fechamento = db.query(ComissaoFechamento).filter(ComissaoFechamento.id == fechamento_id).first()
+
+    if not fechamento:
+        raise HTTPException(status_code=404, detail="Fechamento não encontrado.")
+
+    return _detalhar_fechamento(db, fechamento)
 
 
 @router.post("/aprovar")
@@ -460,6 +631,7 @@ def fechar_comissao(payload: AcaoComissao, db: Session = Depends(get_db)):
         aprovado_em=_agora_utc(),
     )
     db.add(fechamento)
+    db.flush()
 
     for item in lancamentos:
         item.status = "FECHADO"
@@ -468,9 +640,11 @@ def fechar_comissao(payload: AcaoComissao, db: Session = Depends(get_db)):
 
     return {
         "ok": True,
+        "fechamento_id": fechamento.id,
         "funcionario_id": payload.funcionario_id,
         "competencia": competencia_data.isoformat(),
         "pontos_total": pontos_total,
+        "faixa_aplicada": _descricao_faixa(config, pontos_total, valor_final),
         "valor_final": valor_final,
         "status": "FECHADO",
     }

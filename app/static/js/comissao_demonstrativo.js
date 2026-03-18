@@ -56,7 +56,7 @@ async function carregar() {
             `;
         }
 
-        notifyToast(error.message || "Erro ao carregar relatórios", "error");
+        showToast(error.message || "Erro ao carregar relatórios", "error");
     }
 }
 
@@ -163,10 +163,10 @@ async function aprovar(funcionario_id) {
             })
         });
 
-        notifyToast("Aprovado com sucesso", "success");
-        await carregar();
+        showToast("Aprovado com sucesso");
+        carregar();
     } catch (error) {
-        notifyToast(error.message || "Erro ao aprovar", "error");
+        showToast(error.message || "Erro ao aprovar", "error");
     }
 }
 
@@ -187,10 +187,10 @@ async function rejeitar(funcionario_id) {
             })
         });
 
-        notifyToast("Rejeitado com sucesso", "success");
-        await carregar();
+        showToast("Rejeitado com sucesso");
+        carregar();
     } catch (error) {
-        notifyToast(error.message || "Erro ao rejeitar", "error");
+        showToast(error.message || "Erro ao rejeitar", "error");
     }
 }
 
@@ -206,7 +206,7 @@ async function fecharComissao(funcionario_id) {
             })
         });
 
-        notifyToast(`Comissão fechada: ${formatarMoeda(resultado.valor_final || 0)}`, "success");
+        showToast(`Comissão fechada: ${formatarMoeda(resultado.valor_final || 0)}`);
         await carregar();
 
         if (resultado.fechamento_id) {
@@ -215,7 +215,7 @@ async function fecharComissao(funcionario_id) {
             }, 300);
         }
     } catch (error) {
-        notifyToast(error.message || "Erro ao fechar comissão", "error");
+        showToast(error.message || "Erro ao fechar comissão", "error");
     }
 }
 
@@ -223,7 +223,7 @@ function verDemonstrativo(fechamentoId) {
     const id = Number(fechamentoId || 0);
 
     if (!id) {
-        notifyToast("Demonstrativo indisponível para este fechamento.", "error");
+        showToast("Demonstrativo indisponível para este fechamento.", "error");
         return;
     }
 
@@ -288,19 +288,11 @@ function escapeHtml(valor) {
         .replaceAll("'", "&#039;");
 }
 
-function notifyToast(message, type = "success") {
-    const externalToast =
-        typeof window !== "undefined" &&
-        typeof window.showToast === "function" &&
-        window.showToast !== notifyToast
-            ? window.showToast
-            : null;
-
-    if (externalToast) {
-        externalToast(message, type);
+function showToast(message, type = "success") {
+    if (window.showToast && typeof window.showToast === "function") {
+        window.showToast(message, type);
         return;
     }
 
     console.log(`[${type}] ${message}`);
-    alert(message);
 }
