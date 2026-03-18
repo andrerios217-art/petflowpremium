@@ -183,6 +183,31 @@
             const btnVerHistorico = event.target.closest("[data-action='historico-rapido']");
             if (btnVerHistorico) {
                 const petId = Number(btnVerHistorico.dataset.petId);
+                const card = btnVerHistorico.closest(".agenda-vet-card");
+
+                const agendamentoIdAttr =
+                    btnVerHistorico.dataset.agendamentoId ||
+                    card?.dataset?.agendamentoId ||
+                    "";
+
+                const agendamentoId = Number(agendamentoIdAttr || 0);
+
+                if (agendamentoId) {
+                    const itemAgenda = state.agenda.find(
+                        (item) => Number(item.id) === Number(agendamentoId)
+                    );
+
+                    if (itemAgenda) {
+                        state.agendamentoAtual = itemAgenda;
+                        preencherAtendimentoClinico(itemAgenda);
+                    }
+                }
+
+                abrirModalAtendimentoClinico();
+                renderHistoricoVazio(
+                    "Carregando histórico...",
+                    "Buscando consultas anteriores, anamnese, intercorrências e timeline do pet."
+                );
                 abrirHistoricoPetPorId(petId);
                 return;
             }
@@ -329,7 +354,7 @@
             : "";
 
         return `
-            <article class="agenda-vet-card ${finalizado ? "status-finalizado" : ""}" ${cardStyle}>
+            <article class="agenda-vet-card ${finalizado ? "status-finalizado" : ""}" data-agendamento-id="${Number(item.id || 0)}" ${cardStyle}>
                 <div class="agenda-vet-card-top">
                     <h4 ${textStyle}>${escapeHtml(item.pet?.nome || "Pet não informado")}</h4>
                     <span class="status-badge" ${badgeStyle}>${escapeHtml(status)}</span>
@@ -399,6 +424,7 @@
                         class="btn ${finalizado ? "btn-secondary" : "btn-secondary"}"
                         data-action="historico-rapido"
                         data-pet-id="${Number(item?.pet?.id || 0)}"
+                        data-agendamento-id="${Number(item.id || 0)}"
                         ${finalizado ? 'style="background: rgba(255,255,255,0.16); color: #ffffff; border: 1px solid rgba(255,255,255,0.18);"' : ""}
                     >
                         Histórico do Pet
@@ -1146,11 +1172,23 @@
                 "Erro ao finalizar agendamento veterinário."
             );
 
+            if (state.atendimentoClinicoId) {
+                window.open(
+                    `/api/clinico/${state.atendimentoClinicoId}/receita/imprimir`,
+                    "_blank"
+                );
+            }
+
             if (state.agendamentoAtual) {
                 state.agendamentoAtual.status = "FINALIZADO";
             }
 
             await carregarAgendaSemana();
+
+            setTimeout(() => {
+                renderAgenda();
+            }, 100);
+
             await abrirHistoricoPetPorId(state.agendamentoAtual.pet.id);
 
             fecharModalAtendimentoClinico();

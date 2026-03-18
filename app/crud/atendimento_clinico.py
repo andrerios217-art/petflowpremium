@@ -74,6 +74,50 @@ def _montar_texto_exame(exame):
     return " - ".join([parte for parte in partes if parte])
 
 
+def _extrair_bloco_observacao(texto: str, chave: str) -> str:
+    bruto = str(texto or "")
+    marcador = f"[{chave}]"
+
+    if marcador not in bruto:
+        return ""
+
+    inicio = bruto.find(marcador)
+    if inicio < 0:
+        return ""
+
+    inicio += len(marcador)
+
+    resto = bruto[inicio:]
+    proximos_marcadores = ["[OBSERVACOES_GERAIS]", "[MEDICACOES]", "[EXAMES]", "[RECEITA]"]
+
+    fim = len(resto)
+    for proximo in proximos_marcadores:
+        pos = resto.find(proximo)
+        if pos > 0:
+            fim = min(fim, pos)
+
+    return resto[:fim].strip()
+
+
+def _extrair_observacoes_clinicas_serializadas(texto: str) -> dict:
+    bruto = str(texto or "")
+
+    if "[OBSERVACOES_GERAIS]" not in bruto:
+        return {
+            "observacoes_gerais": bruto.strip(),
+            "medicacoes": "",
+            "exames": "",
+            "receita": "",
+        }
+
+    return {
+        "observacoes_gerais": _extrair_bloco_observacao(bruto, "OBSERVACOES_GERAIS"),
+        "medicacoes": _extrair_bloco_observacao(bruto, "MEDICACOES"),
+        "exames": _extrair_bloco_observacao(bruto, "EXAMES"),
+        "receita": _extrair_bloco_observacao(bruto, "RECEITA"),
+    }
+
+
 def _get_atendimento_or_404(db: Session, atendimento_id: int) -> AtendimentoClinico:
     atendimento = (
         db.query(AtendimentoClinico)
@@ -516,6 +560,10 @@ def montar_contexto_receita_impressao(db: Session, atendimento_id: int) -> dict:
     receitas = sorted(getattr(atendimento, "receitas", []) or [], key=lambda item: item.id or 0)
     exames = sorted(getattr(atendimento, "exames", []) or [], key=lambda item: item.id or 0)
 
+    observacoes_serializadas = _extrair_observacoes_clinicas_serializadas(
+        getattr(prontuario, "observacoes", "") if prontuario else ""
+    )
+
     receitas_descricao = []
     receitas_orientacoes = []
     receitas_completas = []
@@ -538,11 +586,33 @@ def montar_contexto_receita_impressao(db: Session, atendimento_id: int) -> dict:
                 }
             )
 
+    if not receitas_descricao and observacoes_serializadas.get("receita"):
+        receitas_descricao.append(observacoes_serializadas["receita"])
+        receitas_completas.append(
+            {
+                "descricao": observacoes_serializadas["receita"],
+                "orientacoes": "",
+            }
+        )
+
+    if not receitas_orientacoes and observacoes_serializadas.get("receita"):
+        receitas_orientacoes.append(observacoes_serializadas["receita"])
+        if not receitas_completas:
+            receitas_completas.append(
+                {
+                    "descricao": "",
+                    "orientacoes": observacoes_serializadas["receita"],
+                }
+            )
+
     exames_solicitados = []
     for exame in exames:
         texto_exame = _montar_texto_exame(exame)
         if texto_exame:
             exames_solicitados.append(texto_exame)
+
+    if not exames_solicitados and observacoes_serializadas.get("exames"):
+        exames_solicitados.append(observacoes_serializadas["exames"])
 
     diagnostico = ""
     if prontuario and getattr(prontuario, "diagnostico", None):
