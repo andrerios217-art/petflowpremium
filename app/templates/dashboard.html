@@ -6,53 +6,81 @@
     <h1>Dashboard</h1>
     <p>Bem-vindo ao Pet Flow Premium</p>
   </div>
-  <div class="header-actions">
-    <button class="primary-btn">Novo Agendamento</button>
+  <div class="page-header-actions">
+    <button class="primary-btn" type="button">Novo Agendamento</button>
   </div>
 </section>
 
 <section class="stats-grid">
   <div class="glass-card">
     <span class="card-label">Faturamento Hoje</span>
-    <strong>R$ 0,00</strong>
+    <strong id="card-faturamento-hoje">R$ 0,00</strong>
   </div>
+
   <div class="glass-card">
     <span class="card-label">Pets em Atendimento</span>
-    <strong>0</strong>
+    <strong id="card-pets-atendimento">0</strong>
   </div>
+
   <div class="glass-card">
     <span class="card-label">Agenda do Dia</span>
-    <strong>0</strong>
+    <strong id="card-agenda-dia">0</strong>
   </div>
+
   <div class="glass-card">
     <span class="card-label">Clientes Ativos</span>
-    <strong>0</strong>
+    <strong id="card-clientes-ativos">0</strong>
   </div>
 </section>
 
 <section class="content-grid">
   <div class="glass-card large-card">
     <h2>Resumo Operacional</h2>
-    <p>Esta área será usada para exibir agenda, produção, capacidade operacional e alertas.</p>
+    <p>
+      Esta área será usada para exibir agenda, produção, capacidade operacional e alertas.
+    </p>
   </div>
 
   <div class="glass-card">
     <h2>Produção Hoje</h2>
     <ul class="simple-list">
-      <li>Pré-banho: 0</li>
-      <li>Banho: 0</li>
-      <li>Secagem: 0</li>
-      <li>Tosa: 0</li>
+      <li>Pré-banho: <span id="prod-pre-banho">0</span></li>
+      <li>Banho: <span id="prod-banho">0</span></li>
+      <li>Secagem: <span id="prod-secagem">0</span></li>
+      <li>Tosa: <span id="prod-tosa">0</span></li>
     </ul>
   </div>
 
   <div class="glass-card">
     <h2>Financeiro</h2>
-    <ul class="simple-list">
-      <li>Caixa: fechado</li>
-      <li>Entradas: R$ 0,00</li>
-      <li>Saídas: R$ 0,00</li>
+    <ul class="simple-list financeiro-list">
+      <li>
+        <span>Caixa</span>
+        <span id="fin-caixa-status" class="badge-status badge-fechado">fechado</span>
+      </li>
+      <li>
+        <span>Entradas hoje</span>
+        <span id="fin-entradas-hoje">R$ 0,00</span>
+      </li>
+      <li>
+        <span>Saídas hoje</span>
+        <span id="fin-saidas-hoje">R$ 0,00</span>
+      </li>
+      <li>
+        <span>Lucro hoje</span>
+        <span id="fin-lucro-hoje" class="valor-positivo">R$ 0,00</span>
+      </li>
+      <li>
+        <span>Receber em aberto</span>
+        <span id="fin-receber-aberto">R$ 0,00</span>
+      </li>
+      <li>
+        <span>Pagar em aberto</span>
+        <span id="fin-pagar-aberto">R$ 0,00</span>
+      </li>
     </ul>
   </div>
 </section>
+
+<script src="/static/js/dashboard.js"></script>
 {% endblock %}

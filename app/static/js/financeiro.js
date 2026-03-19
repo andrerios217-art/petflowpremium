@@ -69,7 +69,7 @@ async function carregarFinanceiro() {
         financeiroContas = Array.isArray(contasData.contas) ? contasData.contas : [];
 
         preencherResumo(contasData.resumo || {});
-        preencherDashboard(dashboardData || {});
+        preencherDashboardPremium(dashboardData || {});
         renderizarGrafico7Dias(dashboardData.grafico_7_dias || []);
         renderizarContas();
     } catch (error) {
@@ -88,10 +88,40 @@ async function carregarFinanceiro() {
     }
 }
 
-function preencherDashboard(data) {
-    setText("financeiro-caixa-hoje", formatarMoeda(data.caixa_hoje || 0));
-    setText("financeiro-pendente-hoje", formatarMoeda(data.pendente_hoje || 0));
-    setText("financeiro-vencido-dashboard", formatarMoeda(data.vencido || 0));
+function preencherDashboardPremium(data) {
+    const entradasHoje = Number(data.entradas_hoje ?? data.caixa_hoje ?? 0);
+    const saidasHoje = Number(data.saidas_hoje ?? 0);
+    const lucroHoje = Number(data.lucro_hoje ?? (entradasHoje - saidasHoje));
+
+    const receitaMes = Number(data.receita_mes ?? 0);
+    const despesaMes = Number(data.despesa_mes ?? 0);
+    const lucroMes = Number(data.lucro_mes ?? (receitaMes - despesaMes));
+
+    setText("financeiro-entradas-hoje", formatarMoeda(entradasHoje));
+    setText("financeiro-saidas-hoje", formatarMoeda(saidasHoje));
+    setText("financeiro-lucro-hoje", formatarMoeda(lucroHoje));
+    setText("financeiro-lucro-mes", formatarMoeda(lucroMes));
+
+    setText("financeiro-dre-receita", formatarMoeda(receitaMes));
+    setText("financeiro-dre-despesa", formatarMoeda(despesaMes));
+    setText("financeiro-dre-lucro", formatarMoeda(lucroMes));
+
+    aplicarCorLucro("financeiro-lucro-hoje", lucroHoje);
+    aplicarCorLucro("financeiro-lucro-mes", lucroMes);
+    aplicarCorLucro("financeiro-dre-lucro", lucroMes);
+}
+
+function aplicarCorLucro(id, valor) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.classList.remove("valor-positivo", "valor-negativo");
+
+    if (Number(valor || 0) >= 0) {
+        el.classList.add("valor-positivo");
+    } else {
+        el.classList.add("valor-negativo");
+    }
 }
 
 function renderizarGrafico7Dias(dados) {
@@ -105,7 +135,12 @@ function renderizarGrafico7Dias(dados) {
     container.innerHTML = "";
 
     const lista = Array.isArray(dados) ? dados : [];
-    const maximo = lista.reduce((acc, item) => Math.max(acc, Number(item.valor || 0)), 0);
+
+    const maximo = lista.reduce((acc, item) => {
+        const entrada = Number(item.entrada ?? item.valor ?? 0);
+        const saida = Number(item.saida ?? 0);
+        return Math.max(acc, entrada, saida);
+    }, 0);
 
     if (!lista.length || maximo === 0) {
         empty.style.display = "flex";
@@ -117,16 +152,30 @@ function renderizarGrafico7Dias(dados) {
     container.style.display = "grid";
 
     lista.forEach((item) => {
-        const valor = Number(item.valor || 0);
-        const altura = maximo > 0 ? Math.max((valor / maximo) * 180, 18) : 18;
+        const entrada = Number(item.entrada ?? item.valor ?? 0);
+        const saida = Number(item.saida ?? 0);
+
+        const alturaEntrada = maximo > 0 ? Math.max((entrada / maximo) * 180, entrada > 0 ? 18 : 0) : 0;
+        const alturaSaida = maximo > 0 ? Math.max((saida / maximo) * 180, saida > 0 ? 18 : 0) : 0;
 
         const coluna = document.createElement("div");
         coluna.className = "financeiro-chart-col";
 
         coluna.innerHTML = `
-            <div class="financeiro-chart-bar-wrap">
-                <div class="financeiro-chart-value">${formatarMoeda(valor)}</div>
-                <div class="financeiro-chart-bar" style="height: ${altura}px;"></div>
+            <div class="financeiro-chart-bar-wrap financeiro-chart-bar-wrap-dual">
+                <div class="financeiro-chart-value-group">
+                    <div class="financeiro-chart-value financeiro-chart-value-entrada">
+                        E: ${formatarMoeda(entrada)}
+                    </div>
+                    <div class="financeiro-chart-value financeiro-chart-value-saida">
+                        S: ${formatarMoeda(saida)}
+                    </div>
+                </div>
+
+                <div class="financeiro-chart-bars-dual">
+                    <div class="financeiro-chart-bar financeiro-chart-bar-entrada" style="height: ${alturaEntrada}px;"></div>
+                    <div class="financeiro-chart-bar financeiro-chart-bar-saida" style="height: ${alturaSaida}px;"></div>
+                </div>
             </div>
             <div class="financeiro-chart-label">${formatarDataCurta(item.data)}</div>
         `;

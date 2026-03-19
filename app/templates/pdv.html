@@ -1,0 +1,626 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+
+<style>
+  .pdv-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .pdv-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  .pdv-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid #eef2f7;
+  }
+
+  .pdv-card-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .pdv-card-subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  .pdv-card-body {
+    padding: 18px;
+  }
+
+  .pdv-topbar {
+    display: grid;
+    grid-template-columns: 1.3fr auto;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .pdv-caixa-status {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+    gap: 12px;
+  }
+
+  .pdv-metric {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .pdv-metric-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #6b7280;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .pdv-metric-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .pdv-top-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .pdv-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .pdv-btn {
+    appearance: none;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.18s ease;
+  }
+
+  .pdv-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .pdv-btn-primary {
+    background: #2563eb;
+    color: #fff;
+  }
+
+  .pdv-btn-secondary {
+    background: #eef2ff;
+    color: #1d4ed8;
+  }
+
+  .pdv-btn-success {
+    background: #16a34a;
+    color: #fff;
+  }
+
+  .pdv-btn-danger {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  .pdv-btn-dark {
+    background: #111827;
+    color: #fff;
+  }
+
+  .pdv-btn-full {
+    width: 100%;
+  }
+
+  .pdv-btn-sm {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .pdv-alert {
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+
+  .pdv-alert-info {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+  }
+
+  .pdv-alert-warning {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fdba74;
+  }
+
+  .pdv-alert-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+  }
+
+  .pdv-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .pdv-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .pdv-field label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+  }
+
+  .pdv-field input,
+  .pdv-field select,
+  .pdv-field textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+    background: #fff;
+  }
+
+  .pdv-field input:focus,
+  .pdv-field select:focus,
+  .pdv-field textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .pdv-busca-linha {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+  }
+
+  .pdv-contexto {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: #f8fafc;
+    border: 1px dashed #d1d5db;
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .pdv-contexto-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .pdv-contexto-cliente {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .pdv-contexto-meta {
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  .pdv-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .pdv-badge-blue {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .pdv-badge-green {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  .pdv-badge-gray {
+    background: #f3f4f6;
+    color: #374151;
+  }
+
+  .pdv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pdv-empty {
+    border: 1px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 14px;
+    background: #fafafa;
+  }
+
+  .pdv-search-results {
+    max-height: 220px;
+    overflow: auto;
+  }
+
+  .pdv-result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .pdv-result-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .pdv-result-subtitle {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  .pdv-carrinho-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .pdv-carrinho-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .pdv-carrinho-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .pdv-carrinho-meta {
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .pdv-carrinho-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .pdv-total-box {
+    background: #111827;
+    color: #fff;
+    border-radius: 16px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pdv-total-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+  }
+
+  .pdv-total-line-final {
+    font-size: 22px;
+    font-weight: 800;
+    border-top: 1px solid rgba(255,255,255,0.16);
+    padding-top: 12px;
+  }
+
+  .pdv-payment-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .pdv-prod-list {
+    max-height: 640px;
+    overflow: auto;
+  }
+
+  .pdv-prod-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pdv-prod-item-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .pdv-prod-item-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .pdv-prod-item-subtitle {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  .pdv-hidden {
+    display: none !important;
+  }
+
+  @media (max-width: 1180px) {
+    .pdv-topbar {
+      grid-template-columns: 1fr;
+    }
+
+    .pdv-caixa-status {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .pdv-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .pdv-caixa-status,
+    .pdv-payment-grid,
+    .pdv-busca-linha {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="pdv-shell">
+  <div id="pdv-alerta-geral" class="pdv-alert pdv-alert-info">
+    Abra o caixa para iniciar as vendas.
+  </div>
+
+  <section class="pdv-card">
+    <div class="pdv-card-body">
+      <div class="pdv-topbar">
+        <div class="pdv-caixa-status">
+          <div class="pdv-metric">
+            <span class="pdv-metric-label">Caixa</span>
+            <div class="pdv-metric-value" id="pdv-caixa-status">Fechado</div>
+          </div>
+
+          <div class="pdv-metric">
+            <span class="pdv-metric-label">Operador</span>
+            <div class="pdv-metric-value" id="pdv-caixa-operador">-</div>
+          </div>
+
+          <div class="pdv-metric">
+            <span class="pdv-metric-label">Abertura</span>
+            <div class="pdv-metric-value" id="pdv-caixa-abertura">R$ 0,00</div>
+          </div>
+
+          <div class="pdv-metric">
+            <span class="pdv-metric-label">Saldo dinheiro</span>
+            <div class="pdv-metric-value" id="pdv-caixa-saldo">R$ 0,00</div>
+          </div>
+        </div>
+
+        <div class="pdv-top-actions">
+          <button id="btn-abrir-caixa" class="pdv-btn pdv-btn-primary" type="button">
+            Abrir caixa
+          </button>
+          <button id="btn-sangria" class="pdv-btn pdv-btn-secondary" type="button">
+            Sangria
+          </button>
+          <button id="btn-suprimento" class="pdv-btn pdv-btn-secondary" type="button">
+            Suprimento
+          </button>
+          <button id="btn-fechar-caixa" class="pdv-btn pdv-btn-dark" type="button">
+            Fechar caixa
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="pdv-layout">
+    <section class="pdv-card">
+      <div class="pdv-card-header">
+        <div>
+          <h2 class="pdv-card-title">Venda atual</h2>
+          <p class="pdv-card-subtitle">Venda rápida com busca única de produto e pagamento integral.</p>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="btn-venda-balcao" class="pdv-btn pdv-btn-secondary pdv-btn-sm" type="button">
+            Venda balcão
+          </button>
+          <button id="btn-cancelar-venda" class="pdv-btn pdv-btn-danger pdv-btn-sm" type="button">
+            Cancelar venda
+          </button>
+        </div>
+      </div>
+
+      <div class="pdv-card-body pdv-stack">
+        <div class="pdv-contexto">
+          <div class="pdv-contexto-main">
+            <div class="pdv-contexto-cliente" id="pdv-venda-cliente">Nenhuma venda iniciada</div>
+            <div class="pdv-contexto-meta" id="pdv-venda-meta">Abra uma venda balcão ou puxe da produção.</div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span class="pdv-badge pdv-badge-gray" id="pdv-venda-numero">Sem venda</span>
+            <span class="pdv-badge pdv-badge-blue" id="pdv-venda-modo">-</span>
+          </div>
+        </div>
+
+        <div class="pdv-field">
+          <label for="pdv-empresa-id">Empresa ID</label>
+          <input id="pdv-empresa-id" type="number" min="1" value="1">
+        </div>
+
+        <div class="pdv-busca-linha">
+          <div class="pdv-field">
+            <label for="pdv-busca-produto">Produto</label>
+            <input
+              id="pdv-busca-produto"
+              type="text"
+              placeholder="Código de barras ou nome do item"
+              autocomplete="off"
+            >
+          </div>
+
+          <button id="btn-buscar-produto" class="pdv-btn pdv-btn-primary" type="button">
+            Buscar
+          </button>
+        </div>
+
+        <div id="pdv-produtos-resultado" class="pdv-list pdv-search-results">
+          <div class="pdv-empty">Nenhum produto pesquisado.</div>
+        </div>
+
+        <div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+            <strong style="font-size:15px; color:#111827;">Carrinho</strong>
+            <span class="pdv-card-subtitle" style="margin:0;">Itens da venda atual</span>
+          </div>
+
+          <div id="pdv-carrinho-lista" class="pdv-list">
+            <div class="pdv-empty">Nenhum item adicionado.</div>
+          </div>
+        </div>
+
+        <div class="pdv-total-box">
+          <div class="pdv-total-line">
+            <span>Subtotal</span>
+            <strong id="pdv-total-subtotal">R$ 0,00</strong>
+          </div>
+          <div class="pdv-total-line">
+            <span>Desconto</span>
+            <strong id="pdv-total-desconto">R$ 0,00</strong>
+          </div>
+          <div class="pdv-total-line">
+            <span>Acréscimo</span>
+            <strong id="pdv-total-acrescimo">R$ 0,00</strong>
+          </div>
+          <div class="pdv-total-line pdv-total-line-final">
+            <span>Total</span>
+            <strong id="pdv-total-final">R$ 0,00</strong>
+          </div>
+        </div>
+
+        <div class="pdv-payment-grid">
+          <div class="pdv-field">
+            <label for="pdv-forma-pagamento">Forma de pagamento</label>
+            <select id="pdv-forma-pagamento">
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="PIX">PIX</option>
+              <option value="CARTAO_DEBITO">Cartão débito</option>
+              <option value="CARTAO_CREDITO">Cartão crédito</option>
+            </select>
+          </div>
+
+          <div class="pdv-field">
+            <label for="pdv-valor-pagamento">Valor pago</label>
+            <input id="pdv-valor-pagamento" type="number" min="0" step="0.01" placeholder="0,00">
+          </div>
+        </div>
+
+        <button id="btn-finalizar-venda" class="pdv-btn pdv-btn-success pdv-btn-full" type="button">
+          Finalizar venda
+        </button>
+      </div>
+    </section>
+
+    <section class="pdv-card">
+      <div class="pdv-card-header">
+        <div>
+          <h2 class="pdv-card-title">Prontos da produção</h2>
+          <p class="pdv-card-subtitle">Puxe para a venda atual o que já está pronto para cobrança.</p>
+        </div>
+
+        <button id="btn-atualizar-producao" class="pdv-btn pdv-btn-secondary pdv-btn-sm" type="button">
+          Atualizar
+        </button>
+      </div>
+
+      <div class="pdv-card-body pdv-stack">
+        <div id="pdv-producao-alerta" class="pdv-alert pdv-alert-warning">
+          Ao puxar da produção, a venda fica vinculada ao cliente correto.
+        </div>
+
+        <div id="pdv-producao-lista" class="pdv-list pdv-prod-list">
+          <div class="pdv-empty">Nenhum item pronto para cobrança.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="/static/js/pdv.js"></script>
+
+{% endblock %}
