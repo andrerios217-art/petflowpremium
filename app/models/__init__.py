@@ -25,3 +25,6 @@ from app.models.pet_medicacao import PetMedicacao
 from app.models.pet_prontuario import PetProntuario
 from app.models.pet_receita import PetReceita
 from app.models.pet_vacina import PetVacina
+from app.models.financeiro_receber import FinanceiroReceber
+from app.models.cliente import Cliente
+from app.models.financeiro_pagar import FinanceiroPagar

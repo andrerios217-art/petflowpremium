@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.core.database import Base, engine
 from app.models import *  # noqa
+import app.models  # noqa
 
 from app.api import auth, empresas, usuarios, configuracoes
 from app.api import clientes_api
@@ -16,6 +17,9 @@ from app.api.agenda_veterinaria_api import router as agenda_veterinaria_router
 from app.api.atendimento_clinico_api import router as atendimento_clinico_router
 from app.api.producao_api import router as producao_router
 from app.api.comissao import router as comissao_router
+from app.api.financeiro_api import router as financeiro_router
+from app.api.financeiro_dashboard import router as financeiro_dashboard_router
+from app.api.financeiro_pagar_api import router as financeiro_pagar_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -37,6 +41,9 @@ app.include_router(agenda_veterinaria_router)
 app.include_router(atendimento_clinico_router)
 app.include_router(producao_router)
 app.include_router(comissao_router)
+app.include_router(financeiro_router)
+app.include_router(financeiro_dashboard_router)
+app.include_router(financeiro_pagar_router)
 
 
 @app.get("/", response_class=HTMLResponse)
