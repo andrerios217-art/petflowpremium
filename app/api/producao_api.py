@@ -1,9 +1,13 @@
+from datetime import date
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
 from app.crud import producao as crud_producao
 from app.models.agendamento import Agendamento
+from app.models.financeiro_receber import FinanceiroReceber
 from app.schemas.producao import (
     ProducaoAvancarEtapa,
     ProducaoCardResponse,
@@ -12,6 +16,77 @@ from app.schemas.producao import (
 )
 
 router = APIRouter(prefix="/api/producao", tags=["Produção"])
+
+
+def _somar_valor_agendamento(agendamento: Agendamento) -> Decimal:
+    total = Decimal("0.00")
+
+    if not agendamento or not agendamento.servicos_agendamento:
+        return total
+
+    for item in agendamento.servicos_agendamento:
+        total += Decimal(str(item.preco or 0))
+
+    return total
+
+
+def _montar_descricao_financeira(agendamento: Agendamento) -> str:
+    if not agendamento:
+        return "Serviços petshop"
+
+    nomes_servicos = [
+        item.servico.nome
+        for item in (agendamento.servicos_agendamento or [])
+        if item.servico and item.servico.nome
+    ]
+
+    if nomes_servicos:
+        return "Serviços: " + ", ".join(nomes_servicos)
+
+    return "Serviços petshop"
+
+
+def _gerar_conta_receber_se_nao_existir(db: Session, ordem) -> None:
+    if not ordem or not ordem.finalizado:
+        return
+
+    existe = (
+        db.query(FinanceiroReceber)
+        .filter(
+            FinanceiroReceber.origem_tipo == "PRODUCAO",
+            FinanceiroReceber.origem_id == ordem.id,
+        )
+        .first()
+    )
+
+    if existe:
+        return
+
+    agendamento = ordem.agendamento
+    if not agendamento:
+        return
+
+    valor_total = _somar_valor_agendamento(agendamento)
+    if valor_total <= Decimal("0.00"):
+        return
+
+    nova_conta = FinanceiroReceber(
+        empresa_id=agendamento.empresa_id,
+        cliente_id=agendamento.cliente_id,
+        origem_tipo="PRODUCAO",
+        origem_id=ordem.id,
+        descricao=_montar_descricao_financeira(agendamento),
+        observacao=f"Gerado automaticamente a partir da produção #{ordem.id}",
+        valor=valor_total,
+        valor_pago=Decimal("0.00"),
+        vencimento=date.today(),
+        status="PENDENTE",
+    )
+
+    db.add(nova_conta)
+    db.commit()
+    db.refresh(nova_conta)
+    db.refresh(ordem)
 
 
 def montar_card(ordem):
@@ -111,6 +186,8 @@ def avancar_para_proxima_etapa(
 
         if not ordem:
             raise HTTPException(status_code=400, detail="Não foi possível avançar a etapa.")
+
+        _gerar_conta_receber_se_nao_existir(db, ordem)
 
         return montar_card(ordem)
 
