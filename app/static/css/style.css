@@ -411,6 +411,65 @@ html, body {
   gap: 8px;
 }
 
+/* DASHBOARD FINANCEIRO */
+.financeiro-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.financeiro-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--table-border);
+}
+
+.financeiro-list li:last-child {
+  border-bottom: none;
+}
+
+.financeiro-list li span:last-child {
+  font-weight: 800;
+  text-align: right;
+}
+
+.valor-positivo {
+  color: #0f9f6e;
+  font-weight: 800;
+}
+
+.valor-negativo {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.badge-aberto {
+  background: rgba(15, 159, 110, 0.12);
+  color: #0f9f6e;
+}
+
+.badge-fechado {
+  background: rgba(120, 133, 155, 0.12);
+  color: #78859b;
+}
+
 /* RESPONSIVO */
 @media (max-width: 1200px) {
   .stats-grid {

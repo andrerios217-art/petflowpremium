@@ -20,6 +20,8 @@ from app.api.comissao import router as comissao_router
 from app.api.financeiro_api import router as financeiro_router
 from app.api.financeiro_dashboard import router as financeiro_dashboard_router
 from app.api.financeiro_pagar_api import router as financeiro_pagar_router
+from app.api.pdv_api import router as pdv_router
+from app.api.caixa_api import router as caixa_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -44,6 +46,8 @@ app.include_router(comissao_router)
 app.include_router(financeiro_router)
 app.include_router(financeiro_dashboard_router)
 app.include_router(financeiro_pagar_router)
+app.include_router(pdv_router)
+app.include_router(caixa_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -125,6 +129,11 @@ def estoque_page(request: Request):
 @app.get("/financeiro", response_class=HTMLResponse)
 def financeiro_page(request: Request):
     return templates.TemplateResponse("financeiro.html", {"request": request})
+
+
+@app.get("/pdv", response_class=HTMLResponse)
+def pdv_page(request: Request):
+    return templates.TemplateResponse("pdv.html", {"request": request})
 
 
 @app.get("/crm", response_class=HTMLResponse)
