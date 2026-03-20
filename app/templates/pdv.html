@@ -1,579 +1,144 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
-
-<style>
-  .pdv-shell {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 20px;
-  }
-
-  .pdv-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  }
-
-  .pdv-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 16px 18px;
-    border-bottom: 1px solid #eef2f7;
-  }
-
-  .pdv-card-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .pdv-card-subtitle {
-    margin: 4px 0 0;
-    font-size: 13px;
-    color: #6b7280;
-  }
-
-  .pdv-card-body {
-    padding: 18px;
-  }
-
-  .pdv-topbar {
-    display: grid;
-    grid-template-columns: 1.3fr auto;
-    gap: 16px;
-    align-items: stretch;
-  }
-
-  .pdv-caixa-status {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(120px, 1fr));
-    gap: 12px;
-  }
-
-  .pdv-metric {
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 12px;
-  }
-
-  .pdv-metric-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    color: #6b7280;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .pdv-metric-value {
-    font-size: 15px;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .pdv-top-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .pdv-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
-    gap: 20px;
-    align-items: start;
-  }
-
-  .pdv-btn {
-    appearance: none;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: 0.18s ease;
-  }
-
-  .pdv-btn:hover {
-    transform: translateY(-1px);
-  }
-
-  .pdv-btn-primary {
-    background: #2563eb;
-    color: #fff;
-  }
-
-  .pdv-btn-secondary {
-    background: #eef2ff;
-    color: #1d4ed8;
-  }
-
-  .pdv-btn-success {
-    background: #16a34a;
-    color: #fff;
-  }
-
-  .pdv-btn-danger {
-    background: #fee2e2;
-    color: #b91c1c;
-  }
-
-  .pdv-btn-dark {
-    background: #111827;
-    color: #fff;
-  }
-
-  .pdv-btn-full {
-    width: 100%;
-  }
-
-  .pdv-btn-sm {
-    padding: 8px 10px;
-    font-size: 13px;
-  }
-
-  .pdv-alert {
-    border-radius: 12px;
-    padding: 12px 14px;
-    font-size: 14px;
-    font-weight: 600;
-    border: 1px solid transparent;
-  }
-
-  .pdv-alert-info {
-    background: #eff6ff;
-    color: #1d4ed8;
-    border-color: #bfdbfe;
-  }
-
-  .pdv-alert-warning {
-    background: #fff7ed;
-    color: #c2410c;
-    border-color: #fdba74;
-  }
-
-  .pdv-alert-danger {
-    background: #fef2f2;
-    color: #b91c1c;
-    border-color: #fecaca;
-  }
-
-  .pdv-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .pdv-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .pdv-field label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #374151;
-  }
-
-  .pdv-field input,
-  .pdv-field select,
-  .pdv-field textarea {
-    width: 100%;
-    padding: 11px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 10px;
-    font-size: 14px;
-    outline: none;
-    box-sizing: border-box;
-    background: #fff;
-  }
-
-  .pdv-field input:focus,
-  .pdv-field select:focus,
-  .pdv-field textarea:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-  }
-
-  .pdv-busca-linha {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: end;
-  }
-
-  .pdv-contexto {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    background: #f8fafc;
-    border: 1px dashed #d1d5db;
-    border-radius: 14px;
-    padding: 14px;
-  }
-
-  .pdv-contexto-main {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .pdv-contexto-cliente {
-    font-size: 18px;
-    font-weight: 800;
-    color: #111827;
-  }
-
-  .pdv-contexto-meta {
-    font-size: 13px;
-    color: #6b7280;
-  }
-
-  .pdv-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    padding: 5px 10px;
-    font-size: 12px;
-    font-weight: 800;
-  }
-
-  .pdv-badge-blue {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
-
-  .pdv-badge-green {
-    background: #dcfce7;
-    color: #15803d;
-  }
-
-  .pdv-badge-gray {
-    background: #f3f4f6;
-    color: #374151;
-  }
-
-  .pdv-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .pdv-empty {
-    border: 1px dashed #d1d5db;
-    border-radius: 12px;
-    padding: 18px;
-    text-align: center;
-    color: #6b7280;
-    font-size: 14px;
-    background: #fafafa;
-  }
-
-  .pdv-search-results {
-    max-height: 220px;
-    overflow: auto;
-  }
-
-  .pdv-result-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: #fff;
-  }
-
-  .pdv-result-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .pdv-result-subtitle {
-    font-size: 12px;
-    color: #6b7280;
-    margin-top: 4px;
-  }
-
-  .pdv-carrinho-item {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 14px;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: #fff;
-  }
-
-  .pdv-carrinho-info {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-  }
-
-  .pdv-carrinho-title {
-    font-size: 14px;
-    font-weight: 800;
-    color: #111827;
-  }
-
-  .pdv-carrinho-meta {
-    font-size: 12px;
-    color: #6b7280;
-  }
-
-  .pdv-carrinho-side {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-    white-space: nowrap;
-  }
-
-  .pdv-total-box {
-    background: #111827;
-    color: #fff;
-    border-radius: 16px;
-    padding: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .pdv-total-line {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    font-size: 14px;
-  }
-
-  .pdv-total-line-final {
-    font-size: 22px;
-    font-weight: 800;
-    border-top: 1px solid rgba(255,255,255,0.16);
-    padding-top: 12px;
-  }
-
-  .pdv-payment-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-
-  .pdv-prod-list {
-    max-height: 640px;
-    overflow: auto;
-  }
-
-  .pdv-prod-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 12px;
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .pdv-prod-item-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: flex-start;
-  }
-
-  .pdv-prod-item-title {
-    font-size: 14px;
-    font-weight: 800;
-    color: #111827;
-  }
-
-  .pdv-prod-item-subtitle {
-    font-size: 12px;
-    color: #6b7280;
-    margin-top: 4px;
-  }
-
-  .pdv-hidden {
-    display: none !important;
-  }
-
-  @media (max-width: 1180px) {
-    .pdv-topbar {
-      grid-template-columns: 1fr;
-    }
-
-    .pdv-caixa-status {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    .pdv-layout {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 720px) {
-    .pdv-caixa-status,
-    .pdv-payment-grid,
-    .pdv-busca-linha {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
-
-<div class="pdv-shell">
+<section class="pdv-page">
   <div id="pdv-alerta-geral" class="pdv-alert pdv-alert-info">
     Abra o caixa para iniciar as vendas.
   </div>
 
-  <section class="pdv-card">
-    <div class="pdv-card-body">
-      <div class="pdv-topbar">
-        <div class="pdv-caixa-status">
-          <div class="pdv-metric">
-            <span class="pdv-metric-label">Caixa</span>
-            <div class="pdv-metric-value" id="pdv-caixa-status">Fechado</div>
+  <div class="pdv-grid">
+    <section class="pdv-main">
+      <div class="pdv-card pdv-card-caixa">
+        <div class="pdv-card__header">
+          <div>
+            <h2>Caixa</h2>
+            <p>Controle operacional com rastreabilidade por operador e gerente.</p>
           </div>
-
-          <div class="pdv-metric">
-            <span class="pdv-metric-label">Operador</span>
-            <div class="pdv-metric-value" id="pdv-caixa-operador">-</div>
-          </div>
-
-          <div class="pdv-metric">
-            <span class="pdv-metric-label">Abertura</span>
-            <div class="pdv-metric-value" id="pdv-caixa-abertura">R$ 0,00</div>
-          </div>
-
-          <div class="pdv-metric">
-            <span class="pdv-metric-label">Saldo dinheiro</span>
-            <div class="pdv-metric-value" id="pdv-caixa-saldo">R$ 0,00</div>
+          <div class="pdv-caixa-status-wrap">
+            <span class="pdv-label">Status</span>
+            <strong id="pdv-caixa-status">Fechado</strong>
           </div>
         </div>
 
-        <div class="pdv-top-actions">
-          <button id="btn-abrir-caixa" class="pdv-btn pdv-btn-primary" type="button">
+        <div class="pdv-caixa-resumo">
+          <div class="pdv-kpi">
+            <span class="pdv-label">Operador</span>
+            <strong id="pdv-caixa-operador">-</strong>
+          </div>
+
+          <div class="pdv-kpi">
+            <span class="pdv-label">Abertura</span>
+            <strong id="pdv-caixa-abertura">R$ 0,00</strong>
+          </div>
+
+          <div class="pdv-kpi">
+            <span class="pdv-label">Saldo dinheiro</span>
+            <strong id="pdv-caixa-saldo">R$ 0,00</strong>
+          </div>
+        </div>
+
+        <div class="pdv-caixa-actions">
+          <button type="button" id="btn-abrir-caixa" class="pdv-btn pdv-btn-primary">
             Abrir caixa
           </button>
-          <button id="btn-sangria" class="pdv-btn pdv-btn-secondary" type="button">
+          <button type="button" id="btn-sangria" class="pdv-btn">
             Sangria
           </button>
-          <button id="btn-suprimento" class="pdv-btn pdv-btn-secondary" type="button">
+          <button type="button" id="btn-suprimento" class="pdv-btn">
             Suprimento
           </button>
-          <button id="btn-fechar-caixa" class="pdv-btn pdv-btn-dark" type="button">
+          <button type="button" id="btn-fechar-caixa" class="pdv-btn pdv-btn-danger">
             Fechar caixa
           </button>
         </div>
       </div>
-    </div>
-  </section>
 
-  <div class="pdv-layout">
-    <section class="pdv-card">
-      <div class="pdv-card-header">
-        <div>
-          <h2 class="pdv-card-title">Venda atual</h2>
-          <p class="pdv-card-subtitle">Venda rápida com busca única de produto e pagamento integral.</p>
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button id="btn-venda-balcao" class="pdv-btn pdv-btn-secondary pdv-btn-sm" type="button">
-            Venda balcão
-          </button>
-          <button id="btn-cancelar-venda" class="pdv-btn pdv-btn-danger pdv-btn-sm" type="button">
-            Cancelar venda
-          </button>
-        </div>
-      </div>
-
-      <div class="pdv-card-body pdv-stack">
-        <div class="pdv-contexto">
-          <div class="pdv-contexto-main">
-            <div class="pdv-contexto-cliente" id="pdv-venda-cliente">Nenhuma venda iniciada</div>
-            <div class="pdv-contexto-meta" id="pdv-venda-meta">Abra uma venda balcão ou puxe da produção.</div>
+      <div class="pdv-card">
+        <div class="pdv-card__header">
+          <div>
+            <h2>Venda atual</h2>
+            <p>Venda rápida com busca única de produto e pagamento integral.</p>
           </div>
 
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <span class="pdv-badge pdv-badge-gray" id="pdv-venda-numero">Sem venda</span>
-            <span class="pdv-badge pdv-badge-blue" id="pdv-venda-modo">-</span>
+          <div class="pdv-venda-actions">
+            <button type="button" id="btn-venda-balcao" class="pdv-btn pdv-btn-primary">
+              Venda balcão
+            </button>
+            <button type="button" id="btn-cancelar-venda" class="pdv-btn pdv-btn-danger">
+              Cancelar venda
+            </button>
           </div>
         </div>
 
-        <div class="pdv-field">
-          <label for="pdv-empresa-id">Empresa ID</label>
-          <input id="pdv-empresa-id" type="number" min="1" value="1">
+        <div class="pdv-venda-headline">
+          <div>
+            <strong id="pdv-venda-cliente">Nenhuma venda iniciada</strong>
+            <p id="pdv-venda-meta">Abra uma venda balcão ou puxe da produção.</p>
+          </div>
+          <div class="pdv-venda-badges">
+            <span id="pdv-venda-numero" class="pdv-badge">Sem venda</span>
+            <span id="pdv-venda-modo" class="pdv-badge pdv-badge-soft">-</span>
+          </div>
         </div>
 
-        <div class="pdv-busca-linha">
-          <div class="pdv-field">
-            <label for="pdv-busca-produto">Produto</label>
+        <div class="pdv-search-row">
+          <div class="pdv-field pdv-field-small">
+            <label for="pdv-empresa-id">Empresa ID</label>
+            <input type="number" id="pdv-empresa-id" value="1" min="1" />
+          </div>
+
+          <div class="pdv-field pdv-field-grow">
+            <label for="pdv-busca-produto">Produto / cliente</label>
             <input
-              id="pdv-busca-produto"
               type="text"
-              placeholder="Código de barras ou nome do item"
-              autocomplete="off"
-            >
+              id="pdv-busca-produto"
+              placeholder="Busque cliente para iniciar venda ou produto para adicionar item"
+            />
           </div>
 
-          <button id="btn-buscar-produto" class="pdv-btn pdv-btn-primary" type="button">
-            Buscar
-          </button>
-        </div>
-
-        <div id="pdv-produtos-resultado" class="pdv-list pdv-search-results">
-          <div class="pdv-empty">Nenhum produto pesquisado.</div>
-        </div>
-
-        <div>
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
-            <strong style="font-size:15px; color:#111827;">Carrinho</strong>
-            <span class="pdv-card-subtitle" style="margin:0;">Itens da venda atual</span>
-          </div>
-
-          <div id="pdv-carrinho-lista" class="pdv-list">
-            <div class="pdv-empty">Nenhum item adicionado.</div>
+          <div class="pdv-search-action">
+            <button type="button" id="btn-buscar-produto" class="pdv-btn">
+              Buscar
+            </button>
           </div>
         </div>
 
-        <div class="pdv-total-box">
-          <div class="pdv-total-line">
-            <span>Subtotal</span>
+        <div id="pdv-produtos-resultado" class="pdv-results-panel">
+          <div class="pdv-empty-state">Nenhum produto pesquisado.</div>
+        </div>
+
+        <div class="pdv-section-title">
+          <h3>Carrinho</h3>
+          <span>Itens da venda atual</span>
+        </div>
+
+        <div id="pdv-carrinho-lista" class="pdv-cart-list">
+          <div class="pdv-empty-state">Nenhum item adicionado.</div>
+        </div>
+
+        <div class="pdv-totals-grid">
+          <div class="pdv-total-box">
+            <span class="pdv-label">Subtotal</span>
             <strong id="pdv-total-subtotal">R$ 0,00</strong>
           </div>
-          <div class="pdv-total-line">
-            <span>Desconto</span>
+
+          <div class="pdv-total-box">
+            <span class="pdv-label">Desconto</span>
             <strong id="pdv-total-desconto">R$ 0,00</strong>
           </div>
-          <div class="pdv-total-line">
-            <span>Acréscimo</span>
+
+          <div class="pdv-total-box">
+            <span class="pdv-label">Acréscimo</span>
             <strong id="pdv-total-acrescimo">R$ 0,00</strong>
           </div>
-          <div class="pdv-total-line pdv-total-line-final">
-            <span>Total</span>
+
+          <div class="pdv-total-box pdv-total-box-highlight">
+            <span class="pdv-label">Total</span>
             <strong id="pdv-total-final">R$ 0,00</strong>
           </div>
         </div>
 
-        <div class="pdv-payment-grid">
+        <div class="pdv-payment-row">
           <div class="pdv-field">
             <label for="pdv-forma-pagamento">Forma de pagamento</label>
             <select id="pdv-forma-pagamento">
@@ -586,41 +151,851 @@
 
           <div class="pdv-field">
             <label for="pdv-valor-pagamento">Valor pago</label>
-            <input id="pdv-valor-pagamento" type="number" min="0" step="0.01" placeholder="0,00">
+            <input type="number" id="pdv-valor-pagamento" step="0.01" min="0" />
+          </div>
+
+          <div class="pdv-search-action">
+            <button type="button" id="btn-finalizar-venda" class="pdv-btn pdv-btn-primary">
+              Finalizar venda
+            </button>
           </div>
         </div>
-
-        <button id="btn-finalizar-venda" class="pdv-btn pdv-btn-success pdv-btn-full" type="button">
-          Finalizar venda
-        </button>
       </div>
     </section>
 
-    <section class="pdv-card">
-      <div class="pdv-card-header">
-        <div>
-          <h2 class="pdv-card-title">Prontos da produção</h2>
-          <p class="pdv-card-subtitle">Puxe para a venda atual o que já está pronto para cobrança.</p>
+    <aside class="pdv-sidebar">
+      <div class="pdv-card">
+        <div class="pdv-card__header">
+          <div>
+            <h2>Prontos da produção</h2>
+            <p>Puxe para a venda atual o que já está pronto para cobrança.</p>
+          </div>
+
+          <button type="button" id="btn-atualizar-producao" class="pdv-btn">
+            Atualizar
+          </button>
         </div>
 
-        <button id="btn-atualizar-producao" class="pdv-btn pdv-btn-secondary pdv-btn-sm" type="button">
-          Atualizar
-        </button>
-      </div>
-
-      <div class="pdv-card-body pdv-stack">
-        <div id="pdv-producao-alerta" class="pdv-alert pdv-alert-warning">
+        <div class="pdv-inline-note">
           Ao puxar da produção, a venda fica vinculada ao cliente correto.
         </div>
 
-        <div id="pdv-producao-lista" class="pdv-list pdv-prod-list">
-          <div class="pdv-empty">Nenhum item pronto para cobrança.</div>
+        <div id="pdv-producao-lista" class="pdv-producao-list">
+          <div class="pdv-empty-state">Nenhum item pronto para cobrança.</div>
         </div>
       </div>
-    </section>
+    </aside>
   </div>
-</div>
 
-<script src="/static/js/pdv.js"></script>
+  <!-- MODAL BASE -->
+  <div id="pdv-modal-overlay" class="pdv-modal-overlay pdv-hidden"></div>
 
+  <!-- MODAL: ABERTURA -->
+  <div id="modal-abrir-caixa" class="pdv-modal pdv-hidden" aria-hidden="true">
+    <div class="pdv-modal__header">
+      <div>
+        <h3>Abrir caixa</h3>
+        <p>Selecione o operador e informe o valor inicial em dinheiro.</p>
+      </div>
+      <button type="button" class="pdv-modal__close" data-close-modal="modal-abrir-caixa">×</button>
+    </div>
+
+    <div class="pdv-modal__body">
+      <div class="pdv-field">
+        <label for="caixa-abertura-operador-busca">Buscar operador por nome</label>
+        <div class="pdv-inline-search">
+          <input
+            type="text"
+            id="caixa-abertura-operador-busca"
+            placeholder="Digite nome ou e-mail do operador"
+          />
+          <button type="button" id="btn-buscar-operador-abertura" class="pdv-btn">
+            Buscar
+          </button>
+        </div>
+      </div>
+
+      <div id="caixa-abertura-operador-lista" class="pdv-selection-list">
+        <div class="pdv-empty-state">Nenhum operador selecionado.</div>
+      </div>
+
+      <input type="hidden" id="caixa-abertura-operador-id" />
+      <input type="hidden" id="caixa-abertura-operador-nome" />
+
+      <div class="pdv-form-grid">
+        <div class="pdv-field">
+          <label for="caixa-valor-abertura">Valor inicial</label>
+          <input type="number" id="caixa-valor-abertura" min="0" step="0.01" placeholder="0,00" />
+        </div>
+
+        <div class="pdv-field">
+          <label for="caixa-observacoes-abertura">Observações</label>
+          <input
+            type="text"
+            id="caixa-observacoes-abertura"
+            placeholder="Observações opcionais da abertura"
+          />
+        </div>
+      </div>
+
+      <div id="caixa-abertura-divergencia-box" class="pdv-auth-box pdv-hidden">
+        <h4>Divergência na abertura</h4>
+        <p>Quando a diferença ultrapassar a tolerância, informe motivo e gerente.</p>
+
+        <div class="pdv-field">
+          <label for="caixa-motivo-diferenca-abertura">Motivo da diferença</label>
+          <textarea
+            id="caixa-motivo-diferenca-abertura"
+            rows="3"
+            placeholder="Explique a diferença da abertura"
+          ></textarea>
+        </div>
+
+        <div class="pdv-field">
+          <label for="caixa-gerente-abertura-busca">Buscar gerente por nome</label>
+          <div class="pdv-inline-search">
+            <input
+              type="text"
+              id="caixa-gerente-abertura-busca"
+              placeholder="Digite nome ou e-mail do gerente"
+            />
+            <button type="button" id="btn-buscar-gerente-abertura" class="pdv-btn">
+              Buscar
+            </button>
+          </div>
+        </div>
+
+        <div id="caixa-gerente-abertura-lista" class="pdv-selection-list">
+          <div class="pdv-empty-state">Nenhum gerente selecionado.</div>
+        </div>
+
+        <input type="hidden" id="caixa-gerente-abertura-id" />
+        <input type="hidden" id="caixa-gerente-abertura-nome" />
+
+        <div class="pdv-field">
+          <label for="caixa-senha-gerente-abertura">Senha do gerente</label>
+          <input
+            type="password"
+            id="caixa-senha-gerente-abertura"
+            placeholder="Informe a senha do gerente"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="pdv-modal__footer">
+      <button type="button" class="pdv-btn" data-close-modal="modal-abrir-caixa">Cancelar</button>
+      <button type="button" id="btn-confirmar-abrir-caixa" class="pdv-btn pdv-btn-primary">
+        Confirmar abertura
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: SANGRIA -->
+  <div id="modal-sangria" class="pdv-modal pdv-hidden" aria-hidden="true">
+    <div class="pdv-modal__header">
+      <div>
+        <h3>Registrar sangria</h3>
+        <p>Informe operador, valor e motivo da retirada.</p>
+      </div>
+      <button type="button" class="pdv-modal__close" data-close-modal="modal-sangria">×</button>
+    </div>
+
+    <div class="pdv-modal__body">
+      <div class="pdv-field">
+        <label for="caixa-sangria-operador-busca">Buscar operador por nome</label>
+        <div class="pdv-inline-search">
+          <input
+            type="text"
+            id="caixa-sangria-operador-busca"
+            placeholder="Digite nome ou e-mail do operador"
+          />
+          <button type="button" id="btn-buscar-operador-sangria" class="pdv-btn">
+            Buscar
+          </button>
+        </div>
+      </div>
+
+      <div id="caixa-sangria-operador-lista" class="pdv-selection-list">
+        <div class="pdv-empty-state">Nenhum operador selecionado.</div>
+      </div>
+
+      <input type="hidden" id="caixa-sangria-operador-id" />
+      <input type="hidden" id="caixa-sangria-operador-nome" />
+
+      <div class="pdv-form-grid">
+        <div class="pdv-field">
+          <label for="caixa-sangria-valor">Valor da sangria</label>
+          <input type="number" id="caixa-sangria-valor" min="0" step="0.01" placeholder="0,00" />
+        </div>
+
+        <div class="pdv-field">
+          <label for="caixa-sangria-motivo">Motivo</label>
+          <input
+            type="text"
+            id="caixa-sangria-motivo"
+            placeholder="Ex.: retirada para troco, segurança, depósito"
+          />
+        </div>
+      </div>
+
+      <div class="pdv-field">
+        <label for="caixa-sangria-observacoes">Observações</label>
+        <textarea
+          id="caixa-sangria-observacoes"
+          rows="3"
+          placeholder="Observações opcionais"
+        ></textarea>
+      </div>
+
+      <div id="caixa-sangria-gerente-box" class="pdv-auth-box pdv-hidden">
+        <h4>Autorização gerencial</h4>
+
+        <div class="pdv-field">
+          <label for="caixa-gerente-sangria-busca">Buscar gerente por nome</label>
+          <div class="pdv-inline-search">
+            <input
+              type="text"
+              id="caixa-gerente-sangria-busca"
+              placeholder="Digite nome ou e-mail do gerente"
+            />
+            <button type="button" id="btn-buscar-gerente-sangria" class="pdv-btn">
+              Buscar
+            </button>
+          </div>
+        </div>
+
+        <div id="caixa-gerente-sangria-lista" class="pdv-selection-list">
+          <div class="pdv-empty-state">Nenhum gerente selecionado.</div>
+        </div>
+
+        <input type="hidden" id="caixa-gerente-sangria-id" />
+        <input type="hidden" id="caixa-gerente-sangria-nome" />
+
+        <div class="pdv-field">
+          <label for="caixa-senha-gerente-sangria">Senha do gerente</label>
+          <input
+            type="password"
+            id="caixa-senha-gerente-sangria"
+            placeholder="Informe a senha do gerente"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="pdv-modal__footer">
+      <button type="button" class="pdv-btn" data-close-modal="modal-sangria">Cancelar</button>
+      <button type="button" id="btn-confirmar-sangria" class="pdv-btn pdv-btn-primary">
+        Confirmar sangria
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: SUPRIMENTO -->
+  <div id="modal-suprimento" class="pdv-modal pdv-hidden" aria-hidden="true">
+    <div class="pdv-modal__header">
+      <div>
+        <h3>Registrar suprimento</h3>
+        <p>Informe operador, valor e motivo da entrada.</p>
+      </div>
+      <button type="button" class="pdv-modal__close" data-close-modal="modal-suprimento">×</button>
+    </div>
+
+    <div class="pdv-modal__body">
+      <div class="pdv-field">
+        <label for="caixa-suprimento-operador-busca">Buscar operador por nome</label>
+        <div class="pdv-inline-search">
+          <input
+            type="text"
+            id="caixa-suprimento-operador-busca"
+            placeholder="Digite nome ou e-mail do operador"
+          />
+          <button type="button" id="btn-buscar-operador-suprimento" class="pdv-btn">
+            Buscar
+          </button>
+        </div>
+      </div>
+
+      <div id="caixa-suprimento-operador-lista" class="pdv-selection-list">
+        <div class="pdv-empty-state">Nenhum operador selecionado.</div>
+      </div>
+
+      <input type="hidden" id="caixa-suprimento-operador-id" />
+      <input type="hidden" id="caixa-suprimento-operador-nome" />
+
+      <div class="pdv-form-grid">
+        <div class="pdv-field">
+          <label for="caixa-suprimento-valor">Valor do suprimento</label>
+          <input type="number" id="caixa-suprimento-valor" min="0" step="0.01" placeholder="0,00" />
+        </div>
+
+        <div class="pdv-field">
+          <label for="caixa-suprimento-motivo">Motivo</label>
+          <input
+            type="text"
+            id="caixa-suprimento-motivo"
+            placeholder="Ex.: reforço de troco, correção operacional"
+          />
+        </div>
+      </div>
+
+      <div class="pdv-field">
+        <label for="caixa-suprimento-observacoes">Observações</label>
+        <textarea
+          id="caixa-suprimento-observacoes"
+          rows="3"
+          placeholder="Observações opcionais"
+        ></textarea>
+      </div>
+
+      <div id="caixa-suprimento-gerente-box" class="pdv-auth-box pdv-hidden">
+        <h4>Autorização gerencial</h4>
+
+        <div class="pdv-field">
+          <label for="caixa-gerente-suprimento-busca">Buscar gerente por nome</label>
+          <div class="pdv-inline-search">
+            <input
+              type="text"
+              id="caixa-gerente-suprimento-busca"
+              placeholder="Digite nome ou e-mail do gerente"
+            />
+            <button type="button" id="btn-buscar-gerente-suprimento" class="pdv-btn">
+              Buscar
+            </button>
+          </div>
+        </div>
+
+        <div id="caixa-gerente-suprimento-lista" class="pdv-selection-list">
+          <div class="pdv-empty-state">Nenhum gerente selecionado.</div>
+        </div>
+
+        <input type="hidden" id="caixa-gerente-suprimento-id" />
+        <input type="hidden" id="caixa-gerente-suprimento-nome" />
+
+        <div class="pdv-field">
+          <label for="caixa-senha-gerente-suprimento">Senha do gerente</label>
+          <input
+            type="password"
+            id="caixa-senha-gerente-suprimento"
+            placeholder="Informe a senha do gerente"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="pdv-modal__footer">
+      <button type="button" class="pdv-btn" data-close-modal="modal-suprimento">Cancelar</button>
+      <button type="button" id="btn-confirmar-suprimento" class="pdv-btn pdv-btn-primary">
+        Confirmar suprimento
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: FECHAMENTO -->
+  <div id="modal-fechar-caixa" class="pdv-modal pdv-hidden" aria-hidden="true">
+    <div class="pdv-modal__header">
+      <div>
+        <h3>Fechar caixa</h3>
+        <p>Fechamento com contagem cega e rastreabilidade completa.</p>
+      </div>
+      <button type="button" class="pdv-modal__close" data-close-modal="modal-fechar-caixa">×</button>
+    </div>
+
+    <div class="pdv-modal__body">
+      <div class="pdv-summary-banner">
+        <span class="pdv-label">Saldo esperado em dinheiro</span>
+        <strong id="caixa-fechamento-saldo-esperado">R$ 0,00</strong>
+      </div>
+
+      <div class="pdv-field">
+        <label for="caixa-fechamento-operador-busca">Buscar operador por nome</label>
+        <div class="pdv-inline-search">
+          <input
+            type="text"
+            id="caixa-fechamento-operador-busca"
+            placeholder="Digite nome ou e-mail do operador"
+          />
+          <button type="button" id="btn-buscar-operador-fechamento" class="pdv-btn">
+            Buscar
+          </button>
+        </div>
+      </div>
+
+      <div id="caixa-fechamento-operador-lista" class="pdv-selection-list">
+        <div class="pdv-empty-state">Nenhum operador selecionado.</div>
+      </div>
+
+      <input type="hidden" id="caixa-fechamento-operador-id" />
+      <input type="hidden" id="caixa-fechamento-operador-nome" />
+
+      <div class="pdv-form-grid">
+        <div class="pdv-field">
+          <label for="caixa-fechamento-valor">Contagem final em dinheiro</label>
+          <input type="number" id="caixa-fechamento-valor" min="0" step="0.01" placeholder="0,00" />
+        </div>
+
+        <div class="pdv-field">
+          <label for="caixa-fechamento-dica">Conferência</label>
+          <input
+            type="text"
+            id="caixa-fechamento-dica"
+            value="Informe o dinheiro contado fisicamente."
+            disabled
+          />
+        </div>
+      </div>
+
+      <div id="caixa-fechamento-divergencia-box" class="pdv-auth-box pdv-hidden">
+        <h4>Divergência no fechamento</h4>
+        <p>Quando a diferença ultrapassar a tolerância, informe motivo e gerente.</p>
+
+        <div class="pdv-field">
+          <label for="caixa-motivo-diferenca-fechamento">Motivo da diferença</label>
+          <textarea
+            id="caixa-motivo-diferenca-fechamento"
+            rows="3"
+            placeholder="Explique a diferença do fechamento"
+          ></textarea>
+        </div>
+
+        <div class="pdv-field">
+          <label for="caixa-gerente-fechamento-busca">Buscar gerente por nome</label>
+          <div class="pdv-inline-search">
+            <input
+              type="text"
+              id="caixa-gerente-fechamento-busca"
+              placeholder="Digite nome ou e-mail do gerente"
+            />
+            <button type="button" id="btn-buscar-gerente-fechamento" class="pdv-btn">
+              Buscar
+            </button>
+          </div>
+        </div>
+
+        <div id="caixa-gerente-fechamento-lista" class="pdv-selection-list">
+          <div class="pdv-empty-state">Nenhum gerente selecionado.</div>
+        </div>
+
+        <input type="hidden" id="caixa-gerente-fechamento-id" />
+        <input type="hidden" id="caixa-gerente-fechamento-nome" />
+
+        <div class="pdv-field">
+          <label for="caixa-senha-gerente-fechamento">Senha do gerente</label>
+          <input
+            type="password"
+            id="caixa-senha-gerente-fechamento"
+            placeholder="Informe a senha do gerente"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="pdv-modal__footer">
+      <button type="button" class="pdv-btn" data-close-modal="modal-fechar-caixa">Cancelar</button>
+      <button type="button" id="btn-confirmar-fechar-caixa" class="pdv-btn pdv-btn-danger">
+        Confirmar fechamento
+      </button>
+    </div>
+  </div>
+
+  <style>
+    .pdv-page {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .pdv-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .pdv-main,
+    .pdv-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .pdv-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+    }
+
+    .pdv-card__header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .pdv-card__header h2,
+    .pdv-card__header h3,
+    .pdv-card__header h4 {
+      margin: 0 0 4px 0;
+    }
+
+    .pdv-card__header p {
+      margin: 0;
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+
+    .pdv-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #64748b;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .pdv-caixa-resumo,
+    .pdv-totals-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .pdv-kpi,
+    .pdv-total-box,
+    .pdv-summary-banner {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .pdv-total-box-highlight {
+      background: #ecfeff;
+      border-color: #a5f3fc;
+    }
+
+    .pdv-caixa-actions,
+    .pdv-venda-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pdv-btn {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #0f172a;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .pdv-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    }
+
+    .pdv-btn-primary {
+      background: #0f172a;
+      color: #fff;
+      border-color: #0f172a;
+    }
+
+    .pdv-btn-danger {
+      background: #7f1d1d;
+      color: #fff;
+      border-color: #7f1d1d;
+    }
+
+    .pdv-venda-headline {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .pdv-venda-headline p {
+      margin: 4px 0 0;
+      color: #64748b;
+    }
+
+    .pdv-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #e2e8f0;
+      color: #0f172a;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .pdv-badge-soft {
+      background: #eef2ff;
+      color: #3730a3;
+    }
+
+    .pdv-search-row,
+    .pdv-payment-row,
+    .pdv-form-grid {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr) 140px;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: end;
+    }
+
+    .pdv-payment-row {
+      grid-template-columns: minmax(0, 1fr) 180px 180px;
+    }
+
+    .pdv-form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pdv-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pdv-field-grow {
+      min-width: 0;
+    }
+
+    .pdv-field label {
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .pdv-field input,
+    .pdv-field select,
+    .pdv-field textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 0.95rem;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .pdv-field textarea {
+      resize: vertical;
+    }
+
+    .pdv-search-action {
+      display: flex;
+      align-items: end;
+    }
+
+    .pdv-search-action .pdv-btn {
+      width: 100%;
+    }
+
+    .pdv-results-panel,
+    .pdv-cart-list,
+    .pdv-producao-list,
+    .pdv-selection-list {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+      min-height: 74px;
+    }
+
+    .pdv-empty-state {
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+
+    .pdv-section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 8px 0 10px;
+    }
+
+    .pdv-section-title h3 {
+      margin: 0;
+    }
+
+    .pdv-section-title span,
+    .pdv-inline-note {
+      color: #64748b;
+      font-size: 0.92rem;
+    }
+
+    .pdv-alert {
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 600;
+    }
+
+    .pdv-alert-info {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+    }
+
+    .pdv-alert-warning {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #b45309;
+    }
+
+    .pdv-alert-danger {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+    }
+
+    .pdv-alert-success {
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      color: #15803d;
+    }
+
+    .pdv-inline-search {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 120px;
+      gap: 10px;
+    }
+
+    .pdv-selection-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      background: #f8fafc;
+    }
+
+    .pdv-selection-option:last-child {
+      margin-bottom: 0;
+    }
+
+    .pdv-selection-meta {
+      color: #64748b;
+      font-size: 0.88rem;
+      margin-top: 4px;
+    }
+
+    .pdv-selection-selected {
+      border-color: #0f172a;
+      background: #f1f5f9;
+    }
+
+    .pdv-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.52);
+      z-index: 999;
+    }
+
+    .pdv-modal {
+      position: fixed;
+      inset: 50% auto auto 50%;
+      transform: translate(-50%, -50%);
+      width: min(760px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28);
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .pdv-modal__header,
+    .pdv-modal__footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pdv-modal__header {
+      margin-bottom: 16px;
+    }
+
+    .pdv-modal__footer {
+      margin-top: 18px;
+    }
+
+    .pdv-modal__close {
+      border: none;
+      background: transparent;
+      font-size: 1.6rem;
+      cursor: pointer;
+      color: #334155;
+    }
+
+    .pdv-auth-box {
+      margin-top: 16px;
+      border: 1px dashed #f59e0b;
+      background: #fffbeb;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .pdv-auth-box h4 {
+      margin: 0 0 6px 0;
+    }
+
+    .pdv-auth-box p {
+      margin: 0 0 14px 0;
+      color: #92400e;
+    }
+
+    .pdv-hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1024px) {
+      .pdv-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .pdv-caixa-resumo,
+      .pdv-totals-grid,
+      .pdv-search-row,
+      .pdv-payment-row,
+      .pdv-form-grid,
+      .pdv-inline-search {
+        grid-template-columns: 1fr;
+      }
+
+      .pdv-venda-headline,
+      .pdv-card__header,
+      .pdv-modal__header,
+      .pdv-modal__footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .pdv-search-action .pdv-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</section>
 {% endblock %}
