@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.security import verify_password
@@ -59,6 +60,185 @@ def _get_usuario_or_404(db: Session, usuario_id: int) -> Usuario:
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     return usuario
+
+
+def buscar_operadores_caixa(
+    db: Session,
+    empresa_id: int,
+    termo: str,
+    limite: int = 20,
+) -> list[Usuario]:
+    _get_empresa_or_404(db, empresa_id)
+
+    termo = (termo or "").strip()
+    if not termo:
+        return []
+
+    like = f"%{termo}%"
+    return (
+        db.query(Usuario)
+        .filter(
+            Usuario.empresa_id == empresa_id,
+            Usuario.ativo.is_(True),
+            or_(
+                Usuario.nome.ilike(like),
+                Usuario.email.ilike(like),
+            ),
+        )
+        .order_by(Usuario.nome.asc(), Usuario.id.asc())
+        .limit(limite)
+        .all()
+    )
+
+
+def _descrever_candidatos_usuarios(usuarios: list[Usuario]) -> str:
+    if not usuarios:
+        return ""
+
+    candidatos = []
+    for usuario in usuarios[:5]:
+        email = f" - {usuario.email}" if getattr(usuario, "email", None) else ""
+        candidatos.append(f"{usuario.nome}{email}")
+
+    return "; ".join(candidatos)
+
+
+def _resolver_usuario_por_identificacao(
+    db: Session,
+    *,
+    empresa_id: int,
+    usuario_id: int | None,
+    usuario_nome: str | None,
+    label: str,
+    tipos_aceitos: tuple[str, ...] | None = None,
+) -> Usuario:
+    if usuario_id:
+        usuario = _get_usuario_or_404(db, usuario_id)
+        _validar_usuario_da_empresa(usuario, empresa_id, label)
+
+        if tipos_aceitos and (usuario.tipo or "").lower() not in tipos_aceitos:
+            raise HTTPException(
+                status_code=403,
+                detail=f"{label} não possui o perfil exigido para esta operação.",
+            )
+
+        return usuario
+
+    termo = (usuario_nome or "").strip()
+    if not termo:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label} deve ser informado por busca de nome.",
+        )
+
+    base_query = db.query(Usuario).filter(Usuario.empresa_id == empresa_id)
+    base_query = base_query.filter(Usuario.ativo.is_(True))
+
+    if tipos_aceitos:
+        base_query = base_query.filter(Usuario.tipo.in_(tipos_aceitos))
+
+    candidatos_exatos = (
+        base_query
+        .filter(
+            or_(
+                Usuario.nome.ilike(termo),
+                Usuario.email.ilike(termo),
+            )
+        )
+        .order_by(Usuario.nome.asc(), Usuario.id.asc())
+        .all()
+    )
+
+    if len(candidatos_exatos) == 1:
+        return candidatos_exatos[0]
+
+    candidatos = candidatos_exatos
+    if not candidatos:
+        candidatos = buscar_operadores_caixa(
+            db,
+            empresa_id=empresa_id,
+            termo=termo,
+            limite=10,
+        )
+        if tipos_aceitos:
+            candidatos = [
+                usuario
+                for usuario in candidatos
+                if (usuario.tipo or "").lower() in tipos_aceitos
+            ]
+
+    if not candidatos:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{label} não encontrado para '{termo}'.",
+        )
+
+    if len(candidatos) > 1:
+        descricoes = _descrever_candidatos_usuarios(candidatos)
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{label} ambíguo. Refine a busca por nome e selecione apenas um usuário. "
+                f"Candidatos: {descricoes}"
+            ),
+        )
+
+    return candidatos[0]
+
+
+def _resolver_operador_abertura(
+    db: Session,
+    payload,
+) -> tuple[Usuario, Usuario]:
+    usuario_abertura = _resolver_usuario_por_identificacao(
+        db,
+        empresa_id=payload.empresa_id,
+        usuario_id=getattr(payload, "usuario_abertura_id", None),
+        usuario_nome=getattr(payload, "usuario_abertura_nome", None),
+        label="Operador de abertura",
+    )
+
+    usuario_responsavel = _resolver_usuario_por_identificacao(
+        db,
+        empresa_id=payload.empresa_id,
+        usuario_id=getattr(payload, "usuario_responsavel_id", None) or usuario_abertura.id,
+        usuario_nome=getattr(payload, "usuario_responsavel_nome", None) or usuario_abertura.nome,
+        label="Operador responsável",
+    )
+
+    return usuario_responsavel, usuario_abertura
+
+
+def _resolver_gerente_por_identificacao(
+    db: Session,
+    *,
+    empresa_id: int,
+    gerente_id: int | None,
+    gerente_nome: str | None,
+    senha_gerente: str | None,
+) -> Usuario:
+    if not senha_gerente:
+        raise HTTPException(
+            status_code=400,
+            detail="Senha do gerente é obrigatória para esta operação.",
+        )
+
+    gerente = _resolver_usuario_por_identificacao(
+        db,
+        empresa_id=empresa_id,
+        usuario_id=gerente_id,
+        usuario_nome=gerente_nome,
+        label="Gerente autorizador",
+        tipos_aceitos=("admin", "gerente"),
+    )
+
+    if not verify_password(senha_gerente, gerente.senha_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Senha do gerente inválida.",
+        )
+
+    return gerente
 
 
 def _get_caixa_sessao_or_404(
@@ -185,36 +365,15 @@ def _validar_gerente(
     empresa_id: int,
     gerente_id: int | None,
     senha_gerente: str | None,
+    gerente_nome: str | None = None,
 ) -> Usuario:
-    if not gerente_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Autorização gerencial obrigatória para esta operação.",
-        )
-
-    if not senha_gerente:
-        raise HTTPException(
-            status_code=400,
-            detail="Senha do gerente é obrigatória para esta operação.",
-        )
-
-    gerente = _get_usuario_or_404(db, gerente_id)
-    _validar_usuario_da_empresa(gerente, empresa_id, "Gerente")
-
-    tipo = (gerente.tipo or "").lower()
-    if tipo not in ("admin", "gerente"):
-        raise HTTPException(
-            status_code=403,
-            detail="O usuário informado não possui perfil gerencial.",
-        )
-
-    if not verify_password(senha_gerente, gerente.senha_hash):
-        raise HTTPException(
-            status_code=401,
-            detail="Senha do gerente inválida.",
-        )
-
-    return gerente
+    return _resolver_gerente_por_identificacao(
+        db,
+        empresa_id=empresa_id,
+        gerente_id=gerente_id,
+        gerente_nome=gerente_nome,
+        senha_gerente=senha_gerente,
+    )
 
 
 def _calcular_nivel_risco(
@@ -438,11 +597,7 @@ def abrir_caixa(db: Session, payload) -> tuple[CaixaSessao, CaixaDivergencia | N
             detail="Já existe um caixa aberto para esta empresa.",
         )
 
-    usuario_responsavel = _get_usuario_or_404(db, payload.usuario_responsavel_id)
-    _validar_usuario_da_empresa(usuario_responsavel, payload.empresa_id, "Usuário responsável")
-
-    usuario_abertura = _get_usuario_or_404(db, payload.usuario_abertura_id)
-    _validar_usuario_da_empresa(usuario_abertura, payload.empresa_id, "Usuário de abertura")
+    usuario_responsavel, usuario_abertura = _resolver_operador_abertura(db, payload)
 
     ultimo_caixa = _get_ultimo_caixa_fechado(db, payload.empresa_id)
     valor_referencia_anterior = _decimal_2(
@@ -470,6 +625,7 @@ def abrir_caixa(db: Session, payload) -> tuple[CaixaSessao, CaixaDivergencia | N
             db,
             empresa_id=payload.empresa_id,
             gerente_id=payload.gerente_abertura_id,
+            gerente_nome=getattr(payload, "gerente_abertura_nome", None),
             senha_gerente=payload.senha_gerente,
         )
         gerente_abertura_id = gerente.id
@@ -480,8 +636,8 @@ def abrir_caixa(db: Session, payload) -> tuple[CaixaSessao, CaixaDivergencia | N
         updated_at=_agora_utc(),
     )
     caixa.abrir(
-        usuario_responsavel_id=payload.usuario_responsavel_id,
-        usuario_abertura_id=payload.usuario_abertura_id,
+        usuario_responsavel_id=usuario_responsavel.id,
+        usuario_abertura_id=usuario_abertura.id,
         valor_abertura_informado=valor_abertura,
         valor_referencia_anterior=valor_referencia_anterior,
         motivo_diferenca_abertura=payload.motivo_diferenca_abertura,
@@ -499,7 +655,7 @@ def abrir_caixa(db: Session, payload) -> tuple[CaixaSessao, CaixaDivergencia | N
         tipo="ABERTURA",
         valor_referencia=valor_referencia_anterior,
         valor_informado=valor_abertura,
-        usuario_responsavel_id=payload.usuario_responsavel_id,
+        usuario_responsavel_id=usuario_responsavel.id,
         motivo_padrao="DIFERENCA_ABERTURA",
         motivo_detalhe=payload.motivo_diferenca_abertura,
         gerente_autorizador_id=gerente_abertura_id,
@@ -520,8 +676,13 @@ def fechar_caixa(db: Session, caixa_sessao_id: int, payload) -> tuple[CaixaSessa
             detail="Somente caixas abertos podem ser fechados.",
         )
 
-    usuario_fechamento = _get_usuario_or_404(db, payload.usuario_fechamento_id)
-    _validar_usuario_da_empresa(usuario_fechamento, caixa.empresa_id, "Usuário de fechamento")
+    usuario_fechamento = _resolver_usuario_por_identificacao(
+        db,
+        empresa_id=caixa.empresa_id,
+        usuario_id=getattr(payload, "usuario_fechamento_id", None),
+        usuario_nome=getattr(payload, "usuario_fechamento_nome", None),
+        label="Operador de fechamento",
+    )
 
     caixa = _get_caixa_sessao_or_404(db, caixa.id, for_update=False)
     resumo = calcular_resumo_financeiro_caixa(caixa)
@@ -551,12 +712,13 @@ def fechar_caixa(db: Session, caixa_sessao_id: int, payload) -> tuple[CaixaSessa
             db,
             empresa_id=caixa_lock.empresa_id,
             gerente_id=payload.gerente_fechamento_id,
+            gerente_nome=getattr(payload, "gerente_fechamento_nome", None),
             senha_gerente=payload.senha_gerente,
         )
         gerente_fechamento_id = gerente.id
 
     caixa_lock.registrar_fechamento(
-        usuario_fechamento_id=payload.usuario_fechamento_id,
+        usuario_fechamento_id=usuario_fechamento.id,
         valor_fechamento_esperado=valor_esperado,
         valor_fechamento_informado=valor_informado,
         motivo_diferenca_fechamento=payload.motivo_diferenca_fechamento,
@@ -597,8 +759,13 @@ def registrar_sangria(db: Session, payload) -> tuple[CaixaSessao, CaixaMovimento
             detail="A sessão de caixa não pertence à empresa informada.",
         )
 
-    usuario = _get_usuario_or_404(db, payload.usuario_id)
-    _validar_usuario_da_empresa(usuario, caixa.empresa_id, "Usuário")
+    usuario = _resolver_usuario_por_identificacao(
+        db,
+        empresa_id=caixa.empresa_id,
+        usuario_id=getattr(payload, "usuario_id", None),
+        usuario_nome=getattr(payload, "usuario_nome", None),
+        label="Operador da sangria",
+    )
 
     exige_gerente = _get_config_bool(
         db,
@@ -619,6 +786,7 @@ def registrar_sangria(db: Session, payload) -> tuple[CaixaSessao, CaixaMovimento
             db,
             empresa_id=caixa.empresa_id,
             gerente_id=payload.gerente_autorizador_id,
+            gerente_nome=getattr(payload, "gerente_autorizador_nome", None),
             senha_gerente=payload.senha_gerente,
         )
         gerente_autorizador_id = gerente.id
@@ -631,7 +799,7 @@ def registrar_sangria(db: Session, payload) -> tuple[CaixaSessao, CaixaMovimento
         empresa_id=payload.empresa_id,
         caixa_sessao_id=payload.caixa_sessao_id,
         valor=_decimal_2(payload.valor),
-        usuario_id=payload.usuario_id,
+        usuario_id=usuario.id,
         motivo=payload.motivo,
         observacoes=payload.observacoes,
         gerente_autorizador_id=gerente_autorizador_id,
@@ -659,8 +827,13 @@ def registrar_suprimento(db: Session, payload) -> tuple[CaixaSessao, CaixaMovime
             detail="A sessão de caixa não pertence à empresa informada.",
         )
 
-    usuario = _get_usuario_or_404(db, payload.usuario_id)
-    _validar_usuario_da_empresa(usuario, caixa.empresa_id, "Usuário")
+    usuario = _resolver_usuario_por_identificacao(
+        db,
+        empresa_id=caixa.empresa_id,
+        usuario_id=getattr(payload, "usuario_id", None),
+        usuario_nome=getattr(payload, "usuario_nome", None),
+        label="Operador do suprimento",
+    )
 
     exige_gerente = _get_config_bool(
         db,
@@ -681,6 +854,7 @@ def registrar_suprimento(db: Session, payload) -> tuple[CaixaSessao, CaixaMovime
             db,
             empresa_id=caixa.empresa_id,
             gerente_id=payload.gerente_autorizador_id,
+            gerente_nome=getattr(payload, "gerente_autorizador_nome", None),
             senha_gerente=payload.senha_gerente,
         )
         gerente_autorizador_id = gerente.id
@@ -693,7 +867,7 @@ def registrar_suprimento(db: Session, payload) -> tuple[CaixaSessao, CaixaMovime
         empresa_id=payload.empresa_id,
         caixa_sessao_id=payload.caixa_sessao_id,
         valor=_decimal_2(payload.valor),
-        usuario_id=payload.usuario_id,
+        usuario_id=usuario.id,
         motivo=payload.motivo,
         observacoes=payload.observacoes,
         gerente_autorizador_id=gerente_autorizador_id,

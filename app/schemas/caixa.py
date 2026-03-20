@@ -28,10 +28,23 @@ class CaixaUsuarioResumo(BaseModel):
         from_attributes = True
 
 
+class CaixaOperadorBuscaOut(BaseModel):
+    id: int
+    nome: str
+    email: str | None = None
+    tipo: str | None = None
+    ativo: bool = True
+
+    class Config:
+        from_attributes = True
+
+
 class CaixaSessaoAberturaRequest(BaseModel):
     empresa_id: int
-    usuario_responsavel_id: int
-    usuario_abertura_id: int
+    usuario_responsavel_id: int | None = None
+    usuario_responsavel_nome: str | None = None
+    usuario_abertura_id: int | None = None
+    usuario_abertura_nome: str | None = None
     valor_abertura_informado: Decimal = Field(ge=0)
     observacoes: str | None = None
 
@@ -39,17 +52,20 @@ class CaixaSessaoAberturaRequest(BaseModel):
     # estes campos serão exigidos pela regra de negócio no CRUD/API
     motivo_diferenca_abertura: str | None = None
     gerente_abertura_id: int | None = None
+    gerente_abertura_nome: str | None = None
     senha_gerente: str | None = None
 
 
 class CaixaSessaoFechamentoRequest(BaseModel):
-    usuario_fechamento_id: int
+    usuario_fechamento_id: int | None = None
+    usuario_fechamento_nome: str | None = None
     valor_fechamento_informado: Decimal = Field(ge=0)
 
     # Quando houver diferença acima da tolerância,
     # estes campos serão exigidos pela regra de negócio no CRUD/API
     motivo_diferenca_fechamento: str | None = None
     gerente_fechamento_id: int | None = None
+    gerente_fechamento_nome: str | None = None
     senha_gerente: str | None = None
 
 
@@ -57,12 +73,14 @@ class CaixaMovimentoBaseRequest(BaseModel):
     empresa_id: int
     caixa_sessao_id: int
     valor: Decimal = Field(gt=0)
-    usuario_id: int
+    usuario_id: int | None = None
+    usuario_nome: str | None = None
     motivo: str
     observacoes: str | None = None
 
     # Quando a política exigir, estes campos serão validados no CRUD/API
     gerente_autorizador_id: int | None = None
+    gerente_autorizador_nome: str | None = None
     senha_gerente: str | None = None
 
 
@@ -155,7 +173,6 @@ class CaixaSessaoOut(BaseModel):
     fechado_em: datetime | None = None
     created_at: datetime
     updated_at: datetime
-
     usuario_responsavel: CaixaUsuarioResumo | None = None
     usuario_abertura: CaixaUsuarioResumo | None = None
     usuario_fechamento: CaixaUsuarioResumo | None = None

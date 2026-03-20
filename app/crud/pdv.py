@@ -111,6 +111,21 @@ def _query_venda_lock(db: Session):
     return db.query(PdvVenda)
 
 
+def _carregar_atendimento_query(db: Session):
+    return (
+        db.query(AtendimentoClinico)
+        .options(
+            joinedload(AtendimentoClinico.cliente),
+            joinedload(AtendimentoClinico.pet),
+            joinedload(AtendimentoClinico.itens),
+        )
+    )
+
+
+def _query_atendimento_lock(db: Session):
+    return db.query(AtendimentoClinico)
+
+
 def _get_empresa_or_404(db: Session, empresa_id: int) -> Empresa:
     empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
     if not empresa:
@@ -185,20 +200,20 @@ def _get_atendimento_or_404(
     atendimento_id: int,
     for_update: bool = False,
 ) -> AtendimentoClinico:
-    query = (
-        db.query(AtendimentoClinico)
-        .options(
-            joinedload(AtendimentoClinico.cliente),
-            joinedload(AtendimentoClinico.pet),
-            joinedload(AtendimentoClinico.itens),
-        )
-        .filter(AtendimentoClinico.id == atendimento_id)
-    )
-
     if for_update:
-        query = query.with_for_update()
+        atendimento = (
+            _query_atendimento_lock(db)
+            .filter(AtendimentoClinico.id == atendimento_id)
+            .with_for_update(of=AtendimentoClinico)
+            .first()
+        )
+    else:
+        atendimento = (
+            _carregar_atendimento_query(db)
+            .filter(AtendimentoClinico.id == atendimento_id)
+            .first()
+        )
 
-    atendimento = query.first()
     if not atendimento:
         raise HTTPException(status_code=404, detail="Atendimento clínico não encontrado.")
     return atendimento
@@ -206,6 +221,10 @@ def _get_atendimento_or_404(
 
 def _recarregar_venda(db: Session, venda_id: int) -> PdvVenda:
     return _get_venda_or_404(db, venda_id, for_update=False)
+
+
+def _recarregar_atendimento(db: Session, atendimento_id: int) -> AtendimentoClinico:
+    return _get_atendimento_or_404(db, atendimento_id, for_update=False)
 
 
 def _gerar_numero_venda(venda_id: int) -> str:
@@ -360,31 +379,33 @@ def _validar_atendimento_disponivel_para_pdv(
     atendimento: AtendimentoClinico,
     venda: PdvVenda,
 ):
-    if atendimento.status != "FINALIZADO":
+    atendimento_lido = _recarregar_atendimento(db, atendimento.id)
+
+    if atendimento_lido.status != "FINALIZADO":
         raise HTTPException(
             status_code=400,
             detail="Somente atendimentos FINALIZADOS podem ser enviados ao PDV.",
         )
 
-    if getattr(atendimento, "empresa_id", None) != venda.empresa_id:
+    if getattr(atendimento_lido, "empresa_id", None) != venda.empresa_id:
         raise HTTPException(
             status_code=400,
             detail="O atendimento não pertence à mesma empresa da venda.",
         )
 
-    if not getattr(atendimento, "cliente_id", None):
+    if not getattr(atendimento_lido, "cliente_id", None):
         raise HTTPException(
             status_code=400,
             detail="O atendimento não possui cliente vinculado.",
         )
 
-    _validar_cliente_da_venda(venda, atendimento.cliente_id)
+    _validar_cliente_da_venda(venda, atendimento_lido.cliente_id)
 
     item_existente = (
         db.query(PdvVendaItem)
         .join(PdvVenda, PdvVenda.id == PdvVendaItem.venda_id)
         .filter(
-            PdvVendaItem.atendimento_clinico_id == atendimento.id,
+            PdvVendaItem.atendimento_clinico_id == atendimento_lido.id,
             PdvVenda.status != "CANCELADA",
         )
         .first()
@@ -404,19 +425,13 @@ def _validar_checkout(
     _validar_venda_aberta(venda)
     _validar_caixa_para_venda(caixa, venda.empresa_id, exigir_aberto=True)
 
-    itens = (
-        db.query(PdvVendaItem)
-        .filter(PdvVendaItem.venda_id == venda.id)
-        .all()
-    ) if False else venda.itens
-
-    if not itens:
+    if not venda.itens:
         raise HTTPException(
             status_code=400,
             detail="Não é possível finalizar uma venda sem itens.",
         )
 
-    possui_servico = any(item.tipo_item == "SERVICE" for item in itens)
+    possui_servico = any(item.tipo_item == "SERVICE" for item in venda.itens)
     if venda.modo_cliente == "WALK_IN" and possui_servico:
         raise HTTPException(
             status_code=400,
@@ -729,7 +744,8 @@ def adicionar_item(
     venda_id: int,
     payload: PdvVendaItemAdd,
 ) -> PdvVenda:
-    venda = _get_venda_or_404(db, venda_id, for_update=True)
+    venda_lock = _get_venda_or_404(db, venda_id, for_update=True)
+    venda = _recarregar_venda(db, venda_lock.id)
     _validar_venda_aberta(venda)
 
     item = PdvVendaItem(
@@ -739,11 +755,12 @@ def adicionar_item(
     )
 
     if payload.tipo_item == "SERVICE":
-        atendimento = _get_atendimento_or_404(
+        atendimento_lock = _get_atendimento_or_404(
             db,
             payload.atendimento_clinico_id,
             for_update=True,
         )
+        atendimento = _recarregar_atendimento(db, atendimento_lock.id)
         _validar_atendimento_disponivel_para_pdv(db, atendimento, venda)
 
         valor_total = _calcular_total_atendimento(atendimento)
@@ -782,7 +799,8 @@ def adicionar_item(
 
 
 def remover_item(db: Session, venda_id: int, item_id: int) -> PdvVenda:
-    venda = _get_venda_or_404(db, venda_id, for_update=True)
+    venda_lock = _get_venda_or_404(db, venda_id, for_update=True)
+    venda = _recarregar_venda(db, venda_lock.id)
     _validar_venda_aberta(venda)
 
     item = (
@@ -810,10 +828,10 @@ def checkout_venda(
     venda_id: int,
     payload: PdvCheckoutRequest,
 ) -> PdvVenda:
-    venda = _get_venda_or_404(db, venda_id, for_update=True)
-    caixa = _get_caixa_sessao_or_404(db, venda.caixa_sessao_id, for_update=True)
+    venda_lock = _get_venda_or_404(db, venda_id, for_update=True)
+    caixa = _get_caixa_sessao_or_404(db, venda_lock.caixa_sessao_id, for_update=True)
 
-    venda = _recarregar_venda(db, venda.id)
+    venda = _recarregar_venda(db, venda_lock.id)
     venda.recalcular_totais()
     _validar_checkout(venda, caixa, payload)
 
@@ -880,13 +898,13 @@ def cancelar_venda(
     venda_id: int,
     payload: PdvCancelRequest,
 ) -> PdvVenda:
-    venda = _get_venda_or_404(db, venda_id, for_update=True)
+    venda_lock = _get_venda_or_404(db, venda_id, for_update=True)
 
+    venda = _recarregar_venda(db, venda_lock.id)
     if venda.status == "CANCELADA":
-        return _recarregar_venda(db, venda.id)
+        return venda
 
     caixa_venda = _get_caixa_sessao_or_404(db, venda.caixa_sessao_id, for_update=True)
-    venda = _recarregar_venda(db, venda.id)
 
     usuario_cancelamento = _resolver_usuario_operacao(
         db,

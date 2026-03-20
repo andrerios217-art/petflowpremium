@@ -5,6 +5,7 @@ from app.core.deps import get_db
 from app.crud.caixa import (
     abrir_caixa,
     atualizar_status_divergencia,
+    buscar_operadores_caixa,
     calcular_resumo_financeiro_caixa,
     fechar_caixa,
     listar_caixas,
@@ -19,6 +20,7 @@ from app.schemas.caixa import (
     CaixaDivergenciaAtualizarStatusRequest,
     CaixaDivergenciaOut,
     CaixaOperacaoResponse,
+    CaixaOperadorBuscaOut,
     CaixaResumoFinanceiroOut,
     CaixaSangriaRequest,
     CaixaSessaoAberturaRequest,
@@ -29,6 +31,21 @@ from app.schemas.caixa import (
 )
 
 router = APIRouter(prefix="/api/caixa", tags=["Caixa"])
+
+
+@router.get("/operadores", response_model=list[CaixaOperadorBuscaOut])
+def buscar_operadores_caixa_api(
+    empresa_id: int = Query(..., ge=1),
+    q: str = Query(..., min_length=1),
+    limite: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return buscar_operadores_caixa(
+        db,
+        empresa_id=empresa_id,
+        termo=q,
+        limite=limite,
+    )
 
 
 @router.get("/atual", response_model=CaixaSessaoOut | None)
