@@ -15,6 +15,7 @@ class Funcionario(Base):
     telefone = Column(String(20), nullable=False)
     funcao = Column(String(30), nullable=False)
     crmv = Column(String(30), nullable=True)
+
     senha_hash = Column(String(255), nullable=False)
 
     acesso_dashboard = Column(Boolean, default=False, nullable=False)
@@ -30,5 +31,9 @@ class Funcionario(Base):
     acesso_relatorios = Column(Boolean, default=False, nullable=False)
     acesso_configuracoes = Column(Boolean, default=False, nullable=False)
 
+    # NOVO
+    acesso_pdv = Column(Boolean, default=False, nullable=False, server_default="false")
+
     ativo = Column(Boolean, default=True, nullable=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())

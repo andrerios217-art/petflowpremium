@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
@@ -44,7 +45,6 @@ def _to_float(valor):
 def _serializar_cliente(cliente):
     if not cliente:
         return None
-
     return {
         "id": cliente.id,
         "nome": getattr(cliente, "nome", None),
@@ -138,7 +138,6 @@ def _descricao_atendimento(atendimento: AtendimentoClinico) -> str:
 
     if pet_nome:
         return f"{descricao_base} - {pet_nome}"
-
     return descricao_base
 
 
@@ -152,7 +151,6 @@ def _total_atendimento(atendimento: AtendimentoClinico) -> Decimal:
 def _serializar_atendimento_pronto(atendimento: AtendimentoClinico):
     pet = getattr(atendimento, "pet", None)
     cliente = getattr(atendimento, "cliente", None)
-
     return {
         "atendimento_id": atendimento.id,
         "cliente_id": atendimento.cliente_id,
@@ -172,6 +170,7 @@ def _serializar_operador(usuario: Usuario):
         "email": usuario.email,
         "tipo": usuario.tipo,
         "ativo": bool(usuario.ativo),
+        "pode_pdv": bool(getattr(usuario, "pode_pdv", False)),
     }
 
 
@@ -182,20 +181,33 @@ def listar_operadores_pdv(
     limite: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
+    termo = (q or "").strip()
+
     query = (
         db.query(Usuario)
         .filter(
             Usuario.empresa_id == empresa_id,
             Usuario.ativo.is_(True),
+            Usuario.pode_pdv.is_(True),
         )
-        .order_by(Usuario.nome.asc())
     )
 
-    termo = (q or "").strip()
     if termo:
-        query = query.filter(Usuario.nome.ilike(f"%{termo}%"))
+        like = f"%{termo}%"
+        query = query.filter(
+            or_(
+                Usuario.nome.ilike(like),
+                Usuario.email.ilike(like),
+                Usuario.tipo.ilike(like),
+            )
+        )
 
-    operadores = query.limit(limite).all()
+    operadores = (
+        query.order_by(Usuario.nome.asc(), Usuario.id.asc())
+        .limit(limite)
+        .all()
+    )
+
     return [_serializar_operador(usuario) for usuario in operadores]
 
 
@@ -241,7 +253,6 @@ def listar_vendas_pdv(
     db: Session = Depends(get_db),
 ):
     vendas = listar_vendas(db, empresa_id=empresa_id, status=status, limite=limite)
-
     return [
         {
             "id": venda.id,

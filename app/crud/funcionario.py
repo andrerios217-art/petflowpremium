@@ -3,10 +3,57 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
 from app.models.funcionario import Funcionario
+from app.models.usuario import Usuario
 from app.schemas.funcionario import FuncionarioCreate
 
 
+def _tipo_usuario_por_funcao(funcao: str) -> str:
+    if funcao == "Gerente":
+        return "gerente"
+    return "funcionario"
+
+
+def _sync_usuario_from_funcionario(
+    db: Session,
+    *,
+    empresa_id: int,
+    nome: str,
+    email: str,
+    senha_hash: str | None,
+    funcao: str,
+    ativo: bool,
+    acesso_pdv: bool,
+):
+    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+
+    if usuario:
+        usuario.empresa_id = empresa_id
+        usuario.nome = nome
+        usuario.tipo = _tipo_usuario_por_funcao(funcao)
+        usuario.ativo = ativo
+        usuario.pode_pdv = acesso_pdv
+
+        if senha_hash:
+            usuario.senha_hash = senha_hash
+
+        return usuario
+
+    usuario = Usuario(
+        empresa_id=empresa_id,
+        nome=nome,
+        email=email,
+        senha_hash=senha_hash or hash_password("1234"),
+        tipo=_tipo_usuario_por_funcao(funcao),
+        ativo=ativo,
+        pode_pdv=acesso_pdv,
+    )
+    db.add(usuario)
+    return usuario
+
+
 def create(db: Session, data: FuncionarioCreate) -> Funcionario:
+    senha_hash = hash_password(data.senha)
+
     funcionario = Funcionario(
         empresa_id=data.empresa_id,
         nome=data.nome,
@@ -15,7 +62,7 @@ def create(db: Session, data: FuncionarioCreate) -> Funcionario:
         telefone=data.telefone,
         funcao=data.funcao,
         crmv=data.crmv if data.funcao == "Veterinário" else None,
-        senha_hash=hash_password(data.senha),
+        senha_hash=senha_hash,
         acesso_dashboard=data.acesso_dashboard,
         acesso_clientes=data.acesso_clientes,
         acesso_pets=data.acesso_pets,
@@ -28,9 +75,22 @@ def create(db: Session, data: FuncionarioCreate) -> Funcionario:
         acesso_crm=data.acesso_crm,
         acesso_relatorios=data.acesso_relatorios,
         acesso_configuracoes=data.acesso_configuracoes,
+        acesso_pdv=data.acesso_pdv,
     )
 
     db.add(funcionario)
+
+    _sync_usuario_from_funcionario(
+        db,
+        empresa_id=data.empresa_id,
+        nome=data.nome,
+        email=data.email,
+        senha_hash=senha_hash,
+        funcao=data.funcao,
+        ativo=True,
+        acesso_pdv=data.acesso_pdv,
+    )
+
     db.commit()
     db.refresh(funcionario)
     return funcionario
@@ -75,8 +135,10 @@ def update(db: Session, funcionario: Funcionario, data: dict):
         else None
     )
 
+    nova_senha_hash = None
     if data.get("senha"):
-        funcionario.senha_hash = hash_password(data.get("senha"))
+        nova_senha_hash = hash_password(data.get("senha"))
+        funcionario.senha_hash = nova_senha_hash
 
     funcionario.acesso_dashboard = data.get("acesso_dashboard", False)
     funcionario.acesso_clientes = data.get("acesso_clientes", False)
@@ -90,6 +152,18 @@ def update(db: Session, funcionario: Funcionario, data: dict):
     funcionario.acesso_crm = data.get("acesso_crm", False)
     funcionario.acesso_relatorios = data.get("acesso_relatorios", False)
     funcionario.acesso_configuracoes = data.get("acesso_configuracoes", False)
+    funcionario.acesso_pdv = data.get("acesso_pdv", False)
+
+    _sync_usuario_from_funcionario(
+        db,
+        empresa_id=funcionario.empresa_id,
+        nome=funcionario.nome,
+        email=funcionario.email,
+        senha_hash=nova_senha_hash,
+        funcao=funcionario.funcao,
+        ativo=funcionario.ativo,
+        acesso_pdv=funcionario.acesso_pdv,
+    )
 
     db.commit()
     db.refresh(funcionario)
@@ -98,6 +172,18 @@ def update(db: Session, funcionario: Funcionario, data: dict):
 
 def toggle_ativo(db: Session, funcionario: Funcionario):
     funcionario.ativo = not funcionario.ativo
+
+    _sync_usuario_from_funcionario(
+        db,
+        empresa_id=funcionario.empresa_id,
+        nome=funcionario.nome,
+        email=funcionario.email,
+        senha_hash=None,
+        funcao=funcionario.funcao,
+        ativo=funcionario.ativo,
+        acesso_pdv=funcionario.acesso_pdv,
+    )
+
     db.commit()
     db.refresh(funcionario)
     return funcionario

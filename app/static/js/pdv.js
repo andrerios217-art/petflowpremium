@@ -7,7 +7,6 @@
     clientesEncontrados: [],
     producaoPronta: [],
     operadores: [],
-    modalContext: {},
   };
 
   const els = {
@@ -50,7 +49,6 @@
     btnAtualizarProducao: document.getElementById("btn-atualizar-producao"),
 
     modalOverlay: document.getElementById("pdv-modal-overlay"),
-
     modalAbrirCaixa: document.getElementById("modal-abrir-caixa"),
     modalSangria: document.getElementById("modal-sangria"),
     modalSuprimento: document.getElementById("modal-suprimento"),
@@ -126,37 +124,60 @@
   };
 
   function setText(el, value) {
-    if (!el) return;
-    el.textContent = value ?? "";
+    if (el) el.textContent = value ?? "";
   }
 
   function setHtml(el, value) {
-    if (!el) return;
-    el.innerHTML = value ?? "";
+    if (el) el.innerHTML = value ?? "";
   }
 
   function setValue(el, value) {
-    if (!el) return;
-    el.value = value ?? "";
+    if (el) el.value = value ?? "";
   }
 
   function showEl(el) {
-    if (!el) return;
-    el.classList.remove("pdv-hidden");
+    if (el) el.classList.remove("pdv-hidden");
   }
 
   function hideEl(el) {
-    if (!el) return;
-    el.classList.add("pdv-hidden");
+    if (el) el.classList.add("pdv-hidden");
   }
 
   function toNumber(value, fallback = 0) {
-    if (value === null || value === undefined || value === "") return fallback;
-    const normalized = String(value).replace(/\./g, "").replace(",", ".").trim();
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : fallback;
+  if (value === null || value === undefined || value === "") return fallback;
+
+  let str = String(value).trim();
+
+  if (!str) return fallback;
+
+  // Remove espaços
+  str = str.replace(/\s+/g, "");
+
+  const hasComma = str.includes(",");
+  const hasDot = str.includes(".");
+
+  if (hasComma && hasDot) {
+    // Se tiver vírgula e ponto, assume que o último separador é o decimal
+    if (str.lastIndexOf(",") > str.lastIndexOf(".")) {
+      // Ex.: 10.000,50 -> 10000.50
+      str = str.replace(/\./g, "").replace(",", ".");
+    } else {
+      // Ex.: 10,000.50 -> 10000.50
+      str = str.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    // Ex.: 100,50 -> 100.50
+    str = str.replace(",", ".");
+  } else {
+    // Se só tem ponto, mantém como decimal normal
+    // Ex.: 100.50 -> 100.50
+    // Não remove ponto aqui
   }
 
+  const parsed = Number(str);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+  
   function formatMoney(value) {
     return toNumber(value, 0).toLocaleString("pt-BR", {
       style: "currency",
@@ -204,17 +225,10 @@
     const data = isJson ? await response.json() : await response.text();
 
     if (!response.ok) {
-      console.error("Erro HTTP", {
-        url,
-        status: response.status,
-        response: data,
-      });
-
       const detail =
         (isJson && (data.detail || data.message || data.mensagem)) ||
         (typeof data === "string" ? data : null) ||
         "Não foi possível concluir a operação.";
-
       throw new Error(detail);
     }
 
@@ -243,10 +257,6 @@
     return !!state.vendaAtual && state.vendaAtual.status === "ABERTA";
   }
 
-  function normalizeTipoUsuario(tipo) {
-    return String(tipo || "").trim().toLowerCase();
-  }
-
   function requireText(value, message) {
     const v = String(value ?? "").trim();
     if (!v) throw new Error(message);
@@ -255,17 +265,13 @@
 
   function requirePositiveNumber(value, message) {
     const n = toNumber(value, NaN);
-    if (!Number.isFinite(n) || n <= 0) {
-      throw new Error(message);
-    }
+    if (!Number.isFinite(n) || n <= 0) throw new Error(message);
     return Number(n.toFixed(2));
   }
 
   function requireNonNegativeNumber(value, message) {
     const n = toNumber(value, NaN);
-    if (!Number.isFinite(n) || n < 0) {
-      throw new Error(message);
-    }
+    if (!Number.isFinite(n) || n < 0) throw new Error(message);
     return Number(n.toFixed(2));
   }
 
@@ -276,11 +282,12 @@
   }
 
   function setSelectedUser(listEl, idEl, nameEl, usuario, extraLabel = "") {
-    if (!usuario) return;
     setValue(idEl, usuario.id);
     setValue(nameEl, usuario.nome || "");
     const tipo = usuario.tipo ? ` (${escapeHtml(usuario.tipo)})` : "";
-    const email = usuario.email ? `<div class="pdv-selection-meta">${escapeHtml(usuario.email)}</div>` : "";
+    const email = usuario.email
+      ? `<div class="pdv-selection-meta">${escapeHtml(usuario.email)}</div>`
+      : "";
     setHtml(
       listEl,
       `
@@ -296,8 +303,6 @@
   }
 
   function renderSelectionList(listEl, usuarios, onSelect, emptyMessage) {
-    if (!listEl) return;
-
     if (!usuarios || !usuarios.length) {
       setHtml(listEl, `<div class="pdv-empty-state">${escapeHtml(emptyMessage)}</div>`);
       return;
@@ -308,7 +313,9 @@
       usuarios
         .map((usuario) => {
           const tipo = usuario.tipo ? ` (${escapeHtml(usuario.tipo)})` : "";
-          const email = usuario.email ? `<div class="pdv-selection-meta">${escapeHtml(usuario.email)}</div>` : "";
+          const email = usuario.email
+            ? `<div class="pdv-selection-meta">${escapeHtml(usuario.email)}</div>`
+            : "";
           return `
             <div class="pdv-selection-option">
               <div>
@@ -337,24 +344,19 @@
     const empresaId = getEmpresaId();
     const q = String(termo || "").trim();
     if (!q) return [];
-
     const data = await request(
-      `/api/caixa/operadores?empresa_id=${empresaId}&q=${encodeURIComponent(q)}&limite=${limite}`
+      `/api/pdv/operadores?empresa_id=${empresaId}&q=${encodeURIComponent(q)}&limite=${limite}`
     );
-
     state.operadores = Array.isArray(data) ? data : [];
     return state.operadores;
   }
 
-  async function pesquisarUsuarios({
-    termo,
-    apenasGerente = false,
-  }) {
+  async function pesquisarUsuarios({ termo, apenasGerente = false }) {
     let usuarios = await carregarOperadores(termo, 20);
 
     if (apenasGerente) {
       usuarios = usuarios.filter((item) => {
-        const tipo = normalizeTipoUsuario(item.tipo);
+        const tipo = String(item.tipo || "").toLowerCase();
         return tipo === "gerente" || tipo === "admin";
       });
     }
@@ -362,173 +364,74 @@
     return usuarios;
   }
 
-  function getModalElements(modalId) {
-    const map = {
-      "modal-abrir-caixa": {
-        modal: els.modalAbrirCaixa,
-        operadorBusca: els.caixaAberturaOperadorBusca,
-        operadorLista: els.caixaAberturaOperadorLista,
-        operadorId: els.caixaAberturaOperadorId,
-        operadorNome: els.caixaAberturaOperadorNome,
-      },
-      "modal-sangria": {
-        modal: els.modalSangria,
-        operadorBusca: els.caixaSangriaOperadorBusca,
-        operadorLista: els.caixaSangriaOperadorLista,
-        operadorId: els.caixaSangriaOperadorId,
-        operadorNome: els.caixaSangriaOperadorNome,
-      },
-      "modal-suprimento": {
-        modal: els.modalSuprimento,
-        operadorBusca: els.caixaSuprimentoOperadorBusca,
-        operadorLista: els.caixaSuprimentoOperadorLista,
-        operadorId: els.caixaSuprimentoOperadorId,
-        operadorNome: els.caixaSuprimentoOperadorNome,
-      },
-      "modal-fechar-caixa": {
-        modal: els.modalFecharCaixa,
-        operadorBusca: els.caixaFechamentoOperadorBusca,
-        operadorLista: els.caixaFechamentoOperadorLista,
-        operadorId: els.caixaFechamentoOperadorId,
-        operadorNome: els.caixaFechamentoOperadorNome,
-      },
-    };
-
-    return map[modalId] || null;
-  }
-
   function closeAllModals() {
-    [
-      els.modalAbrirCaixa,
-      els.modalSangria,
-      els.modalSuprimento,
-      els.modalFecharCaixa,
-    ].forEach(hideEl);
-
+    [els.modalAbrirCaixa, els.modalSangria, els.modalSuprimento, els.modalFecharCaixa].forEach(hideEl);
     hideEl(els.modalOverlay);
   }
 
-  function openModal(modalId) {
+  function openModal(modal) {
     closeAllModals();
-    const config = getModalElements(modalId);
-    if (!config?.modal) return;
     showEl(els.modalOverlay);
-    showEl(config.modal);
+    showEl(modal);
   }
 
   function resetModalAbrirCaixa() {
     setValue(els.caixaAberturaOperadorBusca, "");
-    clearSelection(
-      els.caixaAberturaOperadorLista,
-      els.caixaAberturaOperadorId,
-      els.caixaAberturaOperadorNome,
-      "Nenhum operador selecionado."
-    );
+    clearSelection(els.caixaAberturaOperadorLista, els.caixaAberturaOperadorId, els.caixaAberturaOperadorNome, "Nenhum operador selecionado.");
     setValue(els.caixaValorAbertura, "");
     setValue(els.caixaObservacoesAbertura, "");
     setValue(els.caixaMotivoDiferencaAbertura, "");
     setValue(els.caixaGerenteAberturaBusca, "");
     setValue(els.caixaSenhaGerenteAbertura, "");
-    clearSelection(
-      els.caixaGerenteAberturaLista,
-      els.caixaGerenteAberturaId,
-      els.caixaGerenteAberturaNome,
-      "Nenhum gerente selecionado."
-    );
+    clearSelection(els.caixaGerenteAberturaLista, els.caixaGerenteAberturaId, els.caixaGerenteAberturaNome, "Nenhum gerente selecionado.");
     hideEl(els.caixaAberturaDivergenciaBox);
   }
 
   function resetModalSangria() {
     setValue(els.caixaSangriaOperadorBusca, "");
-    clearSelection(
-      els.caixaSangriaOperadorLista,
-      els.caixaSangriaOperadorId,
-      els.caixaSangriaOperadorNome,
-      "Nenhum operador selecionado."
-    );
+    clearSelection(els.caixaSangriaOperadorLista, els.caixaSangriaOperadorId, els.caixaSangriaOperadorNome, "Nenhum operador selecionado.");
     setValue(els.caixaSangriaValor, "");
     setValue(els.caixaSangriaMotivo, "");
     setValue(els.caixaSangriaObservacoes, "");
     setValue(els.caixaGerenteSangriaBusca, "");
     setValue(els.caixaSenhaGerenteSangria, "");
-    clearSelection(
-      els.caixaGerenteSangriaLista,
-      els.caixaGerenteSangriaId,
-      els.caixaGerenteSangriaNome,
-      "Nenhum gerente selecionado."
-    );
+    clearSelection(els.caixaGerenteSangriaLista, els.caixaGerenteSangriaId, els.caixaGerenteSangriaNome, "Nenhum gerente selecionado.");
     hideEl(els.caixaSangriaGerenteBox);
   }
 
   function resetModalSuprimento() {
     setValue(els.caixaSuprimentoOperadorBusca, "");
-    clearSelection(
-      els.caixaSuprimentoOperadorLista,
-      els.caixaSuprimentoOperadorId,
-      els.caixaSuprimentoOperadorNome,
-      "Nenhum operador selecionado."
-    );
+    clearSelection(els.caixaSuprimentoOperadorLista, els.caixaSuprimentoOperadorId, els.caixaSuprimentoOperadorNome, "Nenhum operador selecionado.");
     setValue(els.caixaSuprimentoValor, "");
     setValue(els.caixaSuprimentoMotivo, "");
     setValue(els.caixaSuprimentoObservacoes, "");
     setValue(els.caixaGerenteSuprimentoBusca, "");
     setValue(els.caixaSenhaGerenteSuprimento, "");
-    clearSelection(
-      els.caixaGerenteSuprimentoLista,
-      els.caixaGerenteSuprimentoId,
-      els.caixaGerenteSuprimentoNome,
-      "Nenhum gerente selecionado."
-    );
+    clearSelection(els.caixaGerenteSuprimentoLista, els.caixaGerenteSuprimentoId, els.caixaGerenteSuprimentoNome, "Nenhum gerente selecionado.");
     hideEl(els.caixaSuprimentoGerenteBox);
   }
 
   function resetModalFecharCaixa() {
     setValue(els.caixaFechamentoOperadorBusca, "");
-    clearSelection(
-      els.caixaFechamentoOperadorLista,
-      els.caixaFechamentoOperadorId,
-      els.caixaFechamentoOperadorNome,
-      "Nenhum operador selecionado."
-    );
+    clearSelection(els.caixaFechamentoOperadorLista, els.caixaFechamentoOperadorId, els.caixaFechamentoOperadorNome, "Nenhum operador selecionado.");
     setValue(els.caixaFechamentoValor, "");
     setValue(els.caixaMotivoDiferencaFechamento, "");
     setValue(els.caixaGerenteFechamentoBusca, "");
     setValue(els.caixaSenhaGerenteFechamento, "");
-    clearSelection(
-      els.caixaGerenteFechamentoLista,
-      els.caixaGerenteFechamentoId,
-      els.caixaGerenteFechamentoNome,
-      "Nenhum gerente selecionado."
-    );
+    clearSelection(els.caixaGerenteFechamentoLista, els.caixaGerenteFechamentoId, els.caixaGerenteFechamentoNome, "Nenhum gerente selecionado.");
     setText(els.caixaFechamentoSaldoEsperado, formatMoney(0));
     hideEl(els.caixaFechamentoDivergenciaBox);
   }
 
-  async function handleSearchUsers({
-    inputEl,
-    listEl,
-    idEl,
-    nameEl,
-    onlyManager = false,
-    selectedLabel = "Selecionado",
-    emptyMessage = "Nenhum usuário encontrado.",
-  }) {
+  async function handleSearchUsers({ inputEl, listEl, idEl, nameEl, onlyManager = false, selectedLabel = "Selecionado", emptyMessage = "Nenhum usuário encontrado." }) {
     const termo = String(inputEl?.value || "").trim();
-    if (!termo) {
-      throw new Error("Digite um nome para pesquisar.");
-    }
+    if (!termo) throw new Error("Digite um nome para pesquisar.");
 
-    const usuarios = await pesquisarUsuarios({
-      termo,
-      apenasGerente: onlyManager,
-    });
+    const usuarios = await pesquisarUsuarios({ termo, apenasGerente: onlyManager });
 
-    renderSelectionList(
-      listEl,
-      usuarios,
-      (usuario) => setSelectedUser(listEl, idEl, nameEl, usuario, selectedLabel),
-      emptyMessage
-    );
+    renderSelectionList(listEl, usuarios, (usuario) => {
+      setSelectedUser(listEl, idEl, nameEl, usuario, selectedLabel);
+    }, emptyMessage);
   }
 
   async function carregarCaixaAtual() {
@@ -550,7 +453,6 @@
       state.caixaResumo = null;
       return null;
     }
-
     const resumo = await request(`/api/caixa/sessoes/${caixaSessaoId}/resumo`);
     state.caixaResumo = resumo;
     return resumo;
@@ -598,10 +500,7 @@
     setText(els.vendaCliente, clienteNome);
     setText(els.vendaMeta, `Status: ${venda.status} | Origem: ${venda.origem || "-"}`);
     setText(els.vendaNumero, venda.numero_venda || `Venda #${venda.id}`);
-    setText(
-      els.vendaModo,
-      venda.modo_cliente === "WALK_IN" ? "Balcão" : "Cliente cadastrado"
-    );
+    setText(els.vendaModo, venda.modo_cliente === "WALK_IN" ? "Balcão" : "Cliente cadastrado");
   }
 
   function renderTotais() {
@@ -610,7 +509,6 @@
     setText(els.totalDesconto, formatMoney(venda?.desconto_valor || 0));
     setText(els.totalAcrescimo, formatMoney(venda?.acrescimo_valor || 0));
     setText(els.totalFinal, formatMoney(venda?.valor_total || 0));
-
     if (els.valorPagamento) {
       setValue(els.valorPagamento, venda ? toNumber(venda.valor_total, 0).toFixed(2) : "");
     }
@@ -621,195 +519,30 @@
     if (!els.carrinhoLista) return;
 
     if (!itens.length) {
-      setHtml(
-        els.carrinhoLista,
-        `<div class="pdv-empty-state">Nenhum item adicionado.</div>`
-      );
+      setHtml(els.carrinhoLista, `<div class="pdv-empty-state">Nenhum item adicionado.</div>`);
       return;
     }
 
     setHtml(
       els.carrinhoLista,
-      itens
-        .map((item) => {
-          const badgeClass =
-            item.tipo_item === "SERVICE" ? "pdv-badge-blue" : "pdv-badge-green";
-          const badgeText = item.tipo_item === "SERVICE" ? "Atendimento" : "Produto";
-
-          return `
-            <div class="pdv-item-card">
-              <div class="pdv-item-card__header">
-                <strong>${escapeHtml(item.descricao_snapshot || "Item sem descrição")}</strong>
-                <span class="${badgeClass}">${badgeText}</span>
-              </div>
-              <div class="pdv-item-card__meta">
-                Qtde: ${toNumber(item.quantidade, 0)} |
-                Unitário: ${formatMoney(item.valor_unitario)} |
-                Desconto: ${formatMoney(item.desconto_valor)}
-              </div>
-              ${
-                item.observacao
-                  ? `<div class="pdv-item-card__obs">${escapeHtml(item.observacao)}</div>`
-                  : ""
-              }
-              <div class="pdv-item-card__footer">
-                <strong>${formatMoney(item.valor_total)}</strong>
-                ${
-                  hasVendaAberta()
-                    ? `<button type="button" class="btn-remover-item" data-item-id="${item.id}">Remover</button>`
-                    : ""
-                }
-              </div>
-            </div>
-          `;
-        })
-        .join("")
+      itens.map((item) => `
+        <div class="pdv-item-card">
+          <div class="pdv-item-card__header">
+            <strong>${escapeHtml(item.descricao_snapshot || "Item sem descrição")}</strong>
+            <span class="pdv-badge">${item.tipo_item === "SERVICE" ? "Atendimento" : "Produto"}</span>
+          </div>
+          <div class="pdv-item-card__meta">
+            Qtde: ${toNumber(item.quantidade, 0)} |
+            Unitário: ${formatMoney(item.valor_unitario)} |
+            Desconto: ${formatMoney(item.desconto_valor)}
+          </div>
+          ${item.observacao ? `<div class="pdv-item-card__obs">${escapeHtml(item.observacao)}</div>` : ""}
+          <div class="pdv-item-card__footer">
+            <strong>${formatMoney(item.valor_total)}</strong>
+          </div>
+        </div>
+      `).join("")
     );
-
-    document.querySelectorAll(".btn-remover-item").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const itemId = toNumber(button.dataset.itemId, 0);
-        if (!itemId || !state.vendaAtual) return;
-
-        const confirmar = window.confirm("Deseja remover este item da venda?");
-        if (!confirmar) return;
-
-        try {
-          const venda = await request(
-            `/api/pdv/vendas/${state.vendaAtual.id}/itens/${itemId}`,
-            { method: "DELETE" }
-          );
-          state.vendaAtual = venda;
-          renderVenda();
-          showAlert("Item removido da venda.", "info");
-        } catch (error) {
-          showAlert(error.message, "danger");
-        }
-      });
-    });
-  }
-
-  function renderBuscaResultadosVazio(message) {
-    if (!els.produtosResultado) return;
-    setHtml(
-      els.produtosResultado,
-      `<div class="pdv-empty-state">${escapeHtml(message)}</div>`
-    );
-  }
-
-  function renderSugestaoProduto(termo) {
-    if (!els.produtosResultado) return;
-
-    const termoSeguro = escapeHtml(termo || "");
-    setHtml(
-      els.produtosResultado,
-      `
-      <div class="pdv-product-suggestion">
-        <strong>${termoSeguro || "Produto avulso"}</strong>
-        <div>Sem catálogo integrado neste passo. Use este item para adicionar produto avulso à venda atual.</div>
-        <button type="button" id="btn-adicionar-produto-avulso">Adicionar à venda</button>
-      </div>
-      `
-    );
-
-    document
-      .getElementById("btn-adicionar-produto-avulso")
-      ?.addEventListener("click", async () => {
-        try {
-          await adicionarProdutoAvulso(termo);
-        } catch (error) {
-          showAlert(error.message, "danger");
-        }
-      });
-  }
-
-  function renderClientesEncontrados() {
-    if (!els.produtosResultado) return;
-
-    if (!state.clientesEncontrados.length) {
-      renderBuscaResultadosVazio("Nenhum cliente encontrado.");
-      return;
-    }
-
-    setHtml(
-      els.produtosResultado,
-      state.clientesEncontrados
-        .map((cliente) => {
-          const meta = [];
-          if (cliente.cpf) meta.push(`CPF: ${escapeHtml(cliente.cpf)}`);
-          if (cliente.telefone) meta.push(`Tel.: ${escapeHtml(cliente.telefone)}`);
-
-          return `
-            <div class="pdv-client-card">
-              <strong>${escapeHtml(cliente.nome)}</strong>
-              <div>${meta.join(" | ") || "Cliente sem dados complementares"}</div>
-              <button type="button" class="btn-iniciar-venda-cliente" data-cliente-id="${cliente.id}">
-                Iniciar venda
-              </button>
-            </div>
-          `;
-        })
-        .join("")
-    );
-
-    document.querySelectorAll(".btn-iniciar-venda-cliente").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const clienteId = toNumber(button.dataset.clienteId, 0);
-        if (!clienteId) return;
-
-        try {
-          await iniciarVendaCliente(clienteId);
-        } catch (error) {
-          showAlert(error.message, "danger");
-        }
-      });
-    });
-  }
-
-  function renderProducao() {
-    if (!els.producaoLista) return;
-
-    if (!state.producaoPronta.length) {
-      setHtml(
-        els.producaoLista,
-        `<div class="pdv-empty-state">Nenhum item pronto para cobrança.</div>`
-      );
-      return;
-    }
-
-    setHtml(
-      els.producaoLista,
-      state.producaoPronta
-        .map((item) => {
-          return `
-            <div class="pdv-producao-card">
-              <strong>${escapeHtml(item.descricao)}</strong>
-              <div>
-                Cliente: ${escapeHtml(item.cliente_nome || "-")}
-                ${item.pet_nome ? ` | Pet: ${escapeHtml(item.pet_nome)}` : ""}
-              </div>
-              <div>${formatMoney(item.valor_total)}</div>
-              <button type="button" class="btn-puxar-producao" data-item-id="${item.id}">
-                Puxar para venda
-              </button>
-            </div>
-          `;
-        })
-        .join("")
-    );
-
-    document.querySelectorAll(".btn-puxar-producao").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const itemId = toNumber(button.dataset.itemId, 0);
-        if (!itemId) return;
-
-        try {
-          await puxarItemProducao(itemId);
-        } catch (error) {
-          showAlert(error.message, "danger");
-        }
-      });
-    });
   }
 
   function renderVenda() {
@@ -822,15 +555,10 @@
     const empresaId = getEmpresaId();
     const operadorId = toNumber(els.caixaAberturaOperadorId?.value, 0);
     const operadorNome = String(els.caixaAberturaOperadorNome?.value || "").trim();
-    const valorAbertura = requireNonNegativeNumber(
-      els.caixaValorAbertura?.value,
-      "Informe um valor inicial válido."
-    );
+    const valorAbertura = requireNonNegativeNumber(els.caixaValorAbertura?.value, "Informe um valor inicial válido.");
     const observacoes = String(els.caixaObservacoesAbertura?.value || "").trim();
 
-    if (!operadorId || !operadorNome) {
-      throw new Error("Selecione o operador de abertura.");
-    }
+    if (!operadorId || !operadorNome) throw new Error("Selecione o operador de abertura.");
 
     const payload = {
       empresa_id: empresaId,
@@ -842,21 +570,13 @@
       observacoes: observacoes || null,
     };
 
-    if (!els.caixaAberturaDivergenciaBox?.classList.contains("pdv-hidden")) {
-      const motivo = requireText(
-        els.caixaMotivoDiferencaAbertura?.value,
-        "Informe o motivo da divergência de abertura."
-      );
+    if (!els.caixaAberturaDivergenciaBox.classList.contains("pdv-hidden")) {
+      const motivo = requireText(els.caixaMotivoDiferencaAbertura?.value, "Informe o motivo da divergência de abertura.");
       const gerenteId = toNumber(els.caixaGerenteAberturaId?.value, 0);
       const gerenteNome = String(els.caixaGerenteAberturaNome?.value || "").trim();
-      const senhaGerente = requireText(
-        els.caixaSenhaGerenteAbertura?.value,
-        "Informe a senha do gerente."
-      );
+      const senhaGerente = requireText(els.caixaSenhaGerenteAbertura?.value, "Informe a senha do gerente.");
 
-      if (!gerenteId || !gerenteNome) {
-        throw new Error("Selecione o gerente autorizador da abertura.");
-      }
+      if (!gerenteId || !gerenteNome) throw new Error("Selecione o gerente autorizador da abertura.");
 
       payload.motivo_diferenca_abertura = motivo;
       payload.gerente_abertura_id = gerenteId;
@@ -872,20 +592,12 @@
     const caixaSessaoId = getCaixaSessaoId();
     const operadorId = toNumber(els.caixaSangriaOperadorId?.value, 0);
     const operadorNome = String(els.caixaSangriaOperadorNome?.value || "").trim();
-    const valor = requirePositiveNumber(
-      els.caixaSangriaValor?.value,
-      "Informe um valor de sangria maior que zero."
-    );
+    const valor = requirePositiveNumber(els.caixaSangriaValor?.value, "Informe um valor de sangria maior que zero.");
     const motivo = requireText(els.caixaSangriaMotivo?.value, "Informe o motivo da sangria.");
     const observacoes = String(els.caixaSangriaObservacoes?.value || "").trim();
 
-    if (!caixaSessaoId) {
-      throw new Error("Nenhuma sessão de caixa aberta.");
-    }
-
-    if (!operadorId || !operadorNome) {
-      throw new Error("Selecione o operador da sangria.");
-    }
+    if (!caixaSessaoId) throw new Error("Nenhuma sessão de caixa aberta.");
+    if (!operadorId || !operadorNome) throw new Error("Selecione o operador da sangria.");
 
     const payload = {
       empresa_id: empresaId,
@@ -897,17 +609,12 @@
       observacoes: observacoes || null,
     };
 
-    if (!els.caixaSangriaGerenteBox?.classList.contains("pdv-hidden")) {
+    if (!els.caixaSangriaGerenteBox.classList.contains("pdv-hidden")) {
       const gerenteId = toNumber(els.caixaGerenteSangriaId?.value, 0);
       const gerenteNome = String(els.caixaGerenteSangriaNome?.value || "").trim();
-      const senhaGerente = requireText(
-        els.caixaSenhaGerenteSangria?.value,
-        "Informe a senha do gerente."
-      );
+      const senhaGerente = requireText(els.caixaSenhaGerenteSangria?.value, "Informe a senha do gerente.");
 
-      if (!gerenteId || !gerenteNome) {
-        throw new Error("Selecione o gerente autorizador da sangria.");
-      }
+      if (!gerenteId || !gerenteNome) throw new Error("Selecione o gerente autorizador da sangria.");
 
       payload.gerente_autorizador_id = gerenteId;
       payload.gerente_autorizador_nome = gerenteNome;
@@ -922,23 +629,12 @@
     const caixaSessaoId = getCaixaSessaoId();
     const operadorId = toNumber(els.caixaSuprimentoOperadorId?.value, 0);
     const operadorNome = String(els.caixaSuprimentoOperadorNome?.value || "").trim();
-    const valor = requirePositiveNumber(
-      els.caixaSuprimentoValor?.value,
-      "Informe um valor de suprimento maior que zero."
-    );
-    const motivo = requireText(
-      els.caixaSuprimentoMotivo?.value,
-      "Informe o motivo do suprimento."
-    );
+    const valor = requirePositiveNumber(els.caixaSuprimentoValor?.value, "Informe um valor de suprimento maior que zero.");
+    const motivo = requireText(els.caixaSuprimentoMotivo?.value, "Informe o motivo do suprimento.");
     const observacoes = String(els.caixaSuprimentoObservacoes?.value || "").trim();
 
-    if (!caixaSessaoId) {
-      throw new Error("Nenhuma sessão de caixa aberta.");
-    }
-
-    if (!operadorId || !operadorNome) {
-      throw new Error("Selecione o operador do suprimento.");
-    }
+    if (!caixaSessaoId) throw new Error("Nenhuma sessão de caixa aberta.");
+    if (!operadorId || !operadorNome) throw new Error("Selecione o operador do suprimento.");
 
     const payload = {
       empresa_id: empresaId,
@@ -950,17 +646,12 @@
       observacoes: observacoes || null,
     };
 
-    if (!els.caixaSuprimentoGerenteBox?.classList.contains("pdv-hidden")) {
+    if (!els.caixaSuprimentoGerenteBox.classList.contains("pdv-hidden")) {
       const gerenteId = toNumber(els.caixaGerenteSuprimentoId?.value, 0);
       const gerenteNome = String(els.caixaGerenteSuprimentoNome?.value || "").trim();
-      const senhaGerente = requireText(
-        els.caixaSenhaGerenteSuprimento?.value,
-        "Informe a senha do gerente."
-      );
+      const senhaGerente = requireText(els.caixaSenhaGerenteSuprimento?.value, "Informe a senha do gerente.");
 
-      if (!gerenteId || !gerenteNome) {
-        throw new Error("Selecione o gerente autorizador do suprimento.");
-      }
+      if (!gerenteId || !gerenteNome) throw new Error("Selecione o gerente autorizador do suprimento.");
 
       payload.gerente_autorizador_id = gerenteId;
       payload.gerente_autorizador_nome = gerenteNome;
@@ -973,14 +664,9 @@
   function collectFechamentoPayload() {
     const operadorId = toNumber(els.caixaFechamentoOperadorId?.value, 0);
     const operadorNome = String(els.caixaFechamentoOperadorNome?.value || "").trim();
-    const valorFechamento = requireNonNegativeNumber(
-      els.caixaFechamentoValor?.value,
-      "Informe a contagem final em dinheiro."
-    );
+    const valorFechamento = requireNonNegativeNumber(els.caixaFechamentoValor?.value, "Informe a contagem final em dinheiro.");
 
-    if (!operadorId || !operadorNome) {
-      throw new Error("Selecione o operador do fechamento.");
-    }
+    if (!operadorId || !operadorNome) throw new Error("Selecione o operador do fechamento.");
 
     const payload = {
       usuario_fechamento_id: operadorId,
@@ -988,21 +674,13 @@
       valor_fechamento_informado: valorFechamento,
     };
 
-    if (!els.caixaFechamentoDivergenciaBox?.classList.contains("pdv-hidden")) {
-      const motivo = requireText(
-        els.caixaMotivoDiferencaFechamento?.value,
-        "Informe o motivo da divergência de fechamento."
-      );
+    if (!els.caixaFechamentoDivergenciaBox.classList.contains("pdv-hidden")) {
+      const motivo = requireText(els.caixaMotivoDiferencaFechamento?.value, "Informe o motivo da divergência de fechamento.");
       const gerenteId = toNumber(els.caixaGerenteFechamentoId?.value, 0);
       const gerenteNome = String(els.caixaGerenteFechamentoNome?.value || "").trim();
-      const senhaGerente = requireText(
-        els.caixaSenhaGerenteFechamento?.value,
-        "Informe a senha do gerente."
-      );
+      const senhaGerente = requireText(els.caixaSenhaGerenteFechamento?.value, "Informe a senha do gerente.");
 
-      if (!gerenteId || !gerenteNome) {
-        throw new Error("Selecione o gerente autorizador do fechamento.");
-      }
+      if (!gerenteId || !gerenteNome) throw new Error("Selecione o gerente autorizador do fechamento.");
 
       payload.motivo_diferenca_fechamento = motivo;
       payload.gerente_fechamento_id = gerenteId;
@@ -1023,9 +701,7 @@
       });
 
       state.caixaAtual = response.caixa_sessao || null;
-      if (state.caixaAtual?.id) {
-        await carregarResumoCaixa(state.caixaAtual.id);
-      }
+      if (state.caixaAtual?.id) await carregarResumoCaixa(state.caixaAtual.id);
 
       renderCaixa();
       closeAllModals();
@@ -1033,7 +709,6 @@
       showAlert(response.mensagem || "Caixa aberto com sucesso.", "success");
     } catch (error) {
       const msg = String(error.message || "");
-
       if (
         msg.includes("Motivo da diferença na abertura é obrigatório") ||
         msg.includes("Senha do gerente é obrigatória") ||
@@ -1043,7 +718,6 @@
         showAlert("A abertura exige motivo e autorização gerencial.", "warning");
         return;
       }
-
       throw error;
     }
   }
@@ -1058,9 +732,7 @@
       });
 
       state.caixaAtual = response.caixa_sessao || state.caixaAtual;
-      if (state.caixaAtual?.id) {
-        await carregarResumoCaixa(state.caixaAtual.id);
-      }
+      if (state.caixaAtual?.id) await carregarResumoCaixa(state.caixaAtual.id);
 
       renderCaixa();
       closeAllModals();
@@ -1068,7 +740,6 @@
       showAlert(response.mensagem || "Sangria registrada com sucesso.", "success");
     } catch (error) {
       const msg = String(error.message || "");
-
       if (
         msg.includes("Senha do gerente é obrigatória") ||
         msg.includes("Gerente autorizador") ||
@@ -1078,7 +749,6 @@
         showAlert("A sangria exige autorização gerencial.", "warning");
         return;
       }
-
       throw error;
     }
   }
@@ -1093,9 +763,7 @@
       });
 
       state.caixaAtual = response.caixa_sessao || state.caixaAtual;
-      if (state.caixaAtual?.id) {
-        await carregarResumoCaixa(state.caixaAtual.id);
-      }
+      if (state.caixaAtual?.id) await carregarResumoCaixa(state.caixaAtual.id);
 
       renderCaixa();
       closeAllModals();
@@ -1103,7 +771,6 @@
       showAlert(response.mensagem || "Suprimento registrado com sucesso.", "success");
     } catch (error) {
       const msg = String(error.message || "");
-
       if (
         msg.includes("Senha do gerente é obrigatória") ||
         msg.includes("Gerente autorizador") ||
@@ -1113,16 +780,13 @@
         showAlert("O suprimento exige autorização gerencial.", "warning");
         return;
       }
-
       throw error;
     }
   }
 
   async function submitFechamentoCaixa() {
     const caixaSessaoId = getCaixaSessaoId();
-    if (!caixaSessaoId) {
-      throw new Error("Nenhuma sessão de caixa aberta.");
-    }
+    if (!caixaSessaoId) throw new Error("Nenhuma sessão de caixa aberta.");
 
     const payload = collectFechamentoPayload();
 
@@ -1140,7 +804,6 @@
       showAlert(response.mensagem || "Caixa fechado com sucesso.", "success");
     } catch (error) {
       const msg = String(error.message || "");
-
       if (
         msg.includes("Motivo da diferença no fechamento é obrigatório") ||
         msg.includes("Senha do gerente é obrigatória") ||
@@ -1150,446 +813,67 @@
         showAlert("O fechamento exige motivo e autorização gerencial.", "warning");
         return;
       }
-
       throw error;
     }
   }
 
-  async function abrirCaixaModal() {
-    if (hasCaixaAberto()) {
-      throw new Error("Já existe um caixa aberto.");
-    }
-
-    resetModalAbrirCaixa();
-    openModal("modal-abrir-caixa");
-  }
-
-  async function abrirSangriaModal() {
-    if (!hasCaixaAberto()) {
-      throw new Error("Abra o caixa antes de registrar sangria.");
-    }
-
-    resetModalSangria();
-    openModal("modal-sangria");
-  }
-
-  async function abrirSuprimentoModal() {
-    if (!hasCaixaAberto()) {
-      throw new Error("Abra o caixa antes de registrar suprimento.");
-    }
-
-    resetModalSuprimento();
-    openModal("modal-suprimento");
-  }
-
-  async function abrirFechamentoModal() {
-    if (!hasCaixaAberto()) {
-      throw new Error("Não existe caixa aberto para fechamento.");
-    }
-
+  async function openFecharCaixaModal() {
+    if (!hasCaixaAberto()) throw new Error("Não existe caixa aberto para fechamento.");
     resetModalFecharCaixa();
-
     const caixaSessaoId = getCaixaSessaoId();
-    if (caixaSessaoId) {
-      await carregarResumoCaixa(caixaSessaoId);
-      renderCaixa();
-    }
-
-    setText(
-      els.caixaFechamentoSaldoEsperado,
-      formatMoney(state.caixaResumo?.saldo_dinheiro_esperado || 0)
-    );
-
-    openModal("modal-fechar-caixa");
+    if (caixaSessaoId) await carregarResumoCaixa(caixaSessaoId);
+    setText(els.caixaFechamentoSaldoEsperado, formatMoney(state.caixaResumo?.saldo_dinheiro_esperado || 0));
+    openModal(els.modalFecharCaixa);
   }
 
-  async function iniciarVendaBalcao() {
-    if (!hasCaixaAberto()) {
-      throw new Error("Abra o caixa antes de iniciar uma venda balcão.");
-    }
-
-    const empresaId = getEmpresaId();
-    const caixaSessaoId = getCaixaSessaoId();
-
-    const payload = {
-      empresa_id: empresaId,
-      caixa_sessao_id: caixaSessaoId,
-    };
-
-    const venda = await request("/api/pdv/vendas/balcao", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-
-    state.vendaAtual = venda;
-    renderVenda();
-    showAlert("Venda balcão iniciada.", "success");
-  }
-
-  async function iniciarVendaCliente(clienteId) {
-    if (!hasCaixaAberto()) {
-      throw new Error("Abra o caixa antes de iniciar uma venda.");
-    }
-
-    const empresaId = getEmpresaId();
-    const caixaSessaoId = getCaixaSessaoId();
-
-    const payload = {
-      empresa_id: empresaId,
-      cliente_id: clienteId,
-      caixa_sessao_id: caixaSessaoId,
-    };
-
-    const venda = await request("/api/pdv/vendas/cliente", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-
-    state.vendaAtual = venda;
-    renderVenda();
-    showAlert("Venda do cliente iniciada.", "success");
-  }
-
-  async function adicionarProdutoAvulso(termo) {
-    if (!hasVendaAberta()) {
-      throw new Error("Abra uma venda antes de adicionar produto.");
-    }
-
-    const descricao = window.prompt("Descrição do produto avulso:", termo || "");
-    if (descricao === null || !String(descricao).trim()) {
-      throw new Error("Descrição do produto é obrigatória.");
-    }
-
-    const quantidadeRaw = window.prompt("Quantidade:", "1");
-    if (quantidadeRaw === null) {
-      throw new Error("Quantidade inválida.");
-    }
-    const quantidade = requirePositiveNumber(quantidadeRaw, "Quantidade inválida.");
-
-    const valorUnitarioRaw = window.prompt("Valor unitário:", "0,00");
-    if (valorUnitarioRaw === null) {
-      throw new Error("Valor unitário inválido.");
-    }
-    const valorUnitario = requireNonNegativeNumber(valorUnitarioRaw, "Valor unitário inválido.");
-
-    const observacao = window.prompt("Observação do item (opcional):", "") || "";
-
-    const payload = {
-      tipo_item: "PRODUCT",
-      descricao_snapshot: String(descricao).trim(),
-      quantidade: Number(quantidade),
-      valor_unitario: Number(valorUnitario.toFixed(2)),
-      observacao: observacao || null,
-    };
-
-    const venda = await request(`/api/pdv/vendas/${state.vendaAtual.id}/itens/produto-avulso`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-
-    state.vendaAtual = venda;
-    renderVenda();
-    showAlert("Produto avulso adicionado à venda.", "success");
-  }
-
-  async function buscarProdutoOuCliente() {
-    const termo = String(els.buscaProduto?.value || "").trim();
-
-    if (!termo) {
-      renderBuscaResultadosVazio("Digite algo para buscar.");
-      return;
-    }
-
-    if (!hasVendaAtual()) {
+  function bindModalSearch(button, config) {
+    button?.addEventListener("click", async () => {
       try {
-        const clientes = await request(
-          `/api/pdv/clientes/busca?q=${encodeURIComponent(termo)}&empresa_id=${getEmpresaId()}`
-        );
-        state.clientesEncontrados = Array.isArray(clientes) ? clientes : [];
-        renderClientesEncontrados();
-        return;
-      } catch (_error) {
-        renderSugestaoProduto(termo);
-        return;
-      }
-    }
-
-    renderSugestaoProduto(termo);
-  }
-
-  async function carregarProducaoPronta() {
-    try {
-      const empresaId = getEmpresaId();
-      const itens = await request(`/api/pdv/producao/prontos?empresa_id=${empresaId}`);
-      state.producaoPronta = Array.isArray(itens) ? itens : [];
-      renderProducao();
-    } catch (error) {
-      console.warn("Falha ao carregar produção pronta:", error);
-      state.producaoPronta = [];
-      renderProducao();
-    }
-  }
-
-  async function puxarItemProducao(itemId) {
-    if (!hasCaixaAberto()) {
-      throw new Error("Abra o caixa antes de puxar item da produção.");
-    }
-
-    const empresaId = getEmpresaId();
-    const caixaSessaoId = getCaixaSessaoId();
-
-    const payload = {
-      empresa_id: empresaId,
-      caixa_sessao_id: caixaSessaoId,
-      item_producao_id: itemId,
-    };
-
-    const venda = await request("/api/pdv/vendas/producao", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-
-    state.vendaAtual = venda;
-    renderVenda();
-    showAlert("Item da produção puxado para venda.", "success");
-  }
-
-  async function finalizarVenda() {
-    if (!hasVendaAberta()) {
-      throw new Error("Não existe venda aberta para finalizar.");
-    }
-
-    if (!hasCaixaAberto()) {
-      throw new Error("Abra o caixa antes de finalizar a venda.");
-    }
-
-    const formaPagamento = String(els.formaPagamento?.value || "DINHEIRO").trim();
-    const valorPago = toNumber(els.valorPagamento?.value || 0, 0);
-
-    const payload = {
-      forma_pagamento: formaPagamento,
-      valor_pago: Number(valorPago.toFixed(2)),
-      caixa_sessao_id: getCaixaSessaoId(),
-    };
-
-    const venda = await request(`/api/pdv/vendas/${state.vendaAtual.id}/checkout`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-
-    state.vendaAtual = venda;
-    renderVenda();
-
-    if (state.caixaAtual?.id) {
-      await carregarResumoCaixa(state.caixaAtual.id);
-      renderCaixa();
-    }
-
-    showAlert("Venda finalizada com sucesso.", "success");
-  }
-
-  async function cancelarVendaAtual() {
-    if (!state.vendaAtual?.id) {
-      throw new Error("Nenhuma venda disponível para cancelamento.");
-    }
-
-    const confirmar = window.confirm("Deseja cancelar a venda atual?");
-    if (!confirmar) return;
-
-    const motivo = window.prompt("Informe o motivo do cancelamento:", "");
-    if (motivo === null || !String(motivo).trim()) {
-      throw new Error("Motivo do cancelamento é obrigatório.");
-    }
-
-    const payload = { motivo: String(motivo).trim() };
-
-    try {
-      const venda = await request(`/api/pdv/vendas/${state.vendaAtual.id}/cancelar`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-
-      state.vendaAtual = venda;
-      renderVenda();
-      showAlert("Venda cancelada com sucesso.", "warning");
-    } catch (error) {
-      const msg = String(error.message || "");
-
-      if (
-        msg.includes("gerente") ||
-        msg.includes("Gerente") ||
-        msg.includes("Senha do gerente")
-      ) {
-        const gerenteNome = window.prompt("Informe o nome do gerente:", "");
-        if (gerenteNome === null || !String(gerenteNome).trim()) {
-          throw new Error("Nome do gerente é obrigatório.");
-        }
-
-        const gerentes = await pesquisarUsuarios({
-          termo: gerenteNome,
-          apenasGerente: true,
-        });
-
-        if (!gerentes.length) {
-          throw new Error("Nenhum gerente encontrado.");
-        }
-
-        const gerente = gerentes[0];
-        const senhaGerente = window.prompt(`Informe a senha do gerente ${gerente.nome}:`, "");
-        if (senhaGerente === null || !String(senhaGerente).trim()) {
-          throw new Error("Senha do gerente é obrigatória.");
-        }
-
-        payload.gerente_id = gerente.id;
-        payload.gerente_nome = gerente.nome;
-        payload.senha_gerente = String(senhaGerente).trim();
-
-        const venda = await request(`/api/pdv/vendas/${state.vendaAtual.id}/cancelar`, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-
-        state.vendaAtual = venda;
-        renderVenda();
-        showAlert("Venda cancelada com autorização gerencial.", "warning");
-        return;
-      }
-
-      throw error;
-    }
-  }
-
-  function bindModalSearches() {
-    els.btnBuscarOperadorAbertura?.addEventListener("click", async () => {
-      try {
-        await handleSearchUsers({
-          inputEl: els.caixaAberturaOperadorBusca,
-          listEl: els.caixaAberturaOperadorLista,
-          idEl: els.caixaAberturaOperadorId,
-          nameEl: els.caixaAberturaOperadorNome,
-          onlyManager: false,
-          selectedLabel: "Operador",
-          emptyMessage: "Nenhum operador encontrado.",
-        });
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.btnBuscarGerenteAbertura?.addEventListener("click", async () => {
-      try {
-        await handleSearchUsers({
-          inputEl: els.caixaGerenteAberturaBusca,
-          listEl: els.caixaGerenteAberturaLista,
-          idEl: els.caixaGerenteAberturaId,
-          nameEl: els.caixaGerenteAberturaNome,
-          onlyManager: true,
-          selectedLabel: "Gerente",
-          emptyMessage: "Nenhum gerente encontrado.",
-        });
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.btnBuscarOperadorSangria?.addEventListener("click", async () => {
-      try {
-        await handleSearchUsers({
-          inputEl: els.caixaSangriaOperadorBusca,
-          listEl: els.caixaSangriaOperadorLista,
-          idEl: els.caixaSangriaOperadorId,
-          nameEl: els.caixaSangriaOperadorNome,
-          onlyManager: false,
-          selectedLabel: "Operador",
-          emptyMessage: "Nenhum operador encontrado.",
-        });
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.btnBuscarGerenteSangria?.addEventListener("click", async () => {
-      try {
-        await handleSearchUsers({
-          inputEl: els.caixaGerenteSangriaBusca,
-          listEl: els.caixaGerenteSangriaLista,
-          idEl: els.caixaGerenteSangriaId,
-          nameEl: els.caixaGerenteSangriaNome,
-          onlyManager: true,
-          selectedLabel: "Gerente",
-          emptyMessage: "Nenhum gerente encontrado.",
-        });
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.btnBuscarOperadorSuprimento?.addEventListener("click", async () => {
-      try {
-        await handleSearchUsers({
-          inputEl: els.caixaSuprimentoOperadorBusca,
-          listEl: els.caixaSuprimentoOperadorLista,
-          idEl: els.caixaSuprimentoOperadorId,
-          nameEl: els.caixaSuprimentoOperadorNome,
-          onlyManager: false,
-          selectedLabel: "Operador",
-          emptyMessage: "Nenhum operador encontrado.",
-        });
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.btnBuscarGerenteSuprimento?.addEventListener("click", async () => {
-      try {
-        await handleSearchUsers({
-          inputEl: els.caixaGerenteSuprimentoBusca,
-          listEl: els.caixaGerenteSuprimentoLista,
-          idEl: els.caixaGerenteSuprimentoId,
-          nameEl: els.caixaGerenteSuprimentoNome,
-          onlyManager: true,
-          selectedLabel: "Gerente",
-          emptyMessage: "Nenhum gerente encontrado.",
-        });
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.btnBuscarOperadorFechamento?.addEventListener("click", async () => {
-      try {
-        await handleSearchUsers({
-          inputEl: els.caixaFechamentoOperadorBusca,
-          listEl: els.caixaFechamentoOperadorLista,
-          idEl: els.caixaFechamentoOperadorId,
-          nameEl: els.caixaFechamentoOperadorNome,
-          onlyManager: false,
-          selectedLabel: "Operador",
-          emptyMessage: "Nenhum operador encontrado.",
-        });
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.btnBuscarGerenteFechamento?.addEventListener("click", async () => {
-      try {
-        await handleSearchUsers({
-          inputEl: els.caixaGerenteFechamentoBusca,
-          listEl: els.caixaGerenteFechamentoLista,
-          idEl: els.caixaGerenteFechamentoId,
-          nameEl: els.caixaGerenteFechamentoNome,
-          onlyManager: true,
-          selectedLabel: "Gerente",
-          emptyMessage: "Nenhum gerente encontrado.",
-        });
+        await handleSearchUsers(config);
       } catch (error) {
         showAlert(error.message, "danger");
       }
     });
   }
 
-  function bindModalSubmits() {
+  function bindEvents() {
+    els.btnAbrirCaixa?.addEventListener("click", () => {
+      try {
+        resetModalAbrirCaixa();
+        openModal(els.modalAbrirCaixa);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnSangria?.addEventListener("click", () => {
+      try {
+        if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de registrar sangria.");
+        resetModalSangria();
+        openModal(els.modalSangria);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnSuprimento?.addEventListener("click", () => {
+      try {
+        if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de registrar suprimento.");
+        resetModalSuprimento();
+        openModal(els.modalSuprimento);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnFecharCaixa?.addEventListener("click", async () => {
+      try {
+        await openFecharCaixaModal();
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
     els.btnConfirmarAbrirCaixa?.addEventListener("click", async () => {
       try {
         await submitAberturaCaixa();
@@ -1621,156 +905,103 @@
         showAlert(error.message, "danger");
       }
     });
-  }
 
-  function bindModalClose() {
     document.querySelectorAll("[data-close-modal]").forEach((button) => {
-      button.addEventListener("click", () => {
-        closeAllModals();
-      });
+      button.addEventListener("click", closeAllModals);
     });
 
-    els.modalOverlay?.addEventListener("click", () => {
-      closeAllModals();
-    });
-  }
+    els.modalOverlay?.addEventListener("click", closeAllModals);
 
-  function bindEvents() {
-    els.btnAbrirCaixa?.addEventListener("click", async () => {
-      try {
-        await abrirCaixaModal();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
+    bindModalSearch(els.btnBuscarOperadorAbertura, {
+      inputEl: els.caixaAberturaOperadorBusca,
+      listEl: els.caixaAberturaOperadorLista,
+      idEl: els.caixaAberturaOperadorId,
+      nameEl: els.caixaAberturaOperadorNome,
+      onlyManager: false,
+      selectedLabel: "Operador",
+      emptyMessage: "Nenhum operador encontrado.",
     });
 
-    els.btnSangria?.addEventListener("click", async () => {
-      try {
-        await abrirSangriaModal();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
+    bindModalSearch(els.btnBuscarGerenteAbertura, {
+      inputEl: els.caixaGerenteAberturaBusca,
+      listEl: els.caixaGerenteAberturaLista,
+      idEl: els.caixaGerenteAberturaId,
+      nameEl: els.caixaGerenteAberturaNome,
+      onlyManager: true,
+      selectedLabel: "Gerente",
+      emptyMessage: "Nenhum gerente encontrado.",
     });
 
-    els.btnSuprimento?.addEventListener("click", async () => {
-      try {
-        await abrirSuprimentoModal();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
+    bindModalSearch(els.btnBuscarOperadorSangria, {
+      inputEl: els.caixaSangriaOperadorBusca,
+      listEl: els.caixaSangriaOperadorLista,
+      idEl: els.caixaSangriaOperadorId,
+      nameEl: els.caixaSangriaOperadorNome,
+      onlyManager: false,
+      selectedLabel: "Operador",
+      emptyMessage: "Nenhum operador encontrado.",
     });
 
-    els.btnFecharCaixa?.addEventListener("click", async () => {
-      try {
-        await abrirFechamentoModal();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
+    bindModalSearch(els.btnBuscarGerenteSangria, {
+      inputEl: els.caixaGerenteSangriaBusca,
+      listEl: els.caixaGerenteSangriaLista,
+      idEl: els.caixaGerenteSangriaId,
+      nameEl: els.caixaGerenteSangriaNome,
+      onlyManager: true,
+      selectedLabel: "Gerente",
+      emptyMessage: "Nenhum gerente encontrado.",
     });
 
-    els.btnVendaBalcao?.addEventListener("click", async () => {
-      try {
-        await iniciarVendaBalcao();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
+    bindModalSearch(els.btnBuscarOperadorSuprimento, {
+      inputEl: els.caixaSuprimentoOperadorBusca,
+      listEl: els.caixaSuprimentoOperadorLista,
+      idEl: els.caixaSuprimentoOperadorId,
+      nameEl: els.caixaSuprimentoOperadorNome,
+      onlyManager: false,
+      selectedLabel: "Operador",
+      emptyMessage: "Nenhum operador encontrado.",
     });
 
-    els.btnCancelarVenda?.addEventListener("click", async () => {
-      try {
-        await cancelarVendaAtual();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
+    bindModalSearch(els.btnBuscarGerenteSuprimento, {
+      inputEl: els.caixaGerenteSuprimentoBusca,
+      listEl: els.caixaGerenteSuprimentoLista,
+      idEl: els.caixaGerenteSuprimentoId,
+      nameEl: els.caixaGerenteSuprimentoNome,
+      onlyManager: true,
+      selectedLabel: "Gerente",
+      emptyMessage: "Nenhum gerente encontrado.",
     });
 
-    els.btnBuscarProduto?.addEventListener("click", async () => {
-      try {
-        await buscarProdutoOuCliente();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
+    bindModalSearch(els.btnBuscarOperadorFechamento, {
+      inputEl: els.caixaFechamentoOperadorBusca,
+      listEl: els.caixaFechamentoOperadorLista,
+      idEl: els.caixaFechamentoOperadorId,
+      nameEl: els.caixaFechamentoOperadorNome,
+      onlyManager: false,
+      selectedLabel: "Operador",
+      emptyMessage: "Nenhum operador encontrado.",
     });
 
-    els.buscaProduto?.addEventListener("keydown", async (event) => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-
-      try {
-        await buscarProdutoOuCliente();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
+    bindModalSearch(els.btnBuscarGerenteFechamento, {
+      inputEl: els.caixaGerenteFechamentoBusca,
+      listEl: els.caixaGerenteFechamentoLista,
+      idEl: els.caixaGerenteFechamentoId,
+      nameEl: els.caixaGerenteFechamentoNome,
+      onlyManager: true,
+      selectedLabel: "Gerente",
+      emptyMessage: "Nenhum gerente encontrado.",
     });
-
-    els.btnAtualizarProducao?.addEventListener("click", async () => {
-      try {
-        await carregarProducaoPronta();
-        showAlert("Lista de produção atualizada.", "info");
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.btnFinalizarVenda?.addEventListener("click", async () => {
-      try {
-        await finalizarVenda();
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    els.empresaId?.addEventListener("change", async () => {
-      try {
-        state.vendaAtual = null;
-        state.clientesEncontrados = [];
-        state.producaoPronta = [];
-        state.caixaResumo = null;
-        state.caixaAtual = null;
-
-        renderVenda();
-        renderProducao();
-        renderCaixa();
-
-        closeAllModals();
-        resetModalAbrirCaixa();
-        resetModalSangria();
-        resetModalSuprimento();
-        resetModalFecharCaixa();
-
-        await carregarCaixaAtual();
-        await carregarProducaoPronta();
-        showAlert("Empresa atualizada.", "info");
-      } catch (error) {
-        showAlert(error.message, "danger");
-      }
-    });
-
-    bindModalSearches();
-    bindModalSubmits();
-    bindModalClose();
   }
 
   async function init() {
     renderCaixa();
     renderVenda();
-    renderProducao();
-    resetModalAbrirCaixa();
-    resetModalSangria();
-    resetModalSuprimento();
-    resetModalFecharCaixa();
     bindEvents();
 
     try {
       await carregarCaixaAtual();
     } catch (error) {
       console.warn("Falha ao carregar caixa atual:", error);
-    }
-
-    try {
-      await carregarProducaoPronta();
-    } catch (error) {
-      console.warn("Falha ao carregar produção pronta:", error);
     }
   }
 

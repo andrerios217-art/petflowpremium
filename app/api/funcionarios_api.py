@@ -30,6 +30,7 @@ def serializar_funcionario(funcionario):
         "acesso_crm": funcionario.acesso_crm,
         "acesso_relatorios": funcionario.acesso_relatorios,
         "acesso_configuracoes": funcionario.acesso_configuracoes,
+        "acesso_pdv": funcionario.acesso_pdv,
         "ativo": funcionario.ativo,
     }
 
@@ -61,7 +62,6 @@ def obter(funcionario_id: int, db: Session = Depends(get_db)):
     funcionario = funcionario_crud.get_by_id(db, funcionario_id)
     if not funcionario:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
-
     return serializar_funcionario(funcionario)
 
 
@@ -70,7 +70,6 @@ def criar(payload: FuncionarioCreate, db: Session = Depends(get_db)):
     existente = funcionario_crud.get_by_email(db, payload.email)
     if existente:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado para outro funcionário.")
-
     return funcionario_crud.create(db, payload)
 
 
@@ -94,6 +93,7 @@ def editar(funcionario_id: int, payload: dict, db: Session = Depends(get_db)):
 
     payload["funcao"] = funcao
     payload["crmv"] = crmv if funcao == "Veterinário" else None
+    payload["acesso_pdv"] = bool(payload.get("acesso_pdv", False))
 
     funcionario = funcionario_crud.update(db, funcionario, payload)
     return {"id": funcionario.id, "message": "Funcionário atualizado com sucesso."}

@@ -67,6 +67,7 @@
         <label><input type="checkbox" id="acesso_crm" /> CRM</label>
         <label><input type="checkbox" id="acesso_relatorios" /> Relatórios</label>
         <label><input type="checkbox" id="acesso_configuracoes" /> Configurações</label>
+        <label><input type="checkbox" id="acesso_pdv" /> PDV</label>
       </div>
     </div>
 
@@ -84,12 +85,25 @@
 
   function aplicarPermissoesPorFuncao(funcao) {
     const ids = [
-      "acesso_dashboard", "acesso_clientes", "acesso_pets", "acesso_servicos",
-      "acesso_funcionarios", "acesso_agenda", "acesso_producao", "acesso_estoque",
-      "acesso_financeiro", "acesso_crm", "acesso_relatorios", "acesso_configuracoes"
+      "acesso_dashboard",
+      "acesso_clientes",
+      "acesso_pets",
+      "acesso_servicos",
+      "acesso_funcionarios",
+      "acesso_agenda",
+      "acesso_producao",
+      "acesso_estoque",
+      "acesso_financeiro",
+      "acesso_crm",
+      "acesso_relatorios",
+      "acesso_configuracoes",
+      "acesso_pdv"
     ];
 
-    ids.forEach(id => document.getElementById(id).checked = false);
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
 
     if (funcao === "Banhista") {
       document.getElementById("acesso_pets").checked = true;
@@ -109,6 +123,7 @@
       document.getElementById("acesso_pets").checked = true;
       document.getElementById("acesso_agenda").checked = true;
       document.getElementById("acesso_servicos").checked = true;
+      document.getElementById("acesso_pdv").checked = true;
     }
 
     if (funcao === "Veterinário") {
@@ -120,7 +135,10 @@
     }
 
     if (funcao === "Gerente") {
-      ids.forEach(id => document.getElementById(id).checked = true);
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = true;
+      });
     }
   }
 
@@ -164,18 +182,19 @@
     document.getElementById("funcao").value = data.funcao || "";
     document.getElementById("crmv").value = data.crmv || "";
 
-    document.getElementById("acesso_dashboard").checked = data.acesso_dashboard;
-    document.getElementById("acesso_clientes").checked = data.acesso_clientes;
-    document.getElementById("acesso_pets").checked = data.acesso_pets;
-    document.getElementById("acesso_servicos").checked = data.acesso_servicos;
-    document.getElementById("acesso_funcionarios").checked = data.acesso_funcionarios;
-    document.getElementById("acesso_agenda").checked = data.acesso_agenda;
-    document.getElementById("acesso_producao").checked = data.acesso_producao;
-    document.getElementById("acesso_estoque").checked = data.acesso_estoque;
-    document.getElementById("acesso_financeiro").checked = data.acesso_financeiro;
-    document.getElementById("acesso_crm").checked = data.acesso_crm;
-    document.getElementById("acesso_relatorios").checked = data.acesso_relatorios;
-    document.getElementById("acesso_configuracoes").checked = data.acesso_configuracoes;
+    document.getElementById("acesso_dashboard").checked = !!data.acesso_dashboard;
+    document.getElementById("acesso_clientes").checked = !!data.acesso_clientes;
+    document.getElementById("acesso_pets").checked = !!data.acesso_pets;
+    document.getElementById("acesso_servicos").checked = !!data.acesso_servicos;
+    document.getElementById("acesso_funcionarios").checked = !!data.acesso_funcionarios;
+    document.getElementById("acesso_agenda").checked = !!data.acesso_agenda;
+    document.getElementById("acesso_producao").checked = !!data.acesso_producao;
+    document.getElementById("acesso_estoque").checked = !!data.acesso_estoque;
+    document.getElementById("acesso_financeiro").checked = !!data.acesso_financeiro;
+    document.getElementById("acesso_crm").checked = !!data.acesso_crm;
+    document.getElementById("acesso_relatorios").checked = !!data.acesso_relatorios;
+    document.getElementById("acesso_configuracoes").checked = !!data.acesso_configuracoes;
+    document.getElementById("acesso_pdv").checked = !!data.acesso_pdv;
 
     atualizarCampoCrmv();
   }
@@ -212,10 +231,12 @@
       acesso_financeiro: document.getElementById("acesso_financeiro").checked,
       acesso_crm: document.getElementById("acesso_crm").checked,
       acesso_relatorios: document.getElementById("acesso_relatorios").checked,
-      acesso_configuracoes: document.getElementById("acesso_configuracoes").checked
+      acesso_configuracoes: document.getElementById("acesso_configuracoes").checked,
+      acesso_pdv: document.getElementById("acesso_pdv").checked
     };
 
     const msg = document.getElementById("funcionario-message");
+    msg.innerText = "";
 
     let response;
 

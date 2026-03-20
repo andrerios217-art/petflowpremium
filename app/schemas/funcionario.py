@@ -34,6 +34,7 @@ class FuncionarioCreate(BaseModel):
     acesso_crm: bool = False
     acesso_relatorios: bool = False
     acesso_configuracoes: bool = False
+    acesso_pdv: bool = False
 
     @field_validator("funcao")
     @classmethod
@@ -87,6 +88,7 @@ class FuncionarioOut(BaseModel):
     acesso_crm: bool
     acesso_relatorios: bool
     acesso_configuracoes: bool
+    acesso_pdv: bool
 
     ativo: bool
 
