@@ -20,7 +20,9 @@ from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.pdv_pagamento import PdvPagamento
 from app.models.pdv_venda import PdvVenda
 from app.models.pdv_venda_item import PdvVendaItem
+from app.models.usuario import Usuario
 from app.schemas.pdv import (
+    PdvAtendimentoProntoOut,
     PdvCancelRequest,
     PdvCheckoutRequest,
     PdvClienteBuscaOut,
@@ -89,6 +91,7 @@ def _serializar_venda(venda: PdvVenda):
     return {
         "id": venda.id,
         "empresa_id": venda.empresa_id,
+        "caixa_sessao_id": venda.caixa_sessao_id,
         "numero_venda": venda.numero_venda,
         "modo_cliente": venda.modo_cliente,
         "cliente_id": venda.cliente_id,
@@ -162,6 +165,40 @@ def _serializar_atendimento_pronto(atendimento: AtendimentoClinico):
     }
 
 
+def _serializar_operador(usuario: Usuario):
+    return {
+        "id": usuario.id,
+        "nome": usuario.nome,
+        "email": usuario.email,
+        "tipo": usuario.tipo,
+        "ativo": bool(usuario.ativo),
+    }
+
+
+@router.get("/operadores")
+def listar_operadores_pdv(
+    empresa_id: int = Query(..., ge=1),
+    q: str | None = Query(None),
+    limite: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    query = (
+        db.query(Usuario)
+        .filter(
+            Usuario.empresa_id == empresa_id,
+            Usuario.ativo.is_(True),
+        )
+        .order_by(Usuario.nome.asc())
+    )
+
+    termo = (q or "").strip()
+    if termo:
+        query = query.filter(Usuario.nome.ilike(f"%{termo}%"))
+
+    operadores = query.limit(limite).all()
+    return [_serializar_operador(usuario) for usuario in operadores]
+
+
 @router.get("/clientes/busca", response_model=list[PdvClienteBuscaOut])
 def buscar_clientes_pdv(
     empresa_id: int = Query(..., ge=1),
@@ -173,7 +210,7 @@ def buscar_clientes_pdv(
     return [_serializar_cliente(cliente) for cliente in clientes]
 
 
-@router.get("/atendimentos/prontos")
+@router.get("/atendimentos/prontos", response_model=list[PdvAtendimentoProntoOut])
 def listar_atendimentos_prontos_pdv(
     empresa_id: int = Query(..., ge=1),
     cliente_id: int | None = Query(None, ge=1),
@@ -204,9 +241,11 @@ def listar_vendas_pdv(
     db: Session = Depends(get_db),
 ):
     vendas = listar_vendas(db, empresa_id=empresa_id, status=status, limite=limite)
+
     return [
         {
             "id": venda.id,
+            "caixa_sessao_id": venda.caixa_sessao_id,
             "numero_venda": venda.numero_venda,
             "modo_cliente": venda.modo_cliente,
             "cliente_id": venda.cliente_id,

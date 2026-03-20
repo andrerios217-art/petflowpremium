@@ -9,13 +9,17 @@ from typing import Iterable
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.security import verify_password
 from app.models.atendimento_clinico import AtendimentoClinico
+from app.models.caixa_movimento import CaixaMovimento
+from app.models.caixa_sessao import CaixaSessao
 from app.models.cliente import Cliente
 from app.models.empresa import Empresa
 from app.models.financeiro_receber import FinanceiroReceber
 from app.models.pdv_pagamento import PdvPagamento
 from app.models.pdv_venda import PdvVenda
 from app.models.pdv_venda_item import PdvVendaItem
+from app.models.usuario import Usuario
 from app.schemas.pdv import (
     PdvCancelRequest,
     PdvCheckoutRequest,
@@ -96,10 +100,15 @@ def _carregar_venda_query(db: Session):
         db.query(PdvVenda)
         .options(
             joinedload(PdvVenda.cliente),
+            joinedload(PdvVenda.caixa_sessao),
             joinedload(PdvVenda.itens).joinedload(PdvVendaItem.atendimento_clinico),
             joinedload(PdvVenda.pagamentos),
         )
     )
+
+
+def _query_venda_lock(db: Session):
+    return db.query(PdvVenda)
 
 
 def _get_empresa_or_404(db: Session, empresa_id: int) -> Empresa:
@@ -116,14 +125,59 @@ def _get_cliente_or_404(db: Session, cliente_id: int) -> Cliente:
     return cliente
 
 
+def _get_usuario_or_404(db: Session, usuario_id: int) -> Usuario:
+    usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    return usuario
+
+
 def _get_venda_or_404(db: Session, venda_id: int, for_update: bool = False) -> PdvVenda:
-    query = _carregar_venda_query(db).filter(PdvVenda.id == venda_id)
     if for_update:
-        query = query.with_for_update()
-    venda = query.first()
+        venda = (
+            _query_venda_lock(db)
+            .filter(PdvVenda.id == venda_id)
+            .with_for_update(of=PdvVenda)
+            .first()
+        )
+    else:
+        venda = (
+            _carregar_venda_query(db)
+            .filter(PdvVenda.id == venda_id)
+            .first()
+        )
+
     if not venda:
         raise HTTPException(status_code=404, detail="Venda PDV não encontrada.")
     return venda
+
+
+def _get_caixa_sessao_or_404(
+    db: Session,
+    caixa_sessao_id: int,
+    for_update: bool = False,
+) -> CaixaSessao:
+    query = db.query(CaixaSessao).filter(CaixaSessao.id == caixa_sessao_id)
+    if for_update:
+        query = query.with_for_update(of=CaixaSessao)
+    caixa = query.first()
+    if not caixa:
+        raise HTTPException(status_code=404, detail="Sessão de caixa não encontrada.")
+    return caixa
+
+
+def _get_caixa_aberto_por_empresa(
+    db: Session,
+    empresa_id: int,
+    for_update: bool = False,
+) -> CaixaSessao | None:
+    query = db.query(CaixaSessao).filter(
+        CaixaSessao.empresa_id == empresa_id,
+        CaixaSessao.status == "ABERTO",
+    )
+    if for_update:
+        query = query.with_for_update(of=CaixaSessao)
+    return query.order_by(CaixaSessao.id.desc()).first()
 
 
 def _get_atendimento_or_404(
@@ -156,6 +210,10 @@ def _recarregar_venda(db: Session, venda_id: int) -> PdvVenda:
 
 def _gerar_numero_venda(venda_id: int) -> str:
     return f"PDV-{str(venda_id).zfill(6)}"
+
+
+def _gerar_numero_venda_provisorio() -> str:
+    return f"TMP-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
 
 
 def _calcular_total_atendimento(atendimento: AtendimentoClinico) -> Decimal:
@@ -194,6 +252,93 @@ def _validar_venda_aberta(venda: PdvVenda):
             status_code=400,
             detail="A operação só é permitida para vendas com status ABERTA.",
         )
+
+
+def _validar_usuario_da_empresa(usuario: Usuario, empresa_id: int, label: str):
+    if usuario.empresa_id != empresa_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label} não pertence à empresa informada.",
+        )
+
+    if not getattr(usuario, "ativo", True):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label} está inativo.",
+        )
+
+
+def _validar_gerente(
+    db: Session,
+    empresa_id: int,
+    gerente_id: int | None,
+    senha_gerente: str | None,
+) -> Usuario:
+    if not gerente_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Autorização gerencial é obrigatória para esta operação.",
+        )
+
+    if not senha_gerente:
+        raise HTTPException(
+            status_code=400,
+            detail="Senha do gerente é obrigatória para esta operação.",
+        )
+
+    gerente = _get_usuario_or_404(db, gerente_id)
+    _validar_usuario_da_empresa(gerente, empresa_id, "Gerente")
+
+    if (gerente.tipo or "").lower() not in ("admin", "gerente"):
+        raise HTTPException(
+            status_code=403,
+            detail="O usuário informado não possui perfil gerencial.",
+        )
+
+    if not verify_password(senha_gerente, gerente.senha_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Senha do gerente inválida.",
+        )
+
+    return gerente
+
+
+def _validar_caixa_para_venda(
+    caixa: CaixaSessao,
+    empresa_id: int,
+    exigir_aberto: bool = True,
+):
+    if caixa.empresa_id != empresa_id:
+        raise HTTPException(
+            status_code=400,
+            detail="A sessão de caixa não pertence à empresa informada.",
+        )
+
+    if exigir_aberto and caixa.status != "ABERTO":
+        raise HTTPException(
+            status_code=400,
+            detail="É necessário ter um caixa aberto para esta operação.",
+        )
+
+
+def _resolver_usuario_operacao(
+    db: Session,
+    empresa_id: int,
+    usuario_id: int | None,
+    fallback_usuario_id: int | None,
+    label: str,
+) -> Usuario:
+    usuario_resolvido_id = usuario_id or fallback_usuario_id
+    if not usuario_resolvido_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label} é obrigatório para esta operação.",
+        )
+
+    usuario = _get_usuario_or_404(db, usuario_resolvido_id)
+    _validar_usuario_da_empresa(usuario, empresa_id, label)
+    return usuario
 
 
 def _validar_cliente_da_venda(venda: PdvVenda, cliente_id: int):
@@ -251,16 +396,27 @@ def _validar_atendimento_disponivel_para_pdv(
         )
 
 
-def _validar_checkout(venda: PdvVenda, payload: PdvCheckoutRequest):
+def _validar_checkout(
+    venda: PdvVenda,
+    caixa: CaixaSessao,
+    payload: PdvCheckoutRequest,
+):
     _validar_venda_aberta(venda)
+    _validar_caixa_para_venda(caixa, venda.empresa_id, exigir_aberto=True)
 
-    if not venda.itens:
+    itens = (
+        db.query(PdvVendaItem)
+        .filter(PdvVendaItem.venda_id == venda.id)
+        .all()
+    ) if False else venda.itens
+
+    if not itens:
         raise HTTPException(
             status_code=400,
             detail="Não é possível finalizar uma venda sem itens.",
         )
 
-    possui_servico = any(item.tipo_item == "SERVICE" for item in venda.itens)
+    possui_servico = any(item.tipo_item == "SERVICE" for item in itens)
     if venda.modo_cliente == "WALK_IN" and possui_servico:
         raise HTTPException(
             status_code=400,
@@ -304,22 +460,43 @@ def _gerar_financeiro_recebido_para_venda(
 ):
     data_base = pagamento.recebido_em.date() if pagamento.recebido_em else date.today()
 
-    conta = FinanceiroReceber(
-        empresa_id=venda.empresa_id,
-        cliente_id=venda.cliente_id,
-        origem_tipo="PDV_VENDA",
-        origem_id=venda.id,
-        descricao=f"Venda PDV {venda.numero_venda or venda.id}",
-        observacao=venda.observacoes,
-        valor=_decimal_2(venda.valor_total),
-        valor_pago=_decimal_2(pagamento.valor),
-        vencimento=data_base,
-        data_pagamento=data_base,
-        status="PAGO",
-        created_at=_agora_utc(),
-        updated_at=_agora_utc(),
+    conta = (
+        db.query(FinanceiroReceber)
+        .filter(
+            FinanceiroReceber.origem_tipo == "PDV_VENDA",
+            FinanceiroReceber.origem_id == venda.id,
+        )
+        .first()
     )
-    db.add(conta)
+
+    if not conta:
+        conta = FinanceiroReceber(
+            empresa_id=venda.empresa_id,
+            cliente_id=venda.cliente_id,
+            origem_tipo="PDV_VENDA",
+            origem_id=venda.id,
+            descricao=f"Venda PDV {venda.numero_venda or venda.id}",
+            observacao=venda.observacoes,
+            valor=_decimal_2(venda.valor_total),
+            valor_pago=_decimal_2(pagamento.valor),
+            vencimento=data_base,
+            data_pagamento=data_base,
+            status="PAGO",
+            created_at=_agora_utc(),
+            updated_at=_agora_utc(),
+        )
+        db.add(conta)
+        return conta
+
+    conta.cliente_id = venda.cliente_id
+    conta.descricao = f"Venda PDV {venda.numero_venda or venda.id}"
+    conta.observacao = venda.observacoes
+    conta.valor = _decimal_2(venda.valor_total)
+    conta.valor_pago = _decimal_2(pagamento.valor)
+    conta.vencimento = data_base
+    conta.data_pagamento = data_base
+    conta.status = "PAGO"
+    conta.updated_at = _agora_utc()
     return conta
 
 
@@ -334,6 +511,69 @@ def _cancelar_financeiro_da_venda(db: Session, venda_id: int):
     )
     for conta in contas:
         db.delete(conta)
+
+
+def _registrar_movimento_venda(
+    db: Session,
+    venda: PdvVenda,
+    pagamento: PdvPagamento,
+    usuario_id: int,
+):
+    movimento = CaixaMovimento(
+        created_at=_agora_utc(),
+        updated_at=_agora_utc(),
+    )
+    movimento.definir_como_venda(
+        empresa_id=venda.empresa_id,
+        caixa_sessao_id=venda.caixa_sessao_id,
+        valor=_decimal_2(pagamento.valor),
+        forma_pagamento=pagamento.forma_pagamento,
+        usuario_id=usuario_id,
+        origem_id=venda.id,
+        observacoes=f"Recebimento da venda {venda.numero_venda or venda.id}",
+    )
+    db.add(movimento)
+    return movimento
+
+
+def _escolher_caixa_para_estorno(db: Session, venda: PdvVenda) -> CaixaSessao:
+    caixa_aberto_atual = _get_caixa_aberto_por_empresa(
+        db,
+        venda.empresa_id,
+        for_update=True,
+    )
+    if caixa_aberto_atual:
+        return caixa_aberto_atual
+    return _get_caixa_sessao_or_404(db, venda.caixa_sessao_id, for_update=True)
+
+
+def _registrar_movimento_estorno(
+    db: Session,
+    venda: PdvVenda,
+    pagamento: PdvPagamento,
+    usuario_id: int,
+    gerente_autorizador_id: int | None,
+):
+    caixa_estorno = _escolher_caixa_para_estorno(db, venda)
+
+    movimento = CaixaMovimento(
+        created_at=_agora_utc(),
+        updated_at=_agora_utc(),
+    )
+    movimento.definir_como_estorno(
+        empresa_id=venda.empresa_id,
+        caixa_sessao_id=caixa_estorno.id,
+        valor=_decimal_2(pagamento.valor),
+        forma_pagamento=pagamento.forma_pagamento,
+        usuario_id=usuario_id,
+        origem_tipo="PDV_VENDA_CANCELAMENTO",
+        origem_id=venda.id,
+        motivo="CANCELAMENTO_VENDA",
+        observacoes=f"Estorno do cancelamento da venda {venda.numero_venda or venda.id}",
+        gerente_autorizador_id=gerente_autorizador_id,
+    )
+    db.add(movimento)
+    return movimento
 
 
 def buscar_clientes(
@@ -395,9 +635,15 @@ def listar_atendimentos_prontos(
 def criar_venda(db: Session, payload: PdvVendaCreate) -> PdvVenda:
     _get_empresa_or_404(db, payload.empresa_id)
 
+    caixa = _get_caixa_sessao_or_404(db, payload.caixa_sessao_id, for_update=True)
+    _validar_caixa_para_venda(caixa, payload.empresa_id, exigir_aberto=True)
+
     venda = PdvVenda(
         empresa_id=payload.empresa_id,
+        caixa_sessao_id=caixa.id,
+        numero_venda=_gerar_numero_venda_provisorio(),
         observacoes=payload.observacoes,
+        usuario_abertura_id=caixa.usuario_responsavel_id,
         aberta_em=_agora_utc(),
         created_at=_agora_utc(),
         updated_at=_agora_utc(),
@@ -565,11 +811,24 @@ def checkout_venda(
     payload: PdvCheckoutRequest,
 ) -> PdvVenda:
     venda = _get_venda_or_404(db, venda_id, for_update=True)
+    caixa = _get_caixa_sessao_or_404(db, venda.caixa_sessao_id, for_update=True)
+
+    venda = _recarregar_venda(db, venda.id)
     venda.recalcular_totais()
-    _validar_checkout(venda, payload)
+    _validar_checkout(venda, caixa, payload)
 
     if payload.observacoes is not None:
         venda.observacoes = payload.observacoes
+
+    operador_recebimento = _resolver_usuario_operacao(
+        db,
+        empresa_id=venda.empresa_id,
+        usuario_id=payload.pagamento.usuario_id,
+        fallback_usuario_id=(
+            venda.usuario_abertura_id or caixa.usuario_responsavel_id or caixa.usuario_abertura_id
+        ),
+        label="Operador do recebimento",
+    )
 
     recebido_em = payload.pagamento.recebido_em or _agora_utc()
 
@@ -580,12 +839,20 @@ def checkout_venda(
         status="RECEBIDO",
         referencia=payload.pagamento.referencia,
         observacoes=payload.pagamento.observacoes,
-        usuario_id=payload.pagamento.usuario_id,
+        usuario_id=operador_recebimento.id,
         recebido_em=recebido_em,
         created_at=_agora_utc(),
         updated_at=_agora_utc(),
     )
     db.add(pagamento)
+    db.flush()
+
+    _registrar_movimento_venda(
+        db,
+        venda=venda,
+        pagamento=pagamento,
+        usuario_id=operador_recebimento.id,
+    )
 
     for item in venda.itens:
         if item.tipo_item == "SERVICE" and item.atendimento_clinico_id:
@@ -602,7 +869,7 @@ def checkout_venda(
                     atendimento.updated_at = datetime.utcnow()
 
     _gerar_financeiro_recebido_para_venda(db, venda, pagamento)
-    venda.fechar(usuario_fechamento_id=payload.pagamento.usuario_id)
+    venda.fechar(usuario_fechamento_id=operador_recebimento.id)
 
     db.commit()
     return _recarregar_venda(db, venda.id)
@@ -616,11 +883,56 @@ def cancelar_venda(
     venda = _get_venda_or_404(db, venda_id, for_update=True)
 
     if venda.status == "CANCELADA":
-        return venda
+        return _recarregar_venda(db, venda.id)
+
+    caixa_venda = _get_caixa_sessao_or_404(db, venda.caixa_sessao_id, for_update=True)
+    venda = _recarregar_venda(db, venda.id)
+
+    usuario_cancelamento = _resolver_usuario_operacao(
+        db,
+        empresa_id=venda.empresa_id,
+        usuario_id=payload.usuario_cancelamento_id,
+        fallback_usuario_id=(
+            venda.usuario_fechamento_id
+            or venda.usuario_abertura_id
+            or caixa_venda.usuario_responsavel_id
+            or caixa_venda.usuario_abertura_id
+        ),
+        label="Operador do cancelamento",
+    )
+
+    gerente_autorizador_id = None
+    motivo_cancelamento = (payload.motivo_cancelamento or "").strip() or None
 
     if venda.status == "FECHADA":
+        if not motivo_cancelamento:
+            raise HTTPException(
+                status_code=400,
+                detail="Motivo do cancelamento é obrigatório para venda fechada.",
+            )
+
+        gerente = _validar_gerente(
+            db,
+            empresa_id=venda.empresa_id,
+            gerente_id=payload.gerente_autorizador_id,
+            senha_gerente=payload.senha_gerente,
+        )
+        gerente_autorizador_id = gerente.id
+
         for pagamento in venda.pagamentos or []:
-            pagamento.cancelar(observacoes="Pagamento cancelado por cancelamento da venda.")
+            if pagamento.status == "CANCELADO":
+                continue
+
+            pagamento.cancelar(
+                observacoes="Pagamento cancelado por cancelamento da venda.",
+            )
+            _registrar_movimento_estorno(
+                db,
+                venda=venda,
+                pagamento=pagamento,
+                usuario_id=usuario_cancelamento.id,
+                gerente_autorizador_id=gerente_autorizador_id,
+            )
 
         for item in venda.itens or []:
             if item.tipo_item == "SERVICE" and item.atendimento_clinico_id:
@@ -636,8 +948,8 @@ def cancelar_venda(
         _cancelar_financeiro_da_venda(db, venda.id)
 
     venda.cancelar(
-        motivo_cancelamento=payload.motivo_cancelamento,
-        usuario_cancelamento_id=payload.usuario_cancelamento_id,
+        motivo_cancelamento=motivo_cancelamento,
+        usuario_cancelamento_id=usuario_cancelamento.id,
     )
 
     db.commit()
