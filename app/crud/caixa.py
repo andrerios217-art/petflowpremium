@@ -43,6 +43,10 @@ def _carregar_caixa_query(db: Session):
     )
 
 
+def _query_caixa_lock(db: Session):
+    return db.query(CaixaSessao)
+
+
 def _get_empresa_or_404(db: Session, empresa_id: int) -> Empresa:
     empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
     if not empresa:
@@ -62,10 +66,20 @@ def _get_caixa_sessao_or_404(
     caixa_sessao_id: int,
     for_update: bool = False,
 ) -> CaixaSessao:
-    query = _carregar_caixa_query(db).filter(CaixaSessao.id == caixa_sessao_id)
     if for_update:
-        query = query.with_for_update()
-    caixa = query.first()
+        caixa = (
+            _query_caixa_lock(db)
+            .filter(CaixaSessao.id == caixa_sessao_id)
+            .with_for_update(of=CaixaSessao)
+            .first()
+        )
+    else:
+        caixa = (
+            _carregar_caixa_query(db)
+            .filter(CaixaSessao.id == caixa_sessao_id)
+            .first()
+        )
+
     if not caixa:
         raise HTTPException(status_code=404, detail="Sessão de caixa não encontrada.")
     return caixa
@@ -76,13 +90,27 @@ def _get_caixa_aberto_por_empresa(
     empresa_id: int,
     for_update: bool = False,
 ) -> CaixaSessao | None:
-    query = _carregar_caixa_query(db).filter(
-        CaixaSessao.empresa_id == empresa_id,
-        CaixaSessao.status == "ABERTO",
-    )
     if for_update:
-        query = query.with_for_update()
-    return query.order_by(CaixaSessao.id.desc()).first()
+        return (
+            _query_caixa_lock(db)
+            .filter(
+                CaixaSessao.empresa_id == empresa_id,
+                CaixaSessao.status == "ABERTO",
+            )
+            .order_by(CaixaSessao.id.desc())
+            .with_for_update(of=CaixaSessao)
+            .first()
+        )
+
+    return (
+        _carregar_caixa_query(db)
+        .filter(
+            CaixaSessao.empresa_id == empresa_id,
+            CaixaSessao.status == "ABERTO",
+        )
+        .order_by(CaixaSessao.id.desc())
+        .first()
+    )
 
 
 def _get_ultimo_caixa_fechado(db: Session, empresa_id: int) -> CaixaSessao | None:
@@ -495,14 +523,18 @@ def fechar_caixa(db: Session, caixa_sessao_id: int, payload) -> tuple[CaixaSessa
     usuario_fechamento = _get_usuario_or_404(db, payload.usuario_fechamento_id)
     _validar_usuario_da_empresa(usuario_fechamento, caixa.empresa_id, "Usuário de fechamento")
 
+    caixa = _get_caixa_sessao_or_404(db, caixa.id, for_update=False)
     resumo = calcular_resumo_financeiro_caixa(caixa)
+
+    caixa_lock = _get_caixa_sessao_or_404(db, caixa_sessao_id, for_update=True)
+
     valor_esperado = _decimal_2(resumo["saldo_dinheiro_esperado"])
     valor_informado = _decimal_2(payload.valor_fechamento_informado)
     diferenca = valor_informado - valor_esperado
 
     tolerancia_fechamento = _get_config_decimal(
         db,
-        caixa.empresa_id,
+        caixa_lock.empresa_id,
         "caixa_tolerancia_fechamento",
         "0.50",
     )
@@ -517,13 +549,13 @@ def fechar_caixa(db: Session, caixa_sessao_id: int, payload) -> tuple[CaixaSessa
 
         gerente = _validar_gerente(
             db,
-            empresa_id=caixa.empresa_id,
+            empresa_id=caixa_lock.empresa_id,
             gerente_id=payload.gerente_fechamento_id,
             senha_gerente=payload.senha_gerente,
         )
         gerente_fechamento_id = gerente.id
 
-    caixa.registrar_fechamento(
+    caixa_lock.registrar_fechamento(
         usuario_fechamento_id=payload.usuario_fechamento_id,
         valor_fechamento_esperado=valor_esperado,
         valor_fechamento_informado=valor_informado,
@@ -533,12 +565,12 @@ def fechar_caixa(db: Session, caixa_sessao_id: int, payload) -> tuple[CaixaSessa
 
     divergencia = _registrar_divergencia(
         db,
-        empresa_id=caixa.empresa_id,
-        caixa_sessao_id=caixa.id,
+        empresa_id=caixa_lock.empresa_id,
+        caixa_sessao_id=caixa_lock.id,
         tipo="FECHAMENTO",
         valor_referencia=valor_esperado,
         valor_informado=valor_informado,
-        usuario_responsavel_id=caixa.usuario_responsavel_id,
+        usuario_responsavel_id=caixa_lock.usuario_responsavel_id,
         motivo_padrao="DIFERENCA_FECHAMENTO",
         motivo_detalhe=payload.motivo_diferenca_fechamento,
         gerente_autorizador_id=gerente_fechamento_id,
@@ -546,7 +578,7 @@ def fechar_caixa(db: Session, caixa_sessao_id: int, payload) -> tuple[CaixaSessa
     )
 
     db.commit()
-    caixa = _get_caixa_sessao_or_404(db, caixa.id, for_update=False)
+    caixa = _get_caixa_sessao_or_404(db, caixa_lock.id, for_update=False)
     return caixa, divergencia
 
 
