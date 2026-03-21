@@ -45,6 +45,25 @@
     valorPagamento: document.getElementById("pdv-valor-pagamento"),
     btnFinalizarVenda: document.getElementById("btn-finalizar-venda"),
 
+    descontoInput: document.getElementById("pdv-desconto-input"),
+    btnAplicarDesconto: document.getElementById("btn-aplicar-desconto"),
+    btnZerarDesconto: document.getElementById("btn-zerar-desconto"),
+
+    caixaCard: document.getElementById("pdv-caixa-card"),
+    producaoSidebar: document.getElementById("pdv-producao-sidebar"),
+    producaoCard: document.getElementById("pdv-producao-card"),
+
+    floatingCard: document.getElementById("pdv-floating-card"),
+    floatingBody: document.getElementById("pdv-floating-body"),
+    btnFloatingMinimizar: document.getElementById("btn-floating-minimizar"),
+    btnFloatingToggleCaixa: document.getElementById("btn-floating-toggle-caixa"),
+    btnFloatingToggleProntos: document.getElementById("btn-floating-toggle-prontos"),
+    btnFloatingAbrirCaixa: document.getElementById("btn-floating-abrir-caixa"),
+    btnFloatingSangria: document.getElementById("btn-floating-sangria"),
+    btnFloatingSuprimento: document.getElementById("btn-floating-suprimento"),
+    btnFloatingFecharCaixa: document.getElementById("btn-floating-fechar-caixa"),
+    btnFloatingAtualizarProntos: document.getElementById("btn-floating-atualizar-prontos"),
+
     producaoLista: document.getElementById("pdv-producao-lista"),
     btnAtualizarProducao: document.getElementById("btn-atualizar-producao"),
 
@@ -144,40 +163,30 @@
   }
 
   function toNumber(value, fallback = 0) {
-  if (value === null || value === undefined || value === "") return fallback;
+    if (value === null || value === undefined || value === "") return fallback;
 
-  let str = String(value).trim();
+    let str = String(value).trim();
+    if (!str) return fallback;
 
-  if (!str) return fallback;
+    str = str.replace(/\s+/g, "");
 
-  // Remove espaços
-  str = str.replace(/\s+/g, "");
+    const hasComma = str.includes(",");
+    const hasDot = str.includes(".");
 
-  const hasComma = str.includes(",");
-  const hasDot = str.includes(".");
-
-  if (hasComma && hasDot) {
-    // Se tiver vírgula e ponto, assume que o último separador é o decimal
-    if (str.lastIndexOf(",") > str.lastIndexOf(".")) {
-      // Ex.: 10.000,50 -> 10000.50
-      str = str.replace(/\./g, "").replace(",", ".");
-    } else {
-      // Ex.: 10,000.50 -> 10000.50
-      str = str.replace(/,/g, "");
+    if (hasComma && hasDot) {
+      if (str.lastIndexOf(",") > str.lastIndexOf(".")) {
+        str = str.replace(/\./g, "").replace(",", ".");
+      } else {
+        str = str.replace(/,/g, "");
+      }
+    } else if (hasComma) {
+      str = str.replace(",", ".");
     }
-  } else if (hasComma) {
-    // Ex.: 100,50 -> 100.50
-    str = str.replace(",", ".");
-  } else {
-    // Se só tem ponto, mantém como decimal normal
-    // Ex.: 100.50 -> 100.50
-    // Não remove ponto aqui
+
+    const parsed = Number(str);
+    return Number.isFinite(parsed) ? parsed : fallback;
   }
 
-  const parsed = Number(str);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-  
   function formatMoney(value) {
     return toNumber(value, 0).toLocaleString("pt-BR", {
       style: "currency",
@@ -222,6 +231,7 @@
 
     const contentType = response.headers.get("content-type") || "";
     const isJson = contentType.includes("application/json");
+
     const data = isJson ? await response.json() : await response.text();
 
     if (!response.ok) {
@@ -284,21 +294,19 @@
   function setSelectedUser(listEl, idEl, nameEl, usuario, extraLabel = "") {
     setValue(idEl, usuario.id);
     setValue(nameEl, usuario.nome || "");
+
     const tipo = usuario.tipo ? ` (${escapeHtml(usuario.tipo)})` : "";
-    const email = usuario.email
-      ? `<div class="pdv-selection-meta">${escapeHtml(usuario.email)}</div>`
-      : "";
+    const email = usuario.email ? `<div class="pdv-muted">${escapeHtml(usuario.email)}</div>` : "";
+
     setHtml(
       listEl,
       `
-      <div class="pdv-selection-option pdv-selection-selected">
-        <div>
-          <strong>${escapeHtml(usuario.nome || "Usuário")}${tipo}</strong>
-          ${email}
-        </div>
-        <span class="pdv-badge">${escapeHtml(extraLabel || "Selecionado")}</span>
+      <div class="pdv-user-selected">
+        <div><strong>${escapeHtml(usuario.nome || "Usuário")}${tipo}</strong></div>
+        ${email}
+        <div class="pdv-muted">${escapeHtml(extraLabel || "Selecionado")}</div>
       </div>
-      `
+    `
     );
   }
 
@@ -313,34 +321,33 @@
       usuarios
         .map((usuario) => {
           const tipo = usuario.tipo ? ` (${escapeHtml(usuario.tipo)})` : "";
-          const email = usuario.email
-            ? `<div class="pdv-selection-meta">${escapeHtml(usuario.email)}</div>`
-            : "";
+          const email = usuario.email ? `<div class="pdv-muted">${escapeHtml(usuario.email)}</div>` : "";
+
           return `
-            <div class="pdv-selection-option">
-              <div>
-                <strong>${escapeHtml(usuario.nome || "Usuário")}${tipo}</strong>
-                ${email}
-              </div>
-              <button type="button" class="pdv-btn btn-select-user" data-user-id="${usuario.id}">
-                Selecionar
-              </button>
+          <div class="pdv-user-item">
+            <div class="pdv-user-item-info">
+              <div><strong>${escapeHtml(usuario.nome || "Usuário")}${tipo}</strong></div>
+              ${email}
             </div>
-          `;
+            <button type="button" class="pdv-btn pdv-btn-primary" data-user-id="${usuario.id}">
+              Selecionar
+            </button>
+          </div>
+        `;
         })
         .join("")
     );
 
-    listEl.querySelectorAll(".btn-select-user").forEach((button) => {
-      button.addEventListener("click", () => {
-        const userId = toNumber(button.dataset.userId, 0);
-        const usuario = usuarios.find((item) => Number(item.id) === Number(userId));
+    listEl.querySelectorAll("[data-user-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const userId = toNumber(btn.getAttribute("data-user-id"), 0);
+        const usuario = usuarios.find((u) => u.id === userId);
         if (usuario) onSelect(usuario);
       });
     });
   }
 
-  async function carregarOperadores(termo = "", limite = 20) {
+  async function carregarOperadores(termo, limite = 50) {
     const empresaId = getEmpresaId();
     const q = String(termo || "").trim();
     if (!q) return [];
@@ -351,87 +358,138 @@
     return state.operadores;
   }
 
-  async function pesquisarUsuarios({ termo, apenasGerente = false }) {
-    let usuarios = await carregarOperadores(termo, 20);
-
-    if (apenasGerente) {
-      usuarios = usuarios.filter((item) => {
-        const tipo = String(item.tipo || "").toLowerCase();
-        return tipo === "gerente" || tipo === "admin";
-      });
-    }
-
-    return usuarios;
+  async function pesquisarUsuarios(termo, onlyManager = false) {
+    const operadores = await carregarOperadores(termo, 50);
+    if (!onlyManager) return operadores;
+    return operadores.filter((u) => String(u.tipo || "").toLowerCase() === "gerente");
   }
 
   function closeAllModals() {
-    [els.modalAbrirCaixa, els.modalSangria, els.modalSuprimento, els.modalFecharCaixa].forEach(hideEl);
     hideEl(els.modalOverlay);
+    hideEl(els.modalAbrirCaixa);
+    hideEl(els.modalSangria);
+    hideEl(els.modalSuprimento);
+    hideEl(els.modalFecharCaixa);
   }
 
-  function openModal(modal) {
-    closeAllModals();
+  function openModal(modalEl) {
+    if (!modalEl) return;
     showEl(els.modalOverlay);
-    showEl(modal);
+    showEl(modalEl);
   }
 
   function resetModalAbrirCaixa() {
+    clearSelection(
+      els.caixaAberturaOperadorLista,
+      els.caixaAberturaOperadorId,
+      els.caixaAberturaOperadorNome,
+      "Nenhum operador selecionado."
+    );
+    clearSelection(
+      els.caixaGerenteAberturaLista,
+      els.caixaGerenteAberturaId,
+      els.caixaGerenteAberturaNome,
+      "Nenhum gerente selecionado."
+    );
+
     setValue(els.caixaAberturaOperadorBusca, "");
-    clearSelection(els.caixaAberturaOperadorLista, els.caixaAberturaOperadorId, els.caixaAberturaOperadorNome, "Nenhum operador selecionado.");
+    setValue(els.caixaGerenteAberturaBusca, "");
+    setValue(els.caixaSenhaGerenteAbertura, "");
     setValue(els.caixaValorAbertura, "");
     setValue(els.caixaObservacoesAbertura, "");
     setValue(els.caixaMotivoDiferencaAbertura, "");
-    setValue(els.caixaGerenteAberturaBusca, "");
-    setValue(els.caixaSenhaGerenteAbertura, "");
-    clearSelection(els.caixaGerenteAberturaLista, els.caixaGerenteAberturaId, els.caixaGerenteAberturaNome, "Nenhum gerente selecionado.");
+
     hideEl(els.caixaAberturaDivergenciaBox);
   }
 
   function resetModalSangria() {
+    clearSelection(
+      els.caixaSangriaOperadorLista,
+      els.caixaSangriaOperadorId,
+      els.caixaSangriaOperadorNome,
+      "Nenhum operador selecionado."
+    );
+    clearSelection(
+      els.caixaGerenteSangriaLista,
+      els.caixaGerenteSangriaId,
+      els.caixaGerenteSangriaNome,
+      "Nenhum gerente selecionado."
+    );
+
     setValue(els.caixaSangriaOperadorBusca, "");
-    clearSelection(els.caixaSangriaOperadorLista, els.caixaSangriaOperadorId, els.caixaSangriaOperadorNome, "Nenhum operador selecionado.");
+    setValue(els.caixaGerenteSangriaBusca, "");
+    setValue(els.caixaSenhaGerenteSangria, "");
     setValue(els.caixaSangriaValor, "");
     setValue(els.caixaSangriaMotivo, "");
     setValue(els.caixaSangriaObservacoes, "");
-    setValue(els.caixaGerenteSangriaBusca, "");
-    setValue(els.caixaSenhaGerenteSangria, "");
-    clearSelection(els.caixaGerenteSangriaLista, els.caixaGerenteSangriaId, els.caixaGerenteSangriaNome, "Nenhum gerente selecionado.");
+
     hideEl(els.caixaSangriaGerenteBox);
   }
 
   function resetModalSuprimento() {
+    clearSelection(
+      els.caixaSuprimentoOperadorLista,
+      els.caixaSuprimentoOperadorId,
+      els.caixaSuprimentoOperadorNome,
+      "Nenhum operador selecionado."
+    );
+    clearSelection(
+      els.caixaGerenteSuprimentoLista,
+      els.caixaGerenteSuprimentoId,
+      els.caixaGerenteSuprimentoNome,
+      "Nenhum gerente selecionado."
+    );
+
     setValue(els.caixaSuprimentoOperadorBusca, "");
-    clearSelection(els.caixaSuprimentoOperadorLista, els.caixaSuprimentoOperadorId, els.caixaSuprimentoOperadorNome, "Nenhum operador selecionado.");
+    setValue(els.caixaGerenteSuprimentoBusca, "");
+    setValue(els.caixaSenhaGerenteSuprimento, "");
     setValue(els.caixaSuprimentoValor, "");
     setValue(els.caixaSuprimentoMotivo, "");
     setValue(els.caixaSuprimentoObservacoes, "");
-    setValue(els.caixaGerenteSuprimentoBusca, "");
-    setValue(els.caixaSenhaGerenteSuprimento, "");
-    clearSelection(els.caixaGerenteSuprimentoLista, els.caixaGerenteSuprimentoId, els.caixaGerenteSuprimentoNome, "Nenhum gerente selecionado.");
+
     hideEl(els.caixaSuprimentoGerenteBox);
   }
 
   function resetModalFecharCaixa() {
+    clearSelection(
+      els.caixaFechamentoOperadorLista,
+      els.caixaFechamentoOperadorId,
+      els.caixaFechamentoOperadorNome,
+      "Nenhum operador selecionado."
+    );
+    clearSelection(
+      els.caixaGerenteFechamentoLista,
+      els.caixaGerenteFechamentoId,
+      els.caixaGerenteFechamentoNome,
+      "Nenhum gerente selecionado."
+    );
+
     setValue(els.caixaFechamentoOperadorBusca, "");
-    clearSelection(els.caixaFechamentoOperadorLista, els.caixaFechamentoOperadorId, els.caixaFechamentoOperadorNome, "Nenhum operador selecionado.");
-    setValue(els.caixaFechamentoValor, "");
-    setValue(els.caixaMotivoDiferencaFechamento, "");
     setValue(els.caixaGerenteFechamentoBusca, "");
     setValue(els.caixaSenhaGerenteFechamento, "");
-    clearSelection(els.caixaGerenteFechamentoLista, els.caixaGerenteFechamentoId, els.caixaGerenteFechamentoNome, "Nenhum gerente selecionado.");
-    setText(els.caixaFechamentoSaldoEsperado, formatMoney(0));
+    setValue(els.caixaFechamentoValor, "");
+    setValue(els.caixaMotivoDiferencaFechamento, "");
+
     hideEl(els.caixaFechamentoDivergenciaBox);
   }
 
-  async function handleSearchUsers({ inputEl, listEl, idEl, nameEl, onlyManager = false, selectedLabel = "Selecionado", emptyMessage = "Nenhum usuário encontrado." }) {
+  async function handleSearchUsers(config) {
+    const { inputEl, listEl, idEl, nameEl, onlyManager, selectedLabel, emptyMessage } = config;
+
     const termo = String(inputEl?.value || "").trim();
-    if (!termo) throw new Error("Digite um nome para pesquisar.");
+    if (!termo) {
+      clearSelection(listEl, idEl, nameEl, emptyMessage);
+      return;
+    }
 
-    const usuarios = await pesquisarUsuarios({ termo, apenasGerente: onlyManager });
+    const usuarios = await pesquisarUsuarios(termo, onlyManager);
 
-    renderSelectionList(listEl, usuarios, (usuario) => {
-      setSelectedUser(listEl, idEl, nameEl, usuario, selectedLabel);
-    }, emptyMessage);
+    renderSelectionList(
+      listEl,
+      usuarios,
+      (usuario) => setSelectedUser(listEl, idEl, nameEl, usuario, selectedLabel),
+      emptyMessage
+    );
   }
 
   async function carregarCaixaAtual() {
@@ -440,29 +498,28 @@
     state.caixaAtual = data || null;
 
     if (state.caixaAtual?.id) {
-      await carregarResumoCaixa(state.caixaAtual.id);
+      await carregarResumoCaixa();
     } else {
       state.caixaResumo = null;
     }
 
     renderCaixa();
+    renderControlsState();
+    return state.caixaAtual;
   }
 
-  async function carregarResumoCaixa(caixaSessaoId) {
-    if (!caixaSessaoId) {
-      state.caixaResumo = null;
-      return null;
-    }
-    const resumo = await request(`/api/caixa/sessoes/${caixaSessaoId}/resumo`);
-    state.caixaResumo = resumo;
-    return resumo;
+  async function carregarResumoCaixa() {
+    const caixaSessaoId = getCaixaSessaoId();
+    if (!caixaSessaoId) return null;
+
+    const data = await request(`/api/caixa/sessoes/${caixaSessaoId}/resumo`);
+    state.caixaResumo = data || null;
+    renderCaixa();
+    return state.caixaResumo;
   }
 
   function renderCaixa() {
-    const caixa = state.caixaAtual;
-    const resumo = state.caixaResumo;
-
-    if (!caixa) {
+    if (!state.caixaAtual) {
       setText(els.caixaStatus, "Fechado");
       setText(els.caixaOperador, "-");
       setText(els.caixaAbertura, formatMoney(0));
@@ -470,21 +527,21 @@
       return;
     }
 
-    const operadorNome =
-      caixa.usuario_responsavel?.nome ||
-      caixa.usuario_abertura?.nome ||
-      (caixa.usuario_responsavel_id ? `Usuário #${caixa.usuario_responsavel_id}` : "-");
+    setText(els.caixaStatus, state.caixaAtual.status || "-");
 
-    setText(els.caixaStatus, caixa.status || "-");
+    const operadorNome =
+      state.caixaAtual.usuario_responsavel?.nome ||
+      state.caixaAtual.usuario_abertura?.nome ||
+      String(state.caixaAtual.usuario_responsavel_id || "-");
+
     setText(els.caixaOperador, operadorNome);
-    setText(els.caixaAbertura, formatMoney(caixa.valor_abertura_informado || 0));
-    setText(els.caixaSaldo, formatMoney(resumo?.saldo_dinheiro_esperado || 0));
+
+    setText(els.caixaAbertura, formatMoney(state.caixaAtual.valor_abertura_informado || 0));
+    setText(els.caixaSaldo, formatMoney(state.caixaResumo?.saldo_dinheiro_esperado ?? 0));
   }
 
   function renderVendaContexto() {
-    const venda = state.vendaAtual;
-
-    if (!venda) {
+    if (!hasVendaAtual()) {
       setText(els.vendaCliente, "Nenhuma venda iniciada");
       setText(els.vendaMeta, "Abra uma venda balcão ou puxe da produção.");
       setText(els.vendaNumero, "Sem venda");
@@ -492,15 +549,17 @@
       return;
     }
 
-    const clienteNome =
-      venda.cliente?.nome ||
-      venda.nome_cliente_snapshot ||
-      (venda.modo_cliente === "WALK_IN" ? "Venda balcão" : "Cliente não identificado");
+    const venda = state.vendaAtual;
 
-    setText(els.vendaCliente, clienteNome);
-    setText(els.vendaMeta, `Status: ${venda.status} | Origem: ${venda.origem || "-"}`);
-    setText(els.vendaNumero, venda.numero_venda || `Venda #${venda.id}`);
-    setText(els.vendaModo, venda.modo_cliente === "WALK_IN" ? "Balcão" : "Cliente cadastrado");
+    const nomeCliente =
+      venda.modo_cliente === "REGISTERED_CLIENT"
+        ? venda.nome_cliente_snapshot || "Cliente cadastrado"
+        : venda.nome_cliente_snapshot || "Venda balcão";
+
+    setText(els.vendaCliente, nomeCliente);
+    setText(els.vendaMeta, venda.observacoes || "");
+    setText(els.vendaNumero, venda.numero_venda || `#${venda.id}`);
+    setText(els.vendaModo, venda.status || "-");
   }
 
   function renderTotais() {
@@ -509,9 +568,11 @@
     setText(els.totalDesconto, formatMoney(venda?.desconto_valor || 0));
     setText(els.totalAcrescimo, formatMoney(venda?.acrescimo_valor || 0));
     setText(els.totalFinal, formatMoney(venda?.valor_total || 0));
-    if (els.valorPagamento) {
-      setValue(els.valorPagamento, venda ? toNumber(venda.valor_total, 0).toFixed(2) : "");
+    if (els.descontoInput) {
+      setValue(els.descontoInput, venda ? toNumber(venda.desconto_valor, 0).toFixed(2) : "");
     }
+    syncValorPagamento();
+    renderControlsState();
   }
 
   function renderCarrinho() {
@@ -525,7 +586,9 @@
 
     setHtml(
       els.carrinhoLista,
-      itens.map((item) => `
+      itens
+        .map(
+          (item) => `
         <div class="pdv-item-card">
           <div class="pdv-item-card__header">
             <strong>${escapeHtml(item.descricao_snapshot || "Item sem descrição")}</strong>
@@ -541,7 +604,9 @@
             <strong>${formatMoney(item.valor_total)}</strong>
           </div>
         </div>
-      `).join("")
+      `
+        )
+        .join("")
     );
   }
 
@@ -551,283 +616,422 @@
     renderCarrinho();
   }
 
-  function collectAberturaPayload() {
-    const empresaId = getEmpresaId();
-    const operadorId = toNumber(els.caixaAberturaOperadorId?.value, 0);
-    const operadorNome = String(els.caixaAberturaOperadorNome?.value || "").trim();
-    const valorAbertura = requireNonNegativeNumber(els.caixaValorAbertura?.value, "Informe um valor inicial válido.");
-    const observacoes = String(els.caixaObservacoesAbertura?.value || "").trim();
+  function setDisabled(el, disabled) {
+    if (!el) return;
+    el.disabled = !!disabled;
+  }
 
-    if (!operadorId || !operadorNome) throw new Error("Selecione o operador de abertura.");
+  function toggleHidden(el) {
+    if (!el) return;
+    el.classList.toggle("pdv-hidden");
+  }
+
+  function syncValorPagamento() {
+    if (!els.valorPagamento) return;
+
+    els.valorPagamento.readOnly = true;
+
+    if (!state.vendaAtual) {
+      setValue(els.valorPagamento, "");
+      return;
+    }
+
+    setValue(els.valorPagamento, toNumber(state.vendaAtual.valor_total, 0).toFixed(2));
+  }
+
+  function renderControlsState() {
+    const podeFinalizar =
+      hasCaixaAberto() && hasVendaAberta() && (state.vendaAtual?.itens?.length || 0) > 0;
+
+    setDisabled(els.btnFinalizarVenda, !podeFinalizar);
+    setDisabled(els.btnAplicarDesconto, !hasVendaAberta());
+    setDisabled(els.btnZerarDesconto, !hasVendaAberta());
+  }
+
+  async function aplicarDesconto(valor) {
+    if (!hasVendaAberta()) throw new Error("Abra uma venda antes de aplicar desconto.");
+
+    const vendaId = state.vendaAtual.id;
+    const payload = {
+      desconto_valor: requireNonNegativeNumber(valor, "Informe um desconto válido."),
+    };
+
+    const venda = await request(`/api/pdv/vendas/${vendaId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+
+    state.vendaAtual = venda;
+    renderVenda();
+    showAlert("Desconto aplicado.", "success");
+  }
+
+  async function zerarDesconto() {
+    if (!hasVendaAberta()) throw new Error("Abra uma venda antes de zerar desconto.");
+
+    const vendaId = state.vendaAtual.id;
+    const venda = await request(`/api/pdv/vendas/${vendaId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ desconto_valor: 0 }),
+    });
+
+    state.vendaAtual = venda;
+    if (els.descontoInput) setValue(els.descontoInput, "0.00");
+    renderVenda();
+    showAlert("Desconto zerado.", "success");
+  }
+
+  async function finalizarVendaAtual() {
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de finalizar a venda.");
+    if (!hasVendaAberta()) throw new Error("Nenhuma venda aberta para finalizar.");
+
+    const venda = state.vendaAtual;
+    const vendaId = venda.id;
+
+    const formaPagamento = String(els.formaPagamento?.value || "DINHEIRO").trim() || "DINHEIRO";
+    const valor = toNumber(venda.valor_total, 0);
+
+    if (valor <= 0) throw new Error("A venda precisa ter um total maior que zero.");
+
+    const payload = {
+      pagamento: {
+        forma_pagamento: formaPagamento,
+        valor: Number(valor.toFixed(2)),
+      },
+    };
+
+    const result = await request(`/api/pdv/vendas/${vendaId}/checkout`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    const vendaAtualizada = result?.venda || result;
+    state.vendaAtual = vendaAtualizada;
+
+    renderVenda();
+    renderControlsState();
+    showAlert(result?.mensagem || "Venda finalizada com sucesso.", "success");
+
+    try {
+      await carregarResumoCaixa();
+    } catch (error) {
+      console.warn("Falha ao recarregar resumo do caixa:", error);
+    }
+  }
+
+  function renderProducaoLista() {
+    if (!els.producaoLista) return;
+
+    const itens = state.producaoPronta || [];
+    if (!itens.length) {
+      setHtml(els.producaoLista, `<div class="pdv-empty-state">Nenhum item pronto para cobrança.</div>`);
+      return;
+    }
+
+    setHtml(
+      els.producaoLista,
+      itens
+        .map((item) => {
+          const cliente = escapeHtml(item.cliente_nome || "Cliente");
+          const pet = item.pet_nome ? ` - ${escapeHtml(item.pet_nome)}` : "";
+          const descricao = escapeHtml(item.descricao || "");
+          const valor = formatMoney(item.valor_total || 0);
+
+          return `
+          <div class="pdv-producao-item">
+            <div class="pdv-producao-item__info">
+              <strong>${cliente}${pet}</strong>
+              <div class="pdv-muted">${descricao}</div>
+            </div>
+            <div class="pdv-producao-item__actions">
+              <strong>${valor}</strong>
+              <button
+                type="button"
+                class="pdv-btn pdv-btn-primary"
+                data-action="puxar-producao"
+                data-producao-id="${escapeHtml(item.producao_id)}"
+              >
+                Puxar
+              </button>
+            </div>
+          </div>
+        `;
+        })
+        .join("")
+    );
+  }
+
+  async function carregarProducaoPronta() {
+    const empresaId = getEmpresaId();
+    const data = await request(`/api/pdv/producao/prontos?empresa_id=${empresaId}`);
+    state.producaoPronta = Array.isArray(data) ? data : [];
+    renderProducaoLista();
+    return state.producaoPronta;
+  }
+
+  async function puxarProducaoParaVenda(producaoId) {
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de puxar itens da produção.");
+
+    const empresaId = getEmpresaId();
+    const caixaSessaoId = getCaixaSessaoId();
+    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
 
     const payload = {
       empresa_id: empresaId,
-      usuario_responsavel_id: operadorId,
-      usuario_responsavel_nome: operadorNome,
-      usuario_abertura_id: operadorId,
-      usuario_abertura_nome: operadorNome,
-      valor_abertura_informado: valorAbertura,
-      observacoes: observacoes || null,
+      caixa_sessao_id: caixaSessaoId,
+      producao_id: Number(producaoId),
     };
 
-    if (!els.caixaAberturaDivergenciaBox.classList.contains("pdv-hidden")) {
-      const motivo = requireText(els.caixaMotivoDiferencaAbertura?.value, "Informe o motivo da divergência de abertura.");
-      const gerenteId = toNumber(els.caixaGerenteAberturaId?.value, 0);
-      const gerenteNome = String(els.caixaGerenteAberturaNome?.value || "").trim();
-      const senhaGerente = requireText(els.caixaSenhaGerenteAbertura?.value, "Informe a senha do gerente.");
+    const venda = await request("/api/pdv/vendas/producao", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
 
-      if (!gerenteId || !gerenteNome) throw new Error("Selecione o gerente autorizador da abertura.");
+    state.vendaAtual = venda;
+    renderVenda();
+    renderControlsState();
+    showAlert("Produção puxada para a venda atual.", "success");
 
-      payload.motivo_diferenca_abertura = motivo;
-      payload.gerente_abertura_id = gerenteId;
-      payload.gerente_abertura_nome = gerenteNome;
-      payload.senha_gerente = senhaGerente;
+    try {
+      await carregarProducaoPronta();
+    } catch (error) {
+      console.warn("Falha ao atualizar prontos da produção:", error);
     }
 
-    return payload;
+    return venda;
+  }
+
+  function bindFloatingActions() {
+    els.btnFloatingMinimizar?.addEventListener("click", () => {
+      if (!els.floatingBody) return;
+      els.floatingBody.classList.toggle("pdv-hidden");
+    });
+
+    els.btnFloatingToggleCaixa?.addEventListener("click", () => toggleHidden(els.caixaCard));
+    els.btnFloatingToggleProntos?.addEventListener("click", () => toggleHidden(els.producaoSidebar));
+
+    els.btnFloatingAbrirCaixa?.addEventListener("click", () => els.btnAbrirCaixa?.click());
+    els.btnFloatingSangria?.addEventListener("click", () => els.btnSangria?.click());
+    els.btnFloatingSuprimento?.addEventListener("click", () => els.btnSuprimento?.click());
+    els.btnFloatingFecharCaixa?.addEventListener("click", () => els.btnFecharCaixa?.click());
+    els.btnFloatingAtualizarProntos?.addEventListener("click", () => els.btnAtualizarProducao?.click());
+  }
+
+  function collectAberturaPayload() {
+    const empresaId = getEmpresaId();
+
+    const operadorId = toNumber(els.caixaAberturaOperadorId?.value, 0);
+    const operadorNome = String(els.caixaAberturaOperadorNome?.value || "").trim();
+
+    const valorAbertura = requireNonNegativeNumber(
+      els.caixaValorAbertura?.value,
+      "Informe um valor de abertura válido."
+    );
+
+    const observacoes = String(els.caixaObservacoesAbertura?.value || "").trim();
+
+    const motivoDiferencaAbertura = String(els.caixaMotivoDiferencaAbertura?.value || "").trim();
+
+    const gerenteId = toNumber(els.caixaGerenteAberturaId?.value, 0);
+    const gerenteNome = String(els.caixaGerenteAberturaNome?.value || "").trim();
+    const senhaGerente = String(els.caixaSenhaGerenteAbertura?.value || "").trim();
+
+    return {
+      empresa_id: empresaId,
+      usuario_responsavel_id: operadorId || null,
+      usuario_responsavel_nome: operadorNome || null,
+      usuario_abertura_id: operadorId || null,
+      usuario_abertura_nome: operadorNome || null,
+      valor_abertura_informado: valorAbertura,
+      observacoes: observacoes || null,
+      motivo_diferenca_abertura: motivoDiferencaAbertura || null,
+      gerente_abertura_id: gerenteId || null,
+      gerente_abertura_nome: gerenteNome || null,
+      senha_gerente: senhaGerente || null,
+    };
   }
 
   function collectSangriaPayload() {
     const empresaId = getEmpresaId();
     const caixaSessaoId = getCaixaSessaoId();
+    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
+
     const operadorId = toNumber(els.caixaSangriaOperadorId?.value, 0);
     const operadorNome = String(els.caixaSangriaOperadorNome?.value || "").trim();
-    const valor = requirePositiveNumber(els.caixaSangriaValor?.value, "Informe um valor de sangria maior que zero.");
-    const motivo = requireText(els.caixaSangriaMotivo?.value, "Informe o motivo da sangria.");
+
+    const valor = requirePositiveNumber(els.caixaSangriaValor?.value, "Informe um valor de sangria válido.");
+
+    const motivo = requireText(els.caixaSangriaMotivo?.value, "Informe um motivo.");
     const observacoes = String(els.caixaSangriaObservacoes?.value || "").trim();
 
-    if (!caixaSessaoId) throw new Error("Nenhuma sessão de caixa aberta.");
-    if (!operadorId || !operadorNome) throw new Error("Selecione o operador da sangria.");
+    const gerenteId = toNumber(els.caixaGerenteSangriaId?.value, 0);
+    const gerenteNome = String(els.caixaGerenteSangriaNome?.value || "").trim();
+    const senhaGerente = String(els.caixaSenhaGerenteSangria?.value || "").trim();
 
-    const payload = {
+    return {
       empresa_id: empresaId,
       caixa_sessao_id: caixaSessaoId,
       valor,
-      usuario_id: operadorId,
-      usuario_nome: operadorNome,
+      usuario_id: operadorId || null,
+      usuario_nome: operadorNome || null,
       motivo,
       observacoes: observacoes || null,
+      gerente_autorizador_id: gerenteId || null,
+      gerente_autorizador_nome: gerenteNome || null,
+      senha_gerente: senhaGerente || null,
     };
-
-    if (!els.caixaSangriaGerenteBox.classList.contains("pdv-hidden")) {
-      const gerenteId = toNumber(els.caixaGerenteSangriaId?.value, 0);
-      const gerenteNome = String(els.caixaGerenteSangriaNome?.value || "").trim();
-      const senhaGerente = requireText(els.caixaSenhaGerenteSangria?.value, "Informe a senha do gerente.");
-
-      if (!gerenteId || !gerenteNome) throw new Error("Selecione o gerente autorizador da sangria.");
-
-      payload.gerente_autorizador_id = gerenteId;
-      payload.gerente_autorizador_nome = gerenteNome;
-      payload.senha_gerente = senhaGerente;
-    }
-
-    return payload;
   }
 
   function collectSuprimentoPayload() {
     const empresaId = getEmpresaId();
     const caixaSessaoId = getCaixaSessaoId();
+    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
+
     const operadorId = toNumber(els.caixaSuprimentoOperadorId?.value, 0);
     const operadorNome = String(els.caixaSuprimentoOperadorNome?.value || "").trim();
-    const valor = requirePositiveNumber(els.caixaSuprimentoValor?.value, "Informe um valor de suprimento maior que zero.");
-    const motivo = requireText(els.caixaSuprimentoMotivo?.value, "Informe o motivo do suprimento.");
+
+    const valor = requirePositiveNumber(els.caixaSuprimentoValor?.value, "Informe um valor de suprimento válido.");
+
+    const motivo = requireText(els.caixaSuprimentoMotivo?.value, "Informe um motivo.");
     const observacoes = String(els.caixaSuprimentoObservacoes?.value || "").trim();
 
-    if (!caixaSessaoId) throw new Error("Nenhuma sessão de caixa aberta.");
-    if (!operadorId || !operadorNome) throw new Error("Selecione o operador do suprimento.");
+    const gerenteId = toNumber(els.caixaGerenteSuprimentoId?.value, 0);
+    const gerenteNome = String(els.caixaGerenteSuprimentoNome?.value || "").trim();
+    const senhaGerente = String(els.caixaSenhaGerenteSuprimento?.value || "").trim();
 
-    const payload = {
+    return {
       empresa_id: empresaId,
       caixa_sessao_id: caixaSessaoId,
       valor,
-      usuario_id: operadorId,
-      usuario_nome: operadorNome,
+      usuario_id: operadorId || null,
+      usuario_nome: operadorNome || null,
       motivo,
       observacoes: observacoes || null,
+      gerente_autorizador_id: gerenteId || null,
+      gerente_autorizador_nome: gerenteNome || null,
+      senha_gerente: senhaGerente || null,
     };
-
-    if (!els.caixaSuprimentoGerenteBox.classList.contains("pdv-hidden")) {
-      const gerenteId = toNumber(els.caixaGerenteSuprimentoId?.value, 0);
-      const gerenteNome = String(els.caixaGerenteSuprimentoNome?.value || "").trim();
-      const senhaGerente = requireText(els.caixaSenhaGerenteSuprimento?.value, "Informe a senha do gerente.");
-
-      if (!gerenteId || !gerenteNome) throw new Error("Selecione o gerente autorizador do suprimento.");
-
-      payload.gerente_autorizador_id = gerenteId;
-      payload.gerente_autorizador_nome = gerenteNome;
-      payload.senha_gerente = senhaGerente;
-    }
-
-    return payload;
   }
 
   function collectFechamentoPayload() {
+    const caixaSessaoId = getCaixaSessaoId();
+    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
+
     const operadorId = toNumber(els.caixaFechamentoOperadorId?.value, 0);
     const operadorNome = String(els.caixaFechamentoOperadorNome?.value || "").trim();
-    const valorFechamento = requireNonNegativeNumber(els.caixaFechamentoValor?.value, "Informe a contagem final em dinheiro.");
 
-    if (!operadorId || !operadorNome) throw new Error("Selecione o operador do fechamento.");
+    const valor = requireNonNegativeNumber(els.caixaFechamentoValor?.value, "Informe um valor de fechamento válido.");
 
-    const payload = {
-      usuario_fechamento_id: operadorId,
-      usuario_fechamento_nome: operadorNome,
-      valor_fechamento_informado: valorFechamento,
+    const motivo = String(els.caixaMotivoDiferencaFechamento?.value || "").trim();
+
+    const gerenteId = toNumber(els.caixaGerenteFechamentoId?.value, 0);
+    const gerenteNome = String(els.caixaGerenteFechamentoNome?.value || "").trim();
+    const senhaGerente = String(els.caixaSenhaGerenteFechamento?.value || "").trim();
+
+    return {
+      usuario_fechamento_id: operadorId || null,
+      usuario_fechamento_nome: operadorNome || null,
+      valor_fechamento_informado: valor,
+      motivo_diferenca_fechamento: motivo || null,
+      gerente_fechamento_id: gerenteId || null,
+      gerente_fechamento_nome: gerenteNome || null,
+      senha_gerente: senhaGerente || null,
     };
-
-    if (!els.caixaFechamentoDivergenciaBox.classList.contains("pdv-hidden")) {
-      const motivo = requireText(els.caixaMotivoDiferencaFechamento?.value, "Informe o motivo da divergência de fechamento.");
-      const gerenteId = toNumber(els.caixaGerenteFechamentoId?.value, 0);
-      const gerenteNome = String(els.caixaGerenteFechamentoNome?.value || "").trim();
-      const senhaGerente = requireText(els.caixaSenhaGerenteFechamento?.value, "Informe a senha do gerente.");
-
-      if (!gerenteId || !gerenteNome) throw new Error("Selecione o gerente autorizador do fechamento.");
-
-      payload.motivo_diferenca_fechamento = motivo;
-      payload.gerente_fechamento_id = gerenteId;
-      payload.gerente_fechamento_nome = gerenteNome;
-      payload.senha_gerente = senhaGerente;
-    }
-
-    return payload;
   }
 
   async function submitAberturaCaixa() {
     const payload = collectAberturaPayload();
 
-    try {
-      const response = await request("/api/caixa/abrir", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    const result = await request("/api/caixa/abrir", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
 
-      state.caixaAtual = response.caixa_sessao || null;
-      if (state.caixaAtual?.id) await carregarResumoCaixa(state.caixaAtual.id);
-
-      renderCaixa();
-      closeAllModals();
-      resetModalAbrirCaixa();
-      showAlert(response.mensagem || "Caixa aberto com sucesso.", "success");
-    } catch (error) {
-      const msg = String(error.message || "");
-      if (
-        msg.includes("Motivo da diferença na abertura é obrigatório") ||
-        msg.includes("Senha do gerente é obrigatória") ||
-        msg.includes("Gerente autorizador")
-      ) {
-        showEl(els.caixaAberturaDivergenciaBox);
-        showAlert("A abertura exige motivo e autorização gerencial.", "warning");
-        return;
-      }
-      throw error;
+    if (result?.caixa_sessao) {
+      state.caixaAtual = result.caixa_sessao;
+      await carregarResumoCaixa();
     }
+
+    closeAllModals();
+    showAlert(result?.mensagem || "Caixa aberto.", "success");
+    renderCaixa();
+    renderControlsState();
   }
 
   async function submitSangria() {
     const payload = collectSangriaPayload();
 
-    try {
-      const response = await request("/api/caixa/sangria", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    const result = await request("/api/caixa/sangria", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
 
-      state.caixaAtual = response.caixa_sessao || state.caixaAtual;
-      if (state.caixaAtual?.id) await carregarResumoCaixa(state.caixaAtual.id);
-
-      renderCaixa();
-      closeAllModals();
-      resetModalSangria();
-      showAlert(response.mensagem || "Sangria registrada com sucesso.", "success");
-    } catch (error) {
-      const msg = String(error.message || "");
-      if (
-        msg.includes("Senha do gerente é obrigatória") ||
-        msg.includes("Gerente autorizador") ||
-        msg.includes("perfil gerencial")
-      ) {
-        showEl(els.caixaSangriaGerenteBox);
-        showAlert("A sangria exige autorização gerencial.", "warning");
-        return;
-      }
-      throw error;
+    if (result?.caixa_sessao) {
+      state.caixaAtual = result.caixa_sessao;
+      await carregarResumoCaixa();
     }
+
+    closeAllModals();
+    showAlert(result?.mensagem || "Sangria registrada.", "success");
+    renderCaixa();
+    renderControlsState();
   }
 
   async function submitSuprimento() {
     const payload = collectSuprimentoPayload();
 
-    try {
-      const response = await request("/api/caixa/suprimento", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    const result = await request("/api/caixa/suprimento", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
 
-      state.caixaAtual = response.caixa_sessao || state.caixaAtual;
-      if (state.caixaAtual?.id) await carregarResumoCaixa(state.caixaAtual.id);
-
-      renderCaixa();
-      closeAllModals();
-      resetModalSuprimento();
-      showAlert(response.mensagem || "Suprimento registrado com sucesso.", "success");
-    } catch (error) {
-      const msg = String(error.message || "");
-      if (
-        msg.includes("Senha do gerente é obrigatória") ||
-        msg.includes("Gerente autorizador") ||
-        msg.includes("perfil gerencial")
-      ) {
-        showEl(els.caixaSuprimentoGerenteBox);
-        showAlert("O suprimento exige autorização gerencial.", "warning");
-        return;
-      }
-      throw error;
+    if (result?.caixa_sessao) {
+      state.caixaAtual = result.caixa_sessao;
+      await carregarResumoCaixa();
     }
+
+    closeAllModals();
+    showAlert(result?.mensagem || "Suprimento registrado.", "success");
+    renderCaixa();
+    renderControlsState();
   }
 
   async function submitFechamentoCaixa() {
     const caixaSessaoId = getCaixaSessaoId();
-    if (!caixaSessaoId) throw new Error("Nenhuma sessão de caixa aberta.");
+    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
 
     const payload = collectFechamentoPayload();
 
-    try {
-      const response = await request(`/api/caixa/sessoes/${caixaSessaoId}/fechar`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    const result = await request(`/api/caixa/sessoes/${caixaSessaoId}/fechar`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
 
-      state.caixaAtual = response.caixa_sessao || null;
-      state.caixaResumo = null;
-      renderCaixa();
-      closeAllModals();
-      resetModalFecharCaixa();
-      showAlert(response.mensagem || "Caixa fechado com sucesso.", "success");
-    } catch (error) {
-      const msg = String(error.message || "");
-      if (
-        msg.includes("Motivo da diferença no fechamento é obrigatório") ||
-        msg.includes("Senha do gerente é obrigatória") ||
-        msg.includes("Gerente autorizador")
-      ) {
-        showEl(els.caixaFechamentoDivergenciaBox);
-        showAlert("O fechamento exige motivo e autorização gerencial.", "warning");
-        return;
-      }
-      throw error;
+    if (result?.caixa_sessao) {
+      state.caixaAtual = result.caixa_sessao;
+      await carregarResumoCaixa();
     }
+
+    closeAllModals();
+    showAlert(result?.mensagem || "Caixa fechado.", "success");
+    renderCaixa();
+    renderControlsState();
   }
 
   async function openFecharCaixaModal() {
-    if (!hasCaixaAberto()) throw new Error("Não existe caixa aberto para fechamento.");
+    if (!hasCaixaAberto()) throw new Error("Não há caixa aberto para fechar.");
+
     resetModalFecharCaixa();
-    const caixaSessaoId = getCaixaSessaoId();
-    if (caixaSessaoId) await carregarResumoCaixa(caixaSessaoId);
-    setText(els.caixaFechamentoSaldoEsperado, formatMoney(state.caixaResumo?.saldo_dinheiro_esperado || 0));
+
+    if (els.caixaFechamentoSaldoEsperado) {
+      setText(els.caixaFechamentoSaldoEsperado, formatMoney(state.caixaResumo?.saldo_dinheiro_esperado ?? 0));
+    }
+
     openModal(els.modalFecharCaixa);
   }
 
-  function bindModalSearch(button, config) {
-    button?.addEventListener("click", async () => {
+  function bindModalSearch(buttonEl, config) {
+    buttonEl?.addEventListener("click", async () => {
       try {
         await handleSearchUsers(config);
       } catch (error) {
@@ -869,6 +1073,51 @@
     els.btnFecharCaixa?.addEventListener("click", async () => {
       try {
         await openFecharCaixaModal();
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnAtualizarProducao?.addEventListener("click", async () => {
+      try {
+        await carregarProducaoPronta();
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.producaoLista?.addEventListener("click", async (event) => {
+      const btn = event.target?.closest?.('[data-action="puxar-producao"]');
+      if (!btn) return;
+
+      try {
+        const producaoId = btn.getAttribute("data-producao-id");
+        if (!producaoId) throw new Error("Produção inválida.");
+        await puxarProducaoParaVenda(producaoId);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnAplicarDesconto?.addEventListener("click", async () => {
+      try {
+        await aplicarDesconto(els.descontoInput?.value);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnZerarDesconto?.addEventListener("click", async () => {
+      try {
+        await zerarDesconto();
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnFinalizarVenda?.addEventListener("click", async () => {
+      try {
+        await finalizarVendaAtual();
       } catch (error) {
         showAlert(error.message, "danger");
       }
@@ -996,12 +1245,20 @@
   async function init() {
     renderCaixa();
     renderVenda();
+    syncValorPagamento();
     bindEvents();
+    bindFloatingActions();
 
     try {
       await carregarCaixaAtual();
     } catch (error) {
       console.warn("Falha ao carregar caixa atual:", error);
+    }
+
+    try {
+      await carregarProducaoPronta();
+    } catch (error) {
+      console.warn("Falha ao carregar prontos da produção:", error);
     }
   }
 

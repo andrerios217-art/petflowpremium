@@ -17,7 +17,7 @@ router = APIRouter(tags=["Agenda Grooming"])
 
 def _get_week_range(data_ref: date):
     inicio = data_ref - timedelta(days=data_ref.weekday())
-    fim = inicio + timedelta(days=5)  # segunda a sábado
+    fim = inicio + timedelta(days=5)
     return inicio, fim
 
 
@@ -327,14 +327,6 @@ def criar_agendamento(
             )
             db.add(agendamento_servico)
 
-        db.flush()
-
-        crud_producao.criar_ordem_se_nao_existir(
-            db=db,
-            agendamento=novo_agendamento,
-            commit=False,
-        )
-
         db.commit()
         db.refresh(novo_agendamento)
 
@@ -342,8 +334,20 @@ def criar_agendamento(
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Erro ao salvar agendamento e enviar para produção: {str(error)}"
+            detail=f"Erro ao salvar agendamento: {str(error)}"
         )
+
+    try:
+        crud_producao.criar_ordem_se_nao_existir(
+            db=db,
+            agendamento=novo_agendamento,
+            commit=True,
+        )
+    except Exception as error:
+        return {
+            "warning": f"Agendamento salvo, mas houve falha ao enviar para produção: {str(error)}",
+            "agendamento": _serialize_agendamento(db, novo_agendamento),
+        }
 
     return _serialize_agendamento(db, novo_agendamento)
 

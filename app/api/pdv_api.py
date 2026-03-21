@@ -13,11 +13,14 @@ from app.crud.pdv import (
     checkout_venda,
     criar_venda,
     listar_atendimentos_prontos,
+    listar_producao_prontos,
+    enviar_producao_para_pdv,
     listar_vendas,
     obter_venda,
     remover_item,
 )
 from app.models.atendimento_clinico import AtendimentoClinico
+from app.models.producao import Producao
 from app.models.pdv_pagamento import PdvPagamento
 from app.models.pdv_venda import PdvVenda
 from app.models.pdv_venda_item import PdvVendaItem
@@ -28,6 +31,8 @@ from app.schemas.pdv import (
     PdvCheckoutRequest,
     PdvClienteBuscaOut,
     PdvOperacaoResponse,
+    PdvProducaoProntoOut,
+    PdvVendaProducaoCreate,
     PdvVendaCreate,
     PdvVendaItemAdd,
     PdvVendaListOut,
@@ -174,6 +179,53 @@ def _serializar_operador(usuario: Usuario):
     }
 
 
+def _descricao_producao(producao: Producao) -> str:
+    agendamento = getattr(producao, "agendamento", None)
+    pet = getattr(agendamento, "pet", None) if agendamento else None
+    pet_nome = getattr(pet, "nome", None) if pet else None
+
+    nomes = []
+    for item in getattr(agendamento, "servicos_agendamento", []) or []:
+        servico = getattr(item, "servico", None)
+        nome_servico = (getattr(servico, "nome", None) or "").strip() if servico else ""
+        if nome_servico:
+            nomes.append(nome_servico)
+
+    descricao_base = ", ".join(nomes[:5]) if nomes else "Serviços petshop"
+    if len(nomes) > 5:
+        descricao_base += ", ..."
+
+    if pet_nome:
+        return f"{descricao_base} - {pet_nome}"
+    return descricao_base
+
+
+def _total_producao(producao: Producao) -> Decimal:
+    total = Decimal("0.00")
+    agendamento = getattr(producao, "agendamento", None)
+    for item in getattr(agendamento, "servicos_agendamento", []) or []:
+        total += Decimal(str(getattr(item, "preco", 0) or 0))
+    return total
+
+
+def _serializar_producao_pronta(producao: Producao):
+    agendamento = getattr(producao, "agendamento", None)
+    cliente = getattr(agendamento, "cliente", None) if agendamento else None
+    pet = getattr(agendamento, "pet", None) if agendamento else None
+
+    return {
+        "producao_id": producao.id,
+        "agendamento_id": getattr(producao, "agendamento_id", None),
+        "cliente_id": getattr(agendamento, "cliente_id", None),
+        "cliente_nome": getattr(cliente, "nome", None),
+        "pet_nome": getattr(pet, "nome", None) if pet else None,
+        "descricao": _descricao_producao(producao),
+        "valor_total": _to_float(_total_producao(producao)),
+        "finalizado": bool(getattr(producao, "finalizado", False)),
+        "enviado_pdv": bool(getattr(producao, "enviado_pdv", False)),
+    }
+
+
 @router.get("/operadores")
 def listar_operadores_pdv(
     empresa_id: int = Query(..., ge=1),
@@ -207,7 +259,6 @@ def listar_operadores_pdv(
         .limit(limite)
         .all()
     )
-
     return [_serializar_operador(usuario) for usuario in operadores]
 
 
@@ -234,6 +285,25 @@ def listar_atendimentos_prontos_pdv(
         cliente_id=cliente_id,
     )
     return [_serializar_atendimento_pronto(atendimento) for atendimento in atendimentos]
+
+
+@router.get("/producao/prontos", response_model=list[PdvProducaoProntoOut])
+def listar_producao_prontos_pdv(
+    empresa_id: int = Query(..., ge=1),
+    cliente_id: int | None = Query(None, ge=1),
+    db: Session = Depends(get_db),
+):
+    producoes = listar_producao_prontos(db, empresa_id=empresa_id, cliente_id=cliente_id)
+    return [_serializar_producao_pronta(p) for p in producoes]
+
+
+@router.post("/vendas/producao", response_model=PdvVendaOut)
+def enviar_producao_pdv(
+    payload: PdvVendaProducaoCreate,
+    db: Session = Depends(get_db),
+):
+    venda = enviar_producao_para_pdv(db, payload)
+    return _serializar_venda(venda)
 
 
 @router.post("/vendas", response_model=PdvVendaOut)

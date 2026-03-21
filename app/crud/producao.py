@@ -89,11 +89,9 @@ def buscar_por_id(db: Session, producao_id: int):
 def _servico_principal_id(ordem: Producao) -> Optional[int]:
     if not ordem.agendamento or not ordem.agendamento.servicos_agendamento:
         return None
-
     primeiro_item = ordem.agendamento.servicos_agendamento[0]
     if not primeiro_item or not primeiro_item.servico:
         return None
-
     return primeiro_item.servico.id
 
 
@@ -103,19 +101,14 @@ def _calcular_tempo_gasto_minutos(
 ) -> Optional[int]:
     if not iniciado_em or not finalizado_em:
         return None
-
     inicio_utc = _normalizar_datetime_utc(iniciado_em)
     fim_utc = _normalizar_datetime_utc(finalizado_em)
-
     if not inicio_utc or not fim_utc:
         return None
-
     delta = fim_utc - inicio_utc
     total_minutos = int(delta.total_seconds() // 60)
-
     if total_minutos < 0:
         return 0
-
     return total_minutos
 
 
@@ -167,29 +160,23 @@ def _finalizar_historico_etapa(
     historico = _buscar_historico_aberto(db, ordem.id, etapa)
     if not historico:
         return None
-
     agora = _agora_utc()
     historico.finalizado_em = agora
     historico.status = "FINALIZADO"
     historico.tempo_gasto_minutos = _calcular_tempo_gasto_minutos(historico.iniciado_em, agora)
-
     if observacoes:
         historico.observacoes = _mesclar_texto_existente(historico.observacoes, observacoes)
-
     if intercorrencia:
         historico.intercorrencia = _mesclar_texto_existente(historico.intercorrencia, intercorrencia)
-
     return historico
 
 
 def _garantir_historico_iniciado(db: Session, ordem: Producao, funcionario_id: Optional[int] = None):
     historico_aberto = _buscar_historico_aberto(db, ordem.id, ordem.coluna)
-
     if historico_aberto:
         if funcionario_id and historico_aberto.funcionario_id is None:
             historico_aberto.funcionario_id = funcionario_id
         return historico_aberto
-
     return _criar_historico_etapa(
         db=db,
         ordem=ordem,
@@ -202,7 +189,6 @@ def _garantir_historico_iniciado(db: Session, ordem: Producao, funcionario_id: O
 def _validar_pode_iniciar(ordem: Producao):
     if ordem.finalizado:
         raise ValueError("Esta ordem de produção já foi finalizada.")
-
     status = StringStatus(ordem.etapa_status)
     if status == "EM_EXECUCAO":
         raise ValueError("Esta etapa já foi iniciada.")
@@ -213,13 +199,10 @@ def _validar_pode_iniciar(ordem: Producao):
 def _validar_pode_avancar(ordem: Producao):
     if ordem.finalizado:
         raise ValueError("Esta ordem de produção já foi finalizada.")
-
     coluna = StringStatus(ordem.coluna)
     status = StringStatus(ordem.etapa_status)
-
     if coluna == "SECAGEM":
         return
-
     if status != "EM_EXECUCAO":
         raise ValueError("Esta etapa precisa ser iniciada antes de avançar.")
 
@@ -247,7 +230,6 @@ def criar_ordem_se_nao_existir(db: Session, agendamento: Agendamento, commit: bo
     db.add(ordem)
     db.commit()
     db.refresh(ordem)
-
     return buscar_por_id(db, ordem.id)
 
 
@@ -276,25 +258,21 @@ def iniciar_etapa(db: Session, ordem: Producao, funcionario_id: int):
 def _montar_intercorrencias(intercorrencias, descricao_intercorrencia):
     itens = intercorrencias or []
     texto = ", ".join(itens).strip()
-
     if descricao_intercorrencia:
         if texto:
             texto += f" | OUTROS: {descricao_intercorrencia}"
         else:
             texto = f"OUTROS: {descricao_intercorrencia}"
-
     return texto or None
 
 
 def _mesclar_texto_existente(texto_atual: Optional[str], novo_texto: Optional[str]) -> Optional[str]:
     atual = (texto_atual or "").strip()
     novo = (novo_texto or "").strip()
-
     if atual and novo:
         return f"{atual}\n{novo}"
     if novo:
         return novo
-
     return atual or None
 
 
@@ -329,7 +307,6 @@ def proxima_coluna_automatica(
 def proximo_destino_preview(ordem: Producao) -> Optional[str]:
     if ordem.coluna == "BANHO":
         return None
-
     try:
         return proxima_coluna_automatica(ordem, usar_secagem=False)
     except ValueError:
@@ -349,7 +326,6 @@ def _obter_competencia(ordem: Producao) -> date:
 def _buscar_configuracao_comissao(db: Session, empresa_id: Optional[int]) -> Optional[ComissaoConfiguracao]:
     if not empresa_id:
         return None
-
     return (
         db.query(ComissaoConfiguracao)
         .filter(ComissaoConfiguracao.empresa_id == empresa_id)
@@ -360,18 +336,13 @@ def _buscar_configuracao_comissao(db: Session, empresa_id: Optional[int]) -> Opt
 def _pontos_da_etapa(config: Optional[ComissaoConfiguracao], etapa: str) -> int:
     if not config:
         return 0
-
     etapa_normalizada = StringStatus(etapa)
-
     if etapa_normalizada == "BANHO":
         return int(config.pontos_banho or 0)
-
     if etapa_normalizada == "TOSA":
         return int(config.pontos_tosa or 0)
-
     if etapa_normalizada == "FINALIZACAO_BANHO":
         return int(config.pontos_finalizacao or 0)
-
     return 0
 
 
@@ -383,7 +354,6 @@ def _capturar_comissao_etapa(
 ):
     if not _etapa_eh_comissionavel(etapa):
         return None
-
     if not historico_finalizado:
         return None
 
@@ -403,7 +373,6 @@ def _capturar_comissao_etapa(
         )
         .first()
     )
-
     if lancamento_existente:
         return lancamento_existente
 
@@ -439,6 +408,7 @@ def mover_para_proxima_etapa(
 
     etapa_atual = ordem.coluna
     destino = proxima_coluna_automatica(ordem, usar_secagem=usar_secagem)
+
     texto_intercorrencias = _montar_intercorrencias(
         intercorrencias,
         descricao_intercorrencia,
@@ -505,6 +475,14 @@ def mover_para_proxima_etapa(
         ordem.finalizado = True
         ordem.etapa_status = "CONCLUIDO"
         ordem.agendamento.status = "FINALIZADO"
+
+        # Integração PDV: produção finalizada aguarda cobrança no PDV
+        if hasattr(ordem, "aguardando_pdv"):
+            ordem.aguardando_pdv = True
+        if hasattr(ordem, "enviado_pdv"):
+            ordem.enviado_pdv = False
+        if hasattr(ordem, "enviado_pdv_em"):
+            ordem.enviado_pdv_em = None
 
     else:
         historico_finalizado = _finalizar_historico_etapa(

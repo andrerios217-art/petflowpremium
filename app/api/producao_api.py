@@ -102,10 +102,15 @@ def montar_card(ordem):
         "secagem_tempo": ordem.secagem_tempo,
         "secagem_inicio": ordem.secagem_inicio,
         "finalizado": ordem.finalizado,
+        "aguardando_pdv": bool(getattr(ordem, "aguardando_pdv", False)),
+        "enviado_pdv": bool(getattr(ordem, "enviado_pdv", False)),
+        "enviado_pdv_em": getattr(ordem, "enviado_pdv_em", None),
         "pet_nome": ag.pet.nome if ag and ag.pet else None,
         "pet_foto": getattr(ag.pet, "foto", None) if ag and ag.pet else None,
         "tutor_nome": ag.cliente.nome if ag and ag.cliente else None,
-        "servicos": [item.servico.nome for item in ag.servicos_agendamento if item.servico],
+        "cliente_id": ag.cliente_id if ag else None,
+        "empresa_id": ag.empresa_id if ag else None,
+        "servicos": [item.servico.nome for item in ag.servicos_agendamento if item.servico] if ag else [],
         "funcionario_nome": ordem.funcionario.nome if ordem.funcionario else None,
         "status_agendamento": ag.status if ag else None,
         "observacoes": ordem.observacoes,
@@ -118,6 +123,30 @@ def montar_card(ordem):
 def listar_producao(empresa_id: int, db: Session = Depends(get_db)):
     ordens = crud_producao.listar_cards(db, empresa_id)
     return [montar_card(o) for o in ordens]
+
+
+@router.get("/prontos-pdv")
+def listar_prontos_pdv(empresa_id: int, db: Session = Depends(get_db)):
+    if not hasattr(crud_producao, "listar_prontos_para_pdv"):
+        raise HTTPException(
+            status_code=500,
+            detail="O CRUD da produção ainda não implementa listar_prontos_para_pdv.",
+        )
+
+    ordens = crud_producao.listar_prontos_para_pdv(db, empresa_id)
+    return [montar_card(o) for o in ordens]
+
+
+@router.post("/{producao_id}/marcar-enviado-pdv")
+def marcar_enviado_pdv(producao_id: int, db: Session = Depends(get_db)):
+    if not hasattr(crud_producao, "marcar_enviado_pdv"):
+        raise HTTPException(
+            status_code=500,
+            detail="O CRUD da produção ainda não implementa marcar_enviado_pdv.",
+        )
+
+    ordem = crud_producao.marcar_enviado_pdv(db, producao_id)
+    return montar_card(ordem)
 
 
 @router.post("/criar-por-agendamento/{agendamento_id}", response_model=ProducaoCardResponse)
