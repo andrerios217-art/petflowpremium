@@ -6,6 +6,7 @@
     vendaAtual: null,
     clientesEncontrados: [],
     producaoPronta: [],
+    atendimentosProntos: [],
     operadores: [],
   };
 
@@ -45,7 +46,7 @@
     valorPagamento: document.getElementById("pdv-valor-pagamento"),
     btnFinalizarVenda: document.getElementById("btn-finalizar-venda"),
 
-    descontoInput: document.getElementById("pdv-desconto-input"),
+    descontoPercent: document.getElementById("pdv-desconto-percent"),
     btnAplicarDesconto: document.getElementById("btn-aplicar-desconto"),
     btnZerarDesconto: document.getElementById("btn-zerar-desconto"),
 
@@ -66,6 +67,9 @@
 
     producaoLista: document.getElementById("pdv-producao-lista"),
     btnAtualizarProducao: document.getElementById("btn-atualizar-producao"),
+
+    atendimentosLista: document.getElementById("pdv-atendimentos-lista"),
+    btnAtualizarAtendimentos: document.getElementById("btn-atualizar-atendimentos"),
 
     modalOverlay: document.getElementById("pdv-modal-overlay"),
     modalAbrirCaixa: document.getElementById("modal-abrir-caixa"),
@@ -568,8 +572,11 @@
     setText(els.totalDesconto, formatMoney(venda?.desconto_valor || 0));
     setText(els.totalAcrescimo, formatMoney(venda?.acrescimo_valor || 0));
     setText(els.totalFinal, formatMoney(venda?.valor_total || 0));
-    if (els.descontoInput) {
-      setValue(els.descontoInput, venda ? toNumber(venda.desconto_valor, 0).toFixed(2) : "");
+    if (els.descontoPercent) {
+      const subtotal = toNumber(venda?.subtotal || 0, 0);
+      const desc = toNumber(venda?.desconto_valor || 0, 0);
+      const pct = subtotal > 0 ? (desc / subtotal) * 100 : 0;
+      setValue(els.descontoPercent, venda ? pct.toFixed(2) : "");
     }
     syncValorPagamento();
     renderControlsState();
@@ -648,20 +655,28 @@
     setDisabled(els.btnZerarDesconto, !hasVendaAberta());
   }
 
-  async function aplicarDesconto(valor) {
+  async function aplicarDescontoPercentual(percentValue) {
     if (!hasVendaAberta()) throw new Error("Abra uma venda antes de aplicar desconto.");
 
-    const vendaId = state.vendaAtual.id;
+    const venda = state.vendaAtual;
+    const vendaId = venda.id;
+
+    const pct = requireNonNegativeNumber(percentValue, "Informe um desconto válido.");
+    if (pct > 100) throw new Error("Desconto não pode ser maior que 100%.");
+
+    const subtotal = toNumber(venda.subtotal, 0);
+    const descontoValor = Math.max(0, Math.min(subtotal, (subtotal * pct) / 100));
+
     const payload = {
-      desconto_valor: requireNonNegativeNumber(valor, "Informe um desconto válido."),
+      desconto_valor: Number(descontoValor.toFixed(2)),
     };
 
-    const venda = await request(`/api/pdv/vendas/${vendaId}`, {
+    const vendaAtualizada = await request(`/api/pdv/vendas/${vendaId}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
 
-    state.vendaAtual = venda;
+    state.vendaAtual = vendaAtualizada;
     renderVenda();
     showAlert("Desconto aplicado.", "success");
   }
@@ -676,7 +691,7 @@
     });
 
     state.vendaAtual = venda;
-    if (els.descontoInput) setValue(els.descontoInput, "0.00");
+    if (els.descontoPercent) setValue(els.descontoPercent, "0.00");
     renderVenda();
     showAlert("Desconto zerado.", "success");
   }
@@ -691,7 +706,8 @@
     const formaPagamento = String(els.formaPagamento?.value || "DINHEIRO").trim() || "DINHEIRO";
     const valor = toNumber(venda.valor_total, 0);
 
-    if (valor <= 0) throw new Error("A venda precisa ter um total maior que zero.");
+    // permite baixa de venda zerada (retorno/cortesia)
+    if (valor < 0) throw new Error("Total inválido.");
 
     const payload = {
       pagamento: {
@@ -705,8 +721,15 @@
       body: JSON.stringify(payload),
     });
 
-    const vendaAtualizada = result?.venda || result;
-    state.vendaAtual = vendaAtualizada;
+    // ✅ NOVO: após finalizar, PDV volta vazio (não mantém venda fechada)
+    state.vendaAtual = null;
+
+    // ✅ NOVO: limpa busca/resultado para não confundir operador
+    if (els.buscaProduto) setValue(els.buscaProduto, "");
+    if (els.produtosResultado) {
+      setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
+    }
+    if (els.descontoPercent) setValue(els.descontoPercent, "");
 
     renderVenda();
     renderControlsState();
@@ -716,6 +739,14 @@
       await carregarResumoCaixa();
     } catch (error) {
       console.warn("Falha ao recarregar resumo do caixa:", error);
+    }
+
+    // ✅ NOVO: atualiza listas de prontos após finalizar
+    try {
+      await carregarProducaoPronta();
+      await carregarAtendimentosProntos();
+    } catch (error) {
+      console.warn("Falha ao atualizar prontos após finalizar:", error);
     }
   }
 
@@ -799,6 +830,116 @@
     }
 
     return venda;
+  }
+
+  function renderAtendimentosLista() {
+    if (!els.atendimentosLista) return;
+
+    const itens = state.atendimentosProntos || [];
+    if (!itens.length) {
+      setHtml(els.atendimentosLista, `<div class="pdv-empty-state">Nenhum atendimento pronto.</div>`);
+      return;
+    }
+
+    setHtml(
+      els.atendimentosLista,
+      itens
+        .map((a) => {
+          const cliente = escapeHtml(a.cliente_nome || "Cliente");
+          const pet = a.pet_nome ? ` - ${escapeHtml(a.pet_nome)}` : "";
+          const descricao = escapeHtml(a.descricao || "Atendimento");
+          const valor = formatMoney(a.valor_total || 0);
+
+          return `
+          <div class="pdv-producao-item">
+            <div class="pdv-producao-item__info">
+              <strong>${cliente}${pet}</strong>
+              <div class="pdv-muted">${descricao}</div>
+            </div>
+            <div class="pdv-producao-item__actions">
+              <strong>${valor}</strong>
+              <button
+                type="button"
+                class="pdv-btn pdv-btn-primary"
+                data-action="adicionar-atendimento"
+                data-atendimento-id="${escapeHtml(a.atendimento_id)}"
+                data-cliente-id="${escapeHtml(a.cliente_id)}"
+              >
+                Adicionar
+              </button>
+            </div>
+          </div>
+        `;
+        })
+        .join("")
+    );
+  }
+
+  async function carregarAtendimentosProntos() {
+    const empresaId = getEmpresaId();
+    const data = await request(`/api/pdv/atendimentos/prontos?empresa_id=${empresaId}`);
+    state.atendimentosProntos = Array.isArray(data) ? data : [];
+    renderAtendimentosLista();
+    return state.atendimentosProntos;
+  }
+
+  async function criarVendaParaCliente(clienteId) {
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
+    const empresaId = getEmpresaId();
+    const caixaSessaoId = getCaixaSessaoId();
+    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
+
+    const venda = await request("/api/pdv/vendas", {
+      method: "POST",
+      body: JSON.stringify({
+        empresa_id: empresaId,
+        caixa_sessao_id: caixaSessaoId,
+        modo_cliente: "REGISTERED_CLIENT",
+        cliente_id: Number(clienteId),
+      }),
+    });
+
+    state.vendaAtual = venda;
+    renderVenda();
+    renderControlsState();
+    return venda;
+  }
+
+  async function adicionarAtendimentoNaVenda(atendimentoId, clienteId) {
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
+
+    if (!hasVendaAberta()) {
+      await criarVendaParaCliente(clienteId);
+    }
+
+    if (!hasVendaAberta()) throw new Error("Não foi possível abrir uma venda.");
+
+    if (state.vendaAtual.modo_cliente !== "REGISTERED_CLIENT") {
+      throw new Error("Atendimento veterinário exige venda com cliente cadastrado.");
+    }
+    if (Number(state.vendaAtual.cliente_id) !== Number(clienteId)) {
+      throw new Error("Esse atendimento é de outro cliente. Finalize/cancele a venda atual e tente novamente.");
+    }
+
+    const vendaId = state.vendaAtual.id;
+
+    const vendaAtualizada = await request(`/api/pdv/vendas/${vendaId}/itens`, {
+      method: "POST",
+      body: JSON.stringify({
+        tipo_item: "SERVICE",
+        atendimento_clinico_id: Number(atendimentoId),
+      }),
+    });
+
+    state.vendaAtual = vendaAtualizada;
+    renderVenda();
+    renderControlsState();
+    showAlert("Atendimento adicionado na venda.", "success");
+
+    state.atendimentosProntos = (state.atendimentosProntos || []).filter(
+      (x) => Number(x.atendimento_id) !== Number(atendimentoId)
+    );
+    renderAtendimentosLista();
   }
 
   function bindFloatingActions() {
@@ -1086,6 +1227,14 @@
       }
     });
 
+    els.btnAtualizarAtendimentos?.addEventListener("click", async () => {
+      try {
+        await carregarAtendimentosProntos();
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
     els.producaoLista?.addEventListener("click", async (event) => {
       const btn = event.target?.closest?.('[data-action="puxar-producao"]');
       if (!btn) return;
@@ -1099,9 +1248,23 @@
       }
     });
 
+    els.atendimentosLista?.addEventListener("click", async (event) => {
+      const btn = event.target?.closest?.('[data-action="adicionar-atendimento"]');
+      if (!btn) return;
+
+      try {
+        const atendimentoId = btn.getAttribute("data-atendimento-id");
+        const clienteId = btn.getAttribute("data-cliente-id");
+        if (!atendimentoId || !clienteId) throw new Error("Atendimento inválido.");
+        await adicionarAtendimentoNaVenda(atendimentoId, clienteId);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
     els.btnAplicarDesconto?.addEventListener("click", async () => {
       try {
-        await aplicarDesconto(els.descontoInput?.value);
+        await aplicarDescontoPercentual(els.descontoPercent?.value);
       } catch (error) {
         showAlert(error.message, "danger");
       }
@@ -1213,7 +1376,7 @@
 
     bindModalSearch(els.btnBuscarGerenteSuprimento, {
       inputEl: els.caixaGerenteSuprimentoBusca,
-      listEl: els.caixaGerenteSuprimentoLista,
+      listEl: els.caixaGerenteSuprimentoOperadorLista,
       idEl: els.caixaGerenteSuprimentoId,
       nameEl: els.caixaGerenteSuprimentoNome,
       onlyManager: true,
@@ -1257,8 +1420,9 @@
 
     try {
       await carregarProducaoPronta();
+      await carregarAtendimentosProntos();
     } catch (error) {
-      console.warn("Falha ao carregar prontos da produção:", error);
+      console.warn("Falha ao carregar prontos (produção/atendimentos):", error);
     }
   }
 

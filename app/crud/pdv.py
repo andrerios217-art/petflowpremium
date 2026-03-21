@@ -277,12 +277,7 @@ def _atualizar_snapshots_cliente(venda: PdvVenda):
     venda.updated_at = _agora_utc()
 
 
-def _gerar_financeiro_recebido_para_venda(
-    db: Session,
-    venda: PdvVenda,
-    forma_pagamento: str,
-    valor: Decimal,
-):
+def _gerar_financeiro_recebido_para_venda(db: Session, venda: PdvVenda, forma_pagamento: str, valor: Decimal):
     receber_existente = (
         db.query(FinanceiroReceber)
         .filter(
@@ -378,6 +373,8 @@ def _registrar_movimento_estorno(db: Session, venda: PdvVenda, forma_pagamento: 
     db.flush()
     return movimento
 
+
+# -------------------- BUSCAS / LISTAGENS --------------------
 
 def buscar_clientes(db: Session, empresa_id: int, termo: str, limite: int = 20) -> list[Cliente]:
     _get_empresa_or_404(db, empresa_id)
@@ -477,9 +474,12 @@ def listar_producao_prontos(db: Session, empresa_id: int, cliente_id: int | None
     return query.all()
 
 
+# -------------------- PRODUÇÃO -> PDV --------------------
+
 def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> PdvVenda:
     _get_empresa_or_404(db, payload.empresa_id)
 
+    # trava somente producao (sem outer join)
     producao_lock = (
         db.query(Producao)
         .filter(Producao.id == payload.producao_id)
@@ -489,6 +489,7 @@ def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> Pd
     if not producao_lock:
         raise HTTPException(status_code=404, detail="Produção não encontrada.")
 
+    # recarrega com selectinload
     producao = (
         db.query(Producao)
         .options(
@@ -574,6 +575,8 @@ def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> Pd
     db.commit()
     return _recarregar_venda(db, venda.id)
 
+
+# -------------------- VENDAS --------------------
 
 def criar_venda(db: Session, payload: PdvVendaCreate) -> PdvVenda:
     _get_empresa_or_404(db, payload.empresa_id)
@@ -676,9 +679,7 @@ def adicionar_item(db: Session, venda_id: int, payload: PdvVendaItemAdd) -> PdvV
         _validar_atendimento_disponivel_para_pdv(db, atendimento, venda)
 
         valor_total = _calcular_total_atendimento(atendimento)
-        if valor_total <= Decimal("0.00"):
-            raise HTTPException(status_code=400, detail="Atendimento sem valor faturável para PDV.")
-
+        # PERMITIR 0.00 (retorno veterinário/cortesia)
         item.definir_como_servico(
             atendimento_clinico_id=atendimento.id,
             descricao_snapshot=_descricao_atendimento(atendimento),
@@ -714,7 +715,10 @@ def remover_item(db: Session, venda_id: int, item_id: int) -> PdvVenda:
 
     item = (
         db.query(PdvVendaItem)
-        .filter(PdvVendaItem.id == item_id, PdvVendaItem.venda_id == venda.id)
+        .filter(
+            PdvVendaItem.id == item_id,
+            PdvVendaItem.venda_id == venda.id,
+        )
         .first()
     )
     if not item:
@@ -744,15 +748,35 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
     if payload.observacoes is not None:
         venda.observacoes = payload.observacoes
 
+    venda.recalcular_totais()
+    total = _decimal_2(venda.valor_total)
+
     pagamento_payload = payload.pagamento
     forma_pagamento = pagamento_payload.forma_pagamento
     valor_pago = _decimal_2(pagamento_payload.valor)
 
+    # permitir fechar venda zerada (retorno/cortesia)
+    if total == Decimal("0.00"):
+        if valor_pago != Decimal("0.00"):
+            raise HTTPException(status_code=400, detail="Venda zerada: valor pago deve ser 0,00.")
+
+        for item in venda.itens or []:
+            if item.tipo_item == "SERVICE" and item.atendimento_clinico_id:
+                atendimento = _get_atendimento_or_404(db, item.atendimento_clinico_id, for_update=True)
+                atendimento.enviado_pdv = True
+                atendimento.updated_at = _agora_utc()
+                db.add(atendimento)
+
+        usuario_fechamento_id = pagamento_payload.usuario_id or venda.usuario_abertura_id
+        venda.fechar(usuario_fechamento_id=usuario_fechamento_id)
+        db.add(venda)
+
+        db.commit()
+        return _recarregar_venda(db, venda.id)
+
+    # fluxo normal
     if valor_pago <= Decimal("0.00"):
         raise HTTPException(status_code=400, detail="Valor de pagamento inválido.")
-
-    venda.recalcular_totais()
-    total = _decimal_2(venda.valor_total)
     if valor_pago != total:
         raise HTTPException(status_code=400, detail="Nesta versão, valor pago deve ser igual ao total da venda.")
 
