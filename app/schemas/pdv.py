@@ -36,10 +36,8 @@ class PdvVendaCreate(BaseModel):
     def validar_cliente_por_modo(self):
         if self.modo_cliente == "REGISTERED_CLIENT" and not self.cliente_id:
             raise ValueError("cliente_id é obrigatório para venda com cliente cadastrado.")
-
         if self.modo_cliente == "WALK_IN" and self.cliente_id is not None:
             raise ValueError("Venda balcão não pode ter cliente_id informado.")
-
         return self
 
 
@@ -64,23 +62,17 @@ class PdvVendaItemAdd(BaseModel):
         if self.tipo_item == "SERVICE":
             if not self.atendimento_clinico_id:
                 raise ValueError("atendimento_clinico_id é obrigatório para item SERVICE.")
-
             if self.produto_id is not None:
                 raise ValueError("Item SERVICE não pode ter produto_id.")
-
         if self.tipo_item == "PRODUCT":
             if not self.produto_id:
                 raise ValueError("produto_id é obrigatório para item PRODUCT.")
-
             if self.atendimento_clinico_id is not None:
                 raise ValueError("Item PRODUCT não pode ter atendimento_clinico_id.")
-
             if self.valor_unitario is None:
                 raise ValueError("valor_unitario é obrigatório para item PRODUCT.")
-
             if not self.descricao_snapshot:
                 raise ValueError("descricao_snapshot é obrigatória para item PRODUCT.")
-
         return self
 
 
@@ -166,7 +158,6 @@ class PdvVendaOut(BaseModel):
     motivo_cancelamento: str | None = None
     created_at: datetime
     updated_at: datetime
-
     cliente: PdvClienteResumo | None = None
     itens: list[PdvVendaItemOut] = []
     pagamentos: list[PdvPagamentoOut] = []
@@ -221,3 +212,25 @@ class PdvOperacaoResponse(BaseModel):
     ok: bool = True
     mensagem: str
     venda: PdvVendaOut | None = None
+
+
+class PdvProducaoProntoOut(BaseModel):
+    producao_id: int
+    agendamento_id: int
+    cliente_id: int
+    cliente_nome: str
+    pet_nome: str | None = None
+    descricao: str
+    valor_total: Decimal
+    finalizado: bool
+    enviado_pdv: bool
+
+    class Config:
+        from_attributes = True
+
+
+class PdvVendaProducaoCreate(BaseModel):
+    empresa_id: int
+    caixa_sessao_id: int
+    producao_id: int
+    observacoes: str | None = None

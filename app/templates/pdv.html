@@ -138,6 +138,26 @@
           </div>
         </div>
 
+        <!-- ALTERADO: DESCONTO EM % (mantendo estética e layout) -->
+        <div class="pdv-discount-row">
+          <div class="pdv-field">
+            <label for="pdv-desconto-percent">Desconto (%)</label>
+            <input type="number" id="pdv-desconto-percent" min="0" max="100" step="0.01" placeholder="0,00" />
+          </div>
+
+          <div class="pdv-search-action">
+            <button type="button" id="btn-aplicar-desconto" class="pdv-btn">
+              Aplicar desconto
+            </button>
+          </div>
+
+          <div class="pdv-search-action">
+            <button type="button" id="btn-zerar-desconto" class="pdv-btn pdv-btn-danger">
+              Zerar
+            </button>
+          </div>
+        </div>
+
         <div class="pdv-payment-row">
           <div class="pdv-field">
             <label for="pdv-forma-pagamento">Forma de pagamento</label>
@@ -151,7 +171,7 @@
 
           <div class="pdv-field">
             <label for="pdv-valor-pagamento">Valor pago</label>
-            <input type="number" id="pdv-valor-pagamento" step="0.01" min="0" />
+            <input type="number" id="pdv-valor-pagamento" step="0.01" min="0" readonly />
           </div>
 
           <div class="pdv-search-action">
@@ -182,6 +202,24 @@
 
         <div id="pdv-producao-lista" class="pdv-producao-list">
           <div class="pdv-empty-state">Nenhum item pronto para cobrança.</div>
+        </div>
+      </div>
+
+      <!-- NOVO: ATENDIMENTOS VETERINÁRIOS -->
+      <div class="pdv-card">
+        <div class="pdv-card__header">
+          <div>
+            <h2>Atendimentos veterinários prontos</h2>
+            <p>Adicione na venda como serviço (cliente cadastrado).</p>
+          </div>
+
+          <button type="button" id="btn-atualizar-atendimentos" class="pdv-btn">
+            Atualizar
+          </button>
+        </div>
+
+        <div id="pdv-atendimentos-lista" class="pdv-producao-list">
+          <div class="pdv-empty-state">Nenhum atendimento pronto.</div>
         </div>
       </div>
     </aside>
@@ -765,6 +803,15 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    /* Mantém o grid do desconto exatamente como estava */
+    .pdv-discount-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 180px 120px;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: end;
+    }
+
     .pdv-field {
       display: flex;
       flex-direction: column;
@@ -980,7 +1027,8 @@
       .pdv-search-row,
       .pdv-payment-row,
       .pdv-form-grid,
-      .pdv-inline-search {
+      .pdv-inline-search,
+      .pdv-discount-row {
         grid-template-columns: 1fr;
       }
 
@@ -1001,4 +1049,3 @@
 
 <script src="{{ url_for('static', path='js/pdv.js') }}"></script>
 {% endblock %}
-
