@@ -78,7 +78,8 @@ class PdvVendaItemAdd(BaseModel):
 
 class PdvPagamentoCreate(BaseModel):
     forma_pagamento: FormaPagamentoLiteral
-    valor: Decimal = Field(gt=0)
+    # ALTERADO: permitir 0 para baixa de serviço zerado (retorno/cortesia)
+    valor: Decimal = Field(ge=0)
     referencia: str | None = None
     observacoes: str | None = None
     usuario_id: int | None = None

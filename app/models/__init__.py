@@ -14,6 +14,9 @@ from app.models.comissao_lancamento import ComissaoLancamento
 from app.models.configuracao import Configuracao
 from app.models.empresa import Empresa
 from app.models.endereco import Endereco
+from app.models.estoque_deposito import EstoqueDeposito
+from app.models.estoque_movimento import EstoqueMovimento
+from app.models.estoque_saldo import EstoqueSaldo
 from app.models.financeiro_pagar import FinanceiroPagar
 from app.models.financeiro_receber import FinanceiroReceber
 from app.models.funcionario import Funcionario
@@ -31,5 +34,8 @@ from app.models.pdv_venda import PdvVenda
 from app.models.pdv_venda_item import PdvVendaItem
 from app.models.producao import Producao
 from app.models.producao_historico import ProducaoHistorico
+from app.models.produto import Produto
+from app.models.produto_categoria import ProdutoCategoria
+from app.models.produto_codigo_barras import ProdutoCodigoBarras
 from app.models.servico import Servico
 from app.models.usuario import Usuario
