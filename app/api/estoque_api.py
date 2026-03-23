@@ -1,9 +1,9 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
+from app.core.deps import get_db
 from app.crud import estoque as estoque_crud
 from app.schemas.estoque import (
     EstoqueDepositoCreate,
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/estoque", tags=["Estoque"])
 
 def _empresa_id_header(x_empresa_id: Optional[int]) -> int:
     if not x_empresa_id:
-        raise ValueError("X-Empresa-Id é obrigatório")
+        raise HTTPException(status_code=400, detail="X-Empresa-Id é obrigatório.")
     return x_empresa_id
 
 

@@ -3,24 +3,28 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.core.database import Base, engine
+from app.models import *  # noqa
 import app.models  # noqa
 
 from app.api import auth, empresas, usuarios, configuracoes
+from app.api import agenda_api
 from app.api import clientes_api
+from app.api import funcionarios_api
 from app.api import pets_api
 from app.api import servicos_api
-from app.api import funcionarios_api
-from app.api import agenda_api
 from app.api.agenda_veterinaria_api import router as agenda_veterinaria_router
 from app.api.atendimento_clinico_api import router as atendimento_clinico_router
-from app.api.producao_api import router as producao_router
+from app.api.caixa_api import router as caixa_router
 from app.api.comissao import router as comissao_router
+from app.api.estoque_api import router as estoque_router
 from app.api.financeiro_api import router as financeiro_router
 from app.api.financeiro_dashboard import router as financeiro_dashboard_router
 from app.api.financeiro_pagar_api import router as financeiro_pagar_router
 from app.api.pdv_api import router as pdv_router
-from app.api.caixa_api import router as caixa_router
-from app.api.estoque_api import router as estoque_router
+from app.api.producao_api import router as producao_router
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Pet Flow Premium", version="1.0.0")
 
@@ -40,12 +44,12 @@ app.include_router(agenda_veterinaria_router)
 app.include_router(atendimento_clinico_router)
 app.include_router(producao_router)
 app.include_router(comissao_router)
+app.include_router(estoque_router)
 app.include_router(financeiro_router)
 app.include_router(financeiro_dashboard_router)
 app.include_router(financeiro_pagar_router)
 app.include_router(pdv_router)
 app.include_router(caixa_router)
-app.include_router(estoque_router)
 
 
 @app.get("/", response_class=HTMLResponse)
