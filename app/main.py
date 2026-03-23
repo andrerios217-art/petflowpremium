@@ -6,7 +6,6 @@ from fastapi.templating import Jinja2Templates
 from app.core.database import Base, engine
 from app.models import *  # noqa
 import app.models  # noqa
-
 from app.api import auth, empresas, usuarios, configuracoes
 from app.api import agenda_api
 from app.api import clientes_api
@@ -75,8 +74,7 @@ def clientes_form_page(request: Request):
 @app.get("/clientes/editar/{cliente_id}", response_class=HTMLResponse)
 def clientes_edit_page(request: Request, cliente_id: int):
     return templates.TemplateResponse(
-        "clientes_form.html",
-        {"request": request, "cliente_id": cliente_id},
+        "clientes_form.html", {"request": request, "cliente_id": cliente_id},
     )
 
 
@@ -113,8 +111,7 @@ def agenda_veterinaria_page(request: Request):
 @app.get("/atendimento-clinico/{agendamento_id}", response_class=HTMLResponse)
 def atendimento_clinico_page(request: Request, agendamento_id: int):
     return templates.TemplateResponse(
-        "atendimento_clinico.html",
-        {"request": request, "agendamento_id": agendamento_id},
+        "atendimento_clinico.html", {"request": request, "agendamento_id": agendamento_id},
     )
 
 
@@ -125,7 +122,14 @@ def producao_page(request: Request):
 
 @app.get("/estoque", response_class=HTMLResponse)
 def estoque_page(request: Request):
-    return templates.TemplateResponse("estoque.html", {"request": request})
+    empresa_id = request.query_params.get("empresa_id", "1")
+    return templates.TemplateResponse(
+        "estoque.html",
+        {
+            "request": request,
+            "empresa_id": empresa_id,
+        },
+    )
 
 
 @app.get("/financeiro", response_class=HTMLResponse)
@@ -172,8 +176,7 @@ def servicos_form_page(request: Request):
 @app.get("/servicos/editar/{servico_id}", response_class=HTMLResponse)
 def servicos_edit_page(request: Request, servico_id: int):
     return templates.TemplateResponse(
-        "servicos_form.html",
-        {"request": request, "servico_id": servico_id},
+        "servicos_form.html", {"request": request, "servico_id": servico_id},
     )
 
 
@@ -185,6 +188,5 @@ def funcionarios_form_page(request: Request):
 @app.get("/funcionarios/editar/{funcionario_id}", response_class=HTMLResponse)
 def funcionarios_edit_page(request: Request, funcionario_id: int):
     return templates.TemplateResponse(
-        "funcionarios_form.html",
-        {"request": request, "funcionario_id": funcionario_id},
+        "funcionarios_form.html", {"request": request, "funcionario_id": funcionario_id},
     )

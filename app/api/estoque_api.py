@@ -167,7 +167,7 @@ def relatorio_posicao_por_deposito(
     )
 
 
-@router.get("/relatorios/posicao-por-deposito/{deposito_id}.csv")
+@router.get("/relatorios/posicao-por-deposito/{deposito_id}/csv")
 def relatorio_posicao_por_deposito_csv(
     deposito_id: int,
     busca: Optional[str] = None,
