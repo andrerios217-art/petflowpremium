@@ -16,6 +16,7 @@ from app.schemas.estoque import (
     EstoqueDepositoUpdate,
     EstoqueMovimentoAjusteIn,
     EstoqueMovimentoEntradaManualIn,
+    EstoqueTransferenciaIn,
     ProdutoCategoriaCreate,
     ProdutoCategoriaUpdate,
     ProdutoCodigoBarrasCreate,
@@ -491,3 +492,101 @@ def registrar_ajuste_manual(
     db.commit()
     db.refresh(movimento)
     return movimento
+
+
+def registrar_transferencia(
+    db: Session,
+    empresa_id: int,
+    usuario_id: int | None,
+    payload: EstoqueTransferenciaIn,
+):
+    if payload.deposito_origem_id == payload.deposito_destino_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Depósito de origem e destino não podem ser iguais.",
+        )
+
+    _get_deposito_or_404(db, empresa_id, payload.deposito_origem_id)
+    _get_deposito_or_404(db, empresa_id, payload.deposito_destino_id)
+    _get_produto_or_404(db, empresa_id, payload.produto_id)
+
+    saldo_origem = _get_or_create_saldo(
+        db=db,
+        empresa_id=empresa_id,
+        deposito_id=payload.deposito_origem_id,
+        produto_id=payload.produto_id,
+    )
+
+    quantidade = Decimal(str(payload.quantidade))
+    saldo_origem_antes = Decimal(str(saldo_origem.quantidade_atual))
+    saldo_origem_depois = saldo_origem_antes - quantidade
+
+    if saldo_origem_depois < ZERO:
+        raise HTTPException(
+            status_code=400,
+            detail="Saldo insuficiente no depósito de origem.",
+        )
+
+    saldo_destino = _get_or_create_saldo(
+        db=db,
+        empresa_id=empresa_id,
+        deposito_id=payload.deposito_destino_id,
+        produto_id=payload.produto_id,
+    )
+
+    saldo_destino_antes = Decimal(str(saldo_destino.quantidade_atual))
+    saldo_destino_depois = saldo_destino_antes + quantidade
+
+    saldo_origem.quantidade_atual = saldo_origem_depois
+    saldo_destino.quantidade_atual = saldo_destino_depois
+
+    referencia = payload.documento_referencia
+    if not referencia:
+        referencia = (
+            f"TRANSF-{payload.deposito_origem_id}-"
+            f"{payload.deposito_destino_id}-{payload.produto_id}"
+        )
+
+    movimento_saida = EstoqueMovimento(
+        empresa_id=empresa_id,
+        deposito_id=payload.deposito_origem_id,
+        produto_id=payload.produto_id,
+        usuario_id=usuario_id,
+        tipo_movimento="SAIDA",
+        origem="TRANSFERENCIA",
+        origem_id=None,
+        quantidade=quantidade,
+        saldo_antes=saldo_origem_antes,
+        saldo_depois=saldo_origem_depois,
+        custo_unitario=None,
+        documento_referencia=referencia,
+        observacao=payload.observacao,
+    )
+
+    movimento_entrada = EstoqueMovimento(
+        empresa_id=empresa_id,
+        deposito_id=payload.deposito_destino_id,
+        produto_id=payload.produto_id,
+        usuario_id=usuario_id,
+        tipo_movimento="ENTRADA",
+        origem="TRANSFERENCIA",
+        origem_id=None,
+        quantidade=quantidade,
+        saldo_antes=saldo_destino_antes,
+        saldo_depois=saldo_destino_depois,
+        custo_unitario=None,
+        documento_referencia=referencia,
+        observacao=payload.observacao,
+    )
+
+    db.add(movimento_saida)
+    db.add(movimento_entrada)
+    db.commit()
+    db.refresh(movimento_saida)
+    db.refresh(movimento_entrada)
+
+    return {
+        "saida": movimento_saida,
+        "entrada": movimento_entrada,
+        "documento_referencia": referencia,
+    }

@@ -13,6 +13,7 @@ from app.schemas.estoque import (
     EstoqueMovimentoEntradaManualIn,
     EstoqueMovimentoOut,
     EstoqueSaldoOut,
+    EstoqueTransferenciaIn,
     ProdutoCategoriaCreate,
     ProdutoCategoriaOut,
     ProdutoCategoriaUpdate,
@@ -185,3 +186,14 @@ def registrar_ajuste_manual(
 ):
     empresa_id = _empresa_id_header(x_empresa_id)
     return estoque_crud.registrar_ajuste_manual(db, empresa_id, x_usuario_id, payload)
+
+
+@router.post("/movimentos/transferencia")
+def registrar_transferencia(
+    payload: EstoqueTransferenciaIn,
+    x_empresa_id: Optional[int] = Header(default=None, alias="X-Empresa-Id"),
+    x_usuario_id: Optional[int] = Header(default=None, alias="X-Usuario-Id"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = _empresa_id_header(x_empresa_id)
+    return estoque_crud.registrar_transferencia(db, empresa_id, x_usuario_id, payload)
