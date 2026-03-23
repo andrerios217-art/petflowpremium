@@ -192,3 +192,60 @@ class EstoqueTransferenciaIn(BaseModel):
     quantidade: Decimal = Field(..., gt=0)
     documento_referencia: Optional[str] = Field(default=None, max_length=120)
     observacao: Optional[str] = None
+
+
+class EstoqueInventarioIn(BaseModel):
+    deposito_id: int
+    produto_id: int
+    quantidade_contada: Decimal = Field(..., ge=0)
+    documento_referencia: Optional[str] = Field(default=None, max_length=120)
+    observacao: Optional[str] = None
+
+
+class EstoquePosicaoDepositoOut(BaseModel):
+    deposito_id: int
+    deposito_nome: str
+    quantidade: Decimal
+
+
+class EstoquePosicaoProdutoOut(BaseModel):
+    produto_id: int
+    sku: str
+    nome: str
+    unidade: str
+    saldo_total: Decimal
+    depositos: list[EstoquePosicaoDepositoOut]
+
+
+class EstoqueRelatorioPosicaoItemOut(BaseModel):
+    produto_id: int
+    sku: str
+    nome: str
+    unidade: str
+    estoque_minimo: Decimal
+    saldo_total: Decimal
+    abaixo_minimo: bool
+
+
+class EstoqueRelatorioPosicaoOut(BaseModel):
+    total_produtos: int
+    total_abaixo_minimo: int
+    itens: list[EstoqueRelatorioPosicaoItemOut]
+
+
+class EstoqueRelatorioDepositoItemOut(BaseModel):
+    produto_id: int
+    sku: str
+    nome: str
+    unidade: str
+    estoque_minimo: Decimal
+    quantidade: Decimal
+    abaixo_minimo: bool
+
+
+class EstoqueRelatorioDepositoOut(BaseModel):
+    deposito_id: int
+    deposito_nome: str
+    total_produtos: int
+    total_abaixo_minimo: int
+    itens: list[EstoqueRelatorioDepositoItemOut]

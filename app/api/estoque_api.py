@@ -1,6 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
@@ -9,10 +10,14 @@ from app.schemas.estoque import (
     EstoqueDepositoCreate,
     EstoqueDepositoOut,
     EstoqueDepositoUpdate,
+    EstoqueInventarioIn,
     EstoqueMovimentoAjusteIn,
     EstoqueMovimentoEntradaManualIn,
     EstoqueMovimentoOut,
     EstoqueMovimentoSaidaManualIn,
+    EstoquePosicaoProdutoOut,
+    EstoqueRelatorioDepositoOut,
+    EstoqueRelatorioPosicaoOut,
     EstoqueSaldoOut,
     EstoqueTransferenciaIn,
     ProdutoCategoriaCreate,
@@ -92,6 +97,100 @@ def obter_produto(
 ):
     empresa_id = _empresa_id_header(x_empresa_id)
     return estoque_crud.obter_produto(db, empresa_id, produto_id)
+
+
+@router.get("/posicao/{produto_id}", response_model=EstoquePosicaoProdutoOut)
+def obter_posicao_produto(
+    produto_id: int,
+    x_empresa_id: Optional[int] = Header(default=None, alias="X-Empresa-Id"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = _empresa_id_header(x_empresa_id)
+    return estoque_crud.obter_posicao_produto(db, empresa_id, produto_id)
+
+
+@router.get("/relatorios/posicao-resumida", response_model=EstoqueRelatorioPosicaoOut)
+def relatorio_posicao_resumida(
+    busca: Optional[str] = None,
+    somente_abaixo_minimo: bool = False,
+    x_empresa_id: Optional[int] = Header(default=None, alias="X-Empresa-Id"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = _empresa_id_header(x_empresa_id)
+    return estoque_crud.relatorio_posicao_resumida(
+        db=db,
+        empresa_id=empresa_id,
+        busca=busca,
+        somente_abaixo_minimo=somente_abaixo_minimo,
+    )
+
+
+@router.get("/relatorios/posicao-resumida.csv")
+def relatorio_posicao_resumida_csv(
+    busca: Optional[str] = None,
+    somente_abaixo_minimo: bool = False,
+    x_empresa_id: Optional[int] = Header(default=None, alias="X-Empresa-Id"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = _empresa_id_header(x_empresa_id)
+    csv_content = estoque_crud.gerar_csv_relatorio_posicao_resumida(
+        db=db,
+        empresa_id=empresa_id,
+        busca=busca,
+        somente_abaixo_minimo=somente_abaixo_minimo,
+    )
+
+    return StreamingResponse(
+        iter([csv_content]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="estoque_posicao_resumida.csv"'
+        },
+    )
+
+
+@router.get("/relatorios/posicao-por-deposito/{deposito_id}", response_model=EstoqueRelatorioDepositoOut)
+def relatorio_posicao_por_deposito(
+    deposito_id: int,
+    busca: Optional[str] = None,
+    somente_abaixo_minimo: bool = False,
+    x_empresa_id: Optional[int] = Header(default=None, alias="X-Empresa-Id"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = _empresa_id_header(x_empresa_id)
+    return estoque_crud.relatorio_posicao_por_deposito(
+        db=db,
+        empresa_id=empresa_id,
+        deposito_id=deposito_id,
+        busca=busca,
+        somente_abaixo_minimo=somente_abaixo_minimo,
+    )
+
+
+@router.get("/relatorios/posicao-por-deposito/{deposito_id}.csv")
+def relatorio_posicao_por_deposito_csv(
+    deposito_id: int,
+    busca: Optional[str] = None,
+    somente_abaixo_minimo: bool = False,
+    x_empresa_id: Optional[int] = Header(default=None, alias="X-Empresa-Id"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = _empresa_id_header(x_empresa_id)
+    csv_content = estoque_crud.gerar_csv_relatorio_posicao_por_deposito(
+        db=db,
+        empresa_id=empresa_id,
+        deposito_id=deposito_id,
+        busca=busca,
+        somente_abaixo_minimo=somente_abaixo_minimo,
+    )
+
+    return StreamingResponse(
+        iter([csv_content]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="estoque_posicao_deposito_{deposito_id}.csv"'
+        },
+    )
 
 
 @router.put("/produtos/{produto_id}", response_model=ProdutoOut)
@@ -209,3 +308,14 @@ def registrar_transferencia(
 ):
     empresa_id = _empresa_id_header(x_empresa_id)
     return estoque_crud.registrar_transferencia(db, empresa_id, x_usuario_id, payload)
+
+
+@router.post("/movimentos/inventario", response_model=EstoqueMovimentoOut)
+def registrar_inventario(
+    payload: EstoqueInventarioIn,
+    x_empresa_id: Optional[int] = Header(default=None, alias="X-Empresa-Id"),
+    x_usuario_id: Optional[int] = Header(default=None, alias="X-Usuario-Id"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = _empresa_id_header(x_empresa_id)
+    return estoque_crud.registrar_inventario(db, empresa_id, x_usuario_id, payload)
