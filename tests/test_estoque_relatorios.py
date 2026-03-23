@@ -1,7 +1,17 @@
+from app.core.deps import get_current_actor
 from app.crud import estoque as estoque_crud
 
 
-def test_relatorio_posicao_resumida_json(client, monkeypatch):
+def _override_actor_empresa_1():
+    return {
+        "tipo": "usuario",
+        "id": 1,
+        "empresa_id": 1,
+        "nome": "Admin Empresa 1",
+    }
+
+
+def test_relatorio_posicao_resumida_json(client, app, monkeypatch):
     def fake_relatorio_posicao_resumida(db, empresa_id, busca=None, somente_abaixo_minimo=False):
         assert empresa_id == 1
         assert busca is None
@@ -31,16 +41,14 @@ def test_relatorio_posicao_resumida_json(client, monkeypatch):
             ],
         }
 
+    app.dependency_overrides[get_current_actor] = _override_actor_empresa_1
     monkeypatch.setattr(
         estoque_crud,
         "relatorio_posicao_resumida",
         fake_relatorio_posicao_resumida,
     )
 
-    response = client.get(
-        "/api/estoque/relatorios/posicao-resumida",
-        headers={"X-Empresa-Id": "1"},
-    )
+    response = client.get("/api/estoque/relatorios/posicao-resumida")
 
     assert response.status_code == 200
     body = response.json()
@@ -53,8 +61,10 @@ def test_relatorio_posicao_resumida_json(client, monkeypatch):
     assert body["itens"][1]["produto_id"] == 2
     assert body["itens"][1]["abaixo_minimo"] is False
 
+    app.dependency_overrides.pop(get_current_actor, None)
 
-def test_relatorio_posicao_resumida_json_com_filtros(client, monkeypatch):
+
+def test_relatorio_posicao_resumida_json_com_filtros(client, app, monkeypatch):
     def fake_relatorio_posicao_resumida(db, empresa_id, busca=None, somente_abaixo_minimo=False):
         assert empresa_id == 1
         assert busca == "racao"
@@ -75,6 +85,7 @@ def test_relatorio_posicao_resumida_json_com_filtros(client, monkeypatch):
             ],
         }
 
+    app.dependency_overrides[get_current_actor] = _override_actor_empresa_1
     monkeypatch.setattr(
         estoque_crud,
         "relatorio_posicao_resumida",
@@ -82,8 +93,7 @@ def test_relatorio_posicao_resumida_json_com_filtros(client, monkeypatch):
     )
 
     response = client.get(
-        "/api/estoque/relatorios/posicao-resumida?busca=racao&somente_abaixo_minimo=true",
-        headers={"X-Empresa-Id": "1"},
+        "/api/estoque/relatorios/posicao-resumida?busca=racao&somente_abaixo_minimo=true"
     )
 
     assert response.status_code == 200
@@ -93,8 +103,10 @@ def test_relatorio_posicao_resumida_json_com_filtros(client, monkeypatch):
     assert body["total_abaixo_minimo"] == 1
     assert body["itens"][0]["sku"] == "RACAO-001"
 
+    app.dependency_overrides.pop(get_current_actor, None)
 
-def test_relatorio_posicao_resumida_csv(client, monkeypatch):
+
+def test_relatorio_posicao_resumida_csv(client, app, monkeypatch):
     csv_content = (
         "\ufeffproduto_id;sku;nome;unidade;estoque_minimo;saldo_total;abaixo_minimo\n"
         "1;RACAO-001;Ração Premium;UN;5.00;3.00;SIM\n"
@@ -106,24 +118,26 @@ def test_relatorio_posicao_resumida_csv(client, monkeypatch):
         assert somente_abaixo_minimo is False
         return csv_content
 
+    app.dependency_overrides[get_current_actor] = _override_actor_empresa_1
     monkeypatch.setattr(
         estoque_crud,
         "gerar_csv_relatorio_posicao_resumida",
         fake_gerar_csv,
     )
 
-    response = client.get(
-        "/api/estoque/relatorios/posicao-resumida.csv",
-        headers={"X-Empresa-Id": "1"},
-    )
+    response = client.get("/api/estoque/relatorios/posicao-resumida.csv")
 
     assert response.status_code == 200
     assert "text/csv" in response.headers["content-type"]
-    assert 'attachment; filename="estoque_posicao_resumida.csv"' == response.headers["content-disposition"]
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="estoque_posicao_resumida.csv"'
+    )
     assert response.text == csv_content
 
+    app.dependency_overrides.pop(get_current_actor, None)
 
-def test_relatorio_posicao_por_deposito_json(client, monkeypatch):
+
+def test_relatorio_posicao_por_deposito_json(client, app, monkeypatch):
     def fake_relatorio_por_deposito(
         db,
         empresa_id,
@@ -162,16 +176,14 @@ def test_relatorio_posicao_por_deposito_json(client, monkeypatch):
             ],
         }
 
+    app.dependency_overrides[get_current_actor] = _override_actor_empresa_1
     monkeypatch.setattr(
         estoque_crud,
         "relatorio_posicao_por_deposito",
         fake_relatorio_por_deposito,
     )
 
-    response = client.get(
-        "/api/estoque/relatorios/posicao-por-deposito/1",
-        headers={"X-Empresa-Id": "1"},
-    )
+    response = client.get("/api/estoque/relatorios/posicao-por-deposito/1")
 
     assert response.status_code == 200
     body = response.json()
@@ -182,8 +194,10 @@ def test_relatorio_posicao_por_deposito_json(client, monkeypatch):
     assert body["total_abaixo_minimo"] == 1
     assert len(body["itens"]) == 2
 
+    app.dependency_overrides.pop(get_current_actor, None)
 
-def test_relatorio_posicao_por_deposito_csv(client, monkeypatch):
+
+def test_relatorio_posicao_por_deposito_csv(client, app, monkeypatch):
     csv_content = (
         "\ufeffdeposito_id;deposito_nome;produto_id;sku;nome;unidade;estoque_minimo;quantidade;abaixo_minimo\n"
         "1;Principal;1;RACAO-001;Ração Premium;UN;5.00;3.00;SIM\n"
@@ -202,6 +216,7 @@ def test_relatorio_posicao_por_deposito_csv(client, monkeypatch):
         assert somente_abaixo_minimo is True
         return csv_content
 
+    app.dependency_overrides[get_current_actor] = _override_actor_empresa_1
     monkeypatch.setattr(
         estoque_crud,
         "gerar_csv_relatorio_posicao_por_deposito",
@@ -209,21 +224,22 @@ def test_relatorio_posicao_por_deposito_csv(client, monkeypatch):
     )
 
     response = client.get(
-       "/api/estoque/relatorios/posicao-por-deposito/1/csv?busca=racao&somente_abaixo_minimo=true",
-        headers={"X-Empresa-Id": "1"},
+        "/api/estoque/relatorios/posicao-por-deposito/1/csv?busca=racao&somente_abaixo_minimo=true"
     )
 
     assert response.status_code == 200
     assert "text/csv" in response.headers["content-type"]
-    assert (
+    assert response.headers["content-disposition"] == (
         'attachment; filename="estoque_posicao_deposito_1.csv"'
-        == response.headers["content-disposition"]
     )
     assert response.text == csv_content
 
+    app.dependency_overrides.pop(get_current_actor, None)
 
-def test_relatorios_sem_header_empresa_retorna_400(client):
+
+def test_relatorios_sem_autenticacao_retorna_401(client, app):
+    app.dependency_overrides.pop(get_current_actor, None)
+
     response = client.get("/api/estoque/relatorios/posicao-resumida")
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "X-Empresa-Id é obrigatório."
+    assert response.status_code == 401

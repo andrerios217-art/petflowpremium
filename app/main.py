@@ -122,14 +122,7 @@ def producao_page(request: Request):
 
 @app.get("/estoque", response_class=HTMLResponse)
 def estoque_page(request: Request):
-    empresa_id = request.query_params.get("empresa_id", "1")
-    return templates.TemplateResponse(
-        "estoque.html",
-        {
-            "request": request,
-            "empresa_id": empresa_id,
-        },
-    )
+    return templates.TemplateResponse("estoque.html", {"request": request})
 
 
 @app.get("/financeiro", response_class=HTMLResponse)

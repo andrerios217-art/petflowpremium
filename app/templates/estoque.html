@@ -1,257 +1,211 @@
 {% extends "layout/base.html" %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/estoque.css" />
+{% endblock %}
+
 {% block content %}
-<section style="padding: 24px;">
-  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
-    <div>
-      <h1 style="margin:0 0 8px 0;">Estoque</h1>
-      <p style="margin:0; opacity:.8;">
-        Posição resumida, alertas de mínimo e visão por depósito.
-      </p>
-    </div>
-
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a
-        id="btn-exportar-resumido"
-        href="#"
-        style="padding:10px 14px; border-radius:10px; text-decoration:none; border:1px solid #d0d7de;"
-      >
-        Exportar CSV resumido
-      </a>
-
-      <a
-        id="btn-exportar-deposito"
-        href="#"
-        style="padding:10px 14px; border-radius:10px; text-decoration:none; border:1px solid #d0d7de;"
-      >
-        Exportar CSV por depósito
-      </a>
-    </div>
+<section class="page-header">
+  <div>
+    <h1>Estoque</h1>
+    <p>Posição resumida, alertas de mínimo e visão por depósito.</p>
   </div>
 
-  <section style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:24px;">
-    <div style="border:1px solid #e5e7eb; border-radius:14px; padding:16px;">
-      <div style="font-size:14px; opacity:.7; margin-bottom:8px;">Total de produtos</div>
-      <div id="card-total-produtos" style="font-size:28px; font-weight:700;">0</div>
-    </div>
+  <div class="page-header-actions">
+    <button id="btn-exportar-resumido" class="primary-btn" type="button">
+      Exportar CSV resumido
+    </button>
+    <button id="btn-exportar-deposito" class="primary-btn" type="button">
+      Exportar CSV por depósito
+    </button>
+  </div>
+</section>
 
-    <div style="border:1px solid #e5e7eb; border-radius:14px; padding:16px;">
-      <div style="font-size:14px; opacity:.7; margin-bottom:8px;">Abaixo do mínimo</div>
-      <div id="card-abaixo-minimo" style="font-size:28px; font-weight:700;">0</div>
-    </div>
-  </section>
+<div id="alerta-auth" class="estoque-alerta"></div>
 
-  <section style="border:1px solid #e5e7eb; border-radius:14px; padding:16px; margin-bottom:24px;">
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end;">
-      <div>
-        <label for="filtro-busca" style="display:block; margin-bottom:6px; font-size:14px;">Busca</label>
-        <input
-          id="filtro-busca"
-          type="text"
-          placeholder="Nome, SKU ou descrição"
-          style="width:100%; padding:10px 12px; border:1px solid #d0d7de; border-radius:10px;"
-        />
+<section class="stats-grid">
+  <div class="glass-card">
+    <span class="card-label">Total de produtos</span>
+    <strong id="card-total-produtos" class="estoque-card-number">0</strong>
+  </div>
+
+  <div class="glass-card">
+    <span class="card-label">Abaixo do mínimo</span>
+    <strong id="card-abaixo-minimo" class="estoque-card-number alerta">0</strong>
+  </div>
+</section>
+
+<section style="margin-top: 24px;">
+  <div class="glass-card">
+    <h2>Filtros</h2>
+
+    <div class="estoque-filtros-bloco">
+      <div class="estoque-filtros-grid">
+        <div class="estoque-field">
+          <label for="filtro-busca">Busca</label>
+          <input
+            id="filtro-busca"
+            type="text"
+            placeholder="Nome, SKU ou descrição"
+          />
+        </div>
+
+        <div class="estoque-field">
+          <label for="filtro-deposito">Depósito</label>
+          <select id="filtro-deposito">
+            <option value="">Selecione um depósito</option>
+          </select>
+        </div>
       </div>
 
-      <div>
-        <label for="filtro-deposito" style="display:block; margin-bottom:6px; font-size:14px;">Depósito</label>
-        <select
-          id="filtro-deposito"
-          style="width:100%; padding:10px 12px; border:1px solid #d0d7de; border-radius:10px;"
-        >
-          <option value="">Selecione um depósito</option>
-        </select>
-      </div>
+      <div class="estoque-filtros-rodape">
+        <label class="estoque-checkbox-wrap">
+          <input id="filtro-abaixo-minimo" type="checkbox" />
+          <span>Somente abaixo do mínimo</span>
+        </label>
 
-      <div style="display:flex; align-items:center; gap:8px; padding-top:26px;">
-        <input id="filtro-abaixo-minimo" type="checkbox" />
-        <label for="filtro-abaixo-minimo">Somente abaixo do mínimo</label>
-      </div>
-
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button
-          id="btn-filtrar"
-          type="button"
-          style="padding:10px 14px; border-radius:10px; border:1px solid #d0d7de; cursor:pointer;"
-        >
-          Filtrar
-        </button>
-
-        <button
-          id="btn-limpar"
-          type="button"
-          style="padding:10px 14px; border-radius:10px; border:1px solid #d0d7de; cursor:pointer;"
-        >
-          Limpar
-        </button>
-
-        <button
-          id="btn-ver-deposito"
-          type="button"
-          style="padding:10px 14px; border-radius:10px; border:1px solid #d0d7de; cursor:pointer;"
-        >
-          Ver depósito
-        </button>
+        <div class="estoque-actions-inline">
+          <button id="btn-filtrar" class="primary-btn" type="button">Filtrar</button>
+          <button id="btn-limpar" class="primary-btn" type="button">Limpar</button>
+          <button id="btn-ver-deposito" class="primary-btn" type="button">Ver depósito</button>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section style="border:1px solid #e5e7eb; border-radius:14px; padding:16px; margin-bottom:24px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
-      <h2 id="titulo-tabela" style="margin:0; font-size:20px;">Posição resumida</h2>
-      <span id="status-tabela" style="font-size:14px; opacity:.7;">Carregando...</span>
+<section style="margin-top: 24px;">
+  <div class="glass-card">
+    <div class="estoque-toolbar">
+      <h2 id="titulo-tabela">Posição resumida</h2>
+      <span id="status-tabela" class="estoque-status-topo">Aguardando carregamento...</span>
     </div>
 
-    <div style="overflow-x:auto;">
-      <table style="width:100%; border-collapse:collapse;">
+    <div class="estoque-table-wrap">
+      <table class="estoque-table">
         <thead>
           <tr>
-            <th style="text-align:left; padding:12px; border-bottom:1px solid #e5e7eb;">SKU</th>
-            <th style="text-align:left; padding:12px; border-bottom:1px solid #e5e7eb;">Nome</th>
-            <th style="text-align:left; padding:12px; border-bottom:1px solid #e5e7eb;">Unidade</th>
-            <th style="text-align:right; padding:12px; border-bottom:1px solid #e5e7eb;">Estoque mínimo</th>
-            <th style="text-align:right; padding:12px; border-bottom:1px solid #e5e7eb;">Saldo</th>
-            <th style="text-align:center; padding:12px; border-bottom:1px solid #e5e7eb;">Status</th>
+            <th>SKU</th>
+            <th>Nome</th>
+            <th>Unidade</th>
+            <th>Estoque mínimo</th>
+            <th>Saldo</th>
+            <th>Status</th>
           </tr>
         </thead>
-        <tbody id="tabela-estoque-body">
+        <tbody id="tbody-posicao">
           <tr>
-            <td colspan="6" style="padding:16px; text-align:center; opacity:.7;">Carregando dados...</td>
+            <td colspan="6" class="estoque-empty">
+              Aguardando carregamento...
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
-  </section>
+  </div>
 </section>
 
 <script>
- const empresaId = "{{ empresa_id }}";
-
-  const elementos = {
-    busca: document.getElementById("filtro-busca"),
-    deposito: document.getElementById("filtro-deposito"),
-    abaixoMinimo: document.getElementById("filtro-abaixo-minimo"),
-    btnFiltrar: document.getElementById("btn-filtrar"),
-    btnLimpar: document.getElementById("btn-limpar"),
-    btnVerDeposito: document.getElementById("btn-ver-deposito"),
-    btnExportarResumido: document.getElementById("btn-exportar-resumido"),
-    btnExportarDeposito: document.getElementById("btn-exportar-deposito"),
-    cardTotalProdutos: document.getElementById("card-total-produtos"),
-    cardAbaixoMinimo: document.getElementById("card-abaixo-minimo"),
-    tabelaBody: document.getElementById("tabela-estoque-body"),
-    tituloTabela: document.getElementById("titulo-tabela"),
-    statusTabela: document.getElementById("status-tabela"),
+  const estadoEstoque = {
+    modo: "resumido",
+    depositoIdAtual: null,
   };
 
-  function getHeaders() {
+  function mostrarAlertaAuth(mensagem) {
+    const el = document.getElementById("alerta-auth");
+    el.textContent = mensagem;
+    el.classList.add("is-visible");
+  }
+
+  function esconderAlertaAuth() {
+    const el = document.getElementById("alerta-auth");
+    el.textContent = "";
+    el.classList.remove("is-visible");
+  }
+
+  function obterTokenAutenticacao() {
+    const candidatos = [
+      localStorage.getItem("access_token"),
+      localStorage.getItem("token"),
+      localStorage.getItem("jwt"),
+      localStorage.getItem("authToken"),
+      localStorage.getItem("petflow_token"),
+      sessionStorage.getItem("access_token"),
+      sessionStorage.getItem("token"),
+      sessionStorage.getItem("jwt"),
+      sessionStorage.getItem("authToken"),
+      sessionStorage.getItem("petflow_token"),
+    ];
+
+    return candidatos.find((valor) => valor && String(valor).trim() !== "") || null;
+  }
+
+  function limparTokensConhecidos() {
+    const chaves = ["access_token", "token", "jwt", "authToken", "petflow_token"];
+    chaves.forEach((chave) => {
+      localStorage.removeItem(chave);
+      sessionStorage.removeItem(chave);
+    });
+  }
+
+  function obterHeadersAutenticados(extraHeaders = {}) {
+    const token = obterTokenAutenticacao();
+
+    if (!token) {
+      return {
+        "Content-Type": "application/json",
+        ...extraHeaders,
+      };
+    }
+
     return {
-      "X-Empresa-Id": empresaId,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...extraHeaders,
     };
   }
 
-  function getFiltros() {
-    return {
-      busca: elementos.busca.value.trim(),
-      depositoId: elementos.deposito.value,
-      somenteAbaixoMinimo: elementos.abaixoMinimo.checked,
-    };
+  async function fetchAutenticado(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      headers: obterHeadersAutenticados(options.headers || {}),
+    });
+
+    if (response.status === 401) {
+      limparTokensConhecidos();
+      mostrarAlertaAuth("Sua sessão expirou ou o token não foi encontrado. Faça login novamente.");
+      throw new Error("Nao autenticado");
+    }
+
+    return response;
   }
 
-  function montarQueryString({ busca, somenteAbaixoMinimo }) {
-    const params = new URLSearchParams();
+  function atualizarCards(totalProdutos, totalAbaixoMinimo) {
+    document.getElementById("card-total-produtos").textContent = totalProdutos ?? 0;
+    document.getElementById("card-abaixo-minimo").textContent = totalAbaixoMinimo ?? 0;
+  }
 
-    if (busca) {
-      params.append("busca", busca);
-    }
-
-    if (somenteAbaixoMinimo) {
-      params.append("somente_abaixo_minimo", "true");
-    }
-
-    const query = params.toString();
-    return query ? `?${query}` : "";
+  function atualizarStatusTabela(texto, erro = false) {
+    const el = document.getElementById("status-tabela");
+    el.textContent = texto;
+    el.classList.toggle("erro", erro);
   }
 
   function formatarNumero(valor) {
-    const numero = Number(valor ?? 0);
+    const numero = Number(valor || 0);
     return numero.toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
   }
 
-  function montarStatusTag(abaixoMinimo) {
-    const corFundo = abaixoMinimo ? "#fee2e2" : "#dcfce7";
-    const corTexto = abaixoMinimo ? "#991b1b" : "#166534";
-    const texto = abaixoMinimo ? "Abaixo do mínimo" : "OK";
+  function renderizarTabelaResumida(itens) {
+    const tbody = document.getElementById("tbody-posicao");
 
-    return `
-      <span style="
-        display:inline-block;
-        padding:6px 10px;
-        border-radius:999px;
-        background:${corFundo};
-        color:${corTexto};
-        font-size:12px;
-        font-weight:600;
-      ">
-        ${texto}
-      </span>
-    `;
-  }
-
-  function atualizarLinksCsv() {
-    const { busca, depositoId, somenteAbaixoMinimo } = getFiltros();
-    const query = montarQueryString({ busca, somenteAbaixoMinimo });
-
-    elementos.btnExportarResumido.href = `/api/estoque/relatorios/posicao-resumida.csv${query}`;
-
-    if (depositoId) {
-      elementos.btnExportarDeposito.href = `/api/estoque/relatorios/posicao-por-deposito/${depositoId}/csv${query}`;
-      elementos.btnExportarDeposito.style.pointerEvents = "auto";
-      elementos.btnExportarDeposito.style.opacity = "1";
-    } else {
-      elementos.btnExportarDeposito.href = "#";
-      elementos.btnExportarDeposito.style.pointerEvents = "none";
-      elementos.btnExportarDeposito.style.opacity = "0.5";
-    }
-  }
-
-  async function carregarDepositos() {
-    try {
-      const response = await fetch("/api/estoque/depositos", {
-        headers: getHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error("Falha ao carregar depósitos.");
-      }
-
-      const depositos = await response.json();
-
-      elementos.deposito.innerHTML = `<option value="">Selecione um depósito</option>`;
-
-      for (const deposito of depositos) {
-        const option = document.createElement("option");
-        option.value = deposito.id;
-        option.textContent = deposito.nome;
-        elementos.deposito.appendChild(option);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  function renderizarTabelaResumida(relatorio) {
-    elementos.tituloTabela.textContent = "Posição resumida";
-    elementos.cardTotalProdutos.textContent = relatorio.total_produtos ?? 0;
-    elementos.cardAbaixoMinimo.textContent = relatorio.total_abaixo_minimo ?? 0;
-    elementos.statusTabela.textContent = `${relatorio.itens.length} item(ns)`;
-
-    if (!relatorio.itens.length) {
-      elementos.tabelaBody.innerHTML = `
+    if (!itens || itens.length === 0) {
+      tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="padding:16px; text-align:center; opacity:.7;">
+          <td colspan="6" class="estoque-empty">
             Nenhum item encontrado.
           </td>
         </tr>
@@ -259,28 +213,35 @@
       return;
     }
 
-    elementos.tabelaBody.innerHTML = relatorio.itens.map((item) => `
-      <tr>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0;">${item.sku}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0;">${item.nome}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0;">${item.unidade}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0; text-align:right;">${formatarNumero(item.estoque_minimo)}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0; text-align:right;">${formatarNumero(item.saldo_total)}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0; text-align:center;">${montarStatusTag(item.abaixo_minimo)}</td>
-      </tr>
-    `).join("");
+    tbody.innerHTML = itens
+      .map((item) => {
+        const abaixoMinimo = Boolean(item.abaixo_minimo);
+
+        return `
+          <tr>
+            <td>${item.sku || "-"}</td>
+            <td>${item.nome || "-"}</td>
+            <td>${item.unidade || "-"}</td>
+            <td>${formatarNumero(item.estoque_minimo)}</td>
+            <td>${formatarNumero(item.saldo_total)}</td>
+            <td>
+              <span class="estoque-badge ${abaixoMinimo ? "alerta" : "ok"}">
+                ${abaixoMinimo ? "Abaixo do mínimo" : "OK"}
+              </span>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
   }
 
-  function renderizarTabelaDepositos(relatorio) {
-    elementos.tituloTabela.textContent = `Depósito: ${relatorio.deposito_nome}`;
-    elementos.cardTotalProdutos.textContent = relatorio.total_produtos ?? 0;
-    elementos.cardAbaixoMinimo.textContent = relatorio.total_abaixo_minimo ?? 0;
-    elementos.statusTabela.textContent = `${relatorio.itens.length} item(ns)`;
+  function renderizarTabelaDeposito(itens) {
+    const tbody = document.getElementById("tbody-posicao");
 
-    if (!relatorio.itens.length) {
-      elementos.tabelaBody.innerHTML = `
+    if (!itens || itens.length === 0) {
+      tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="padding:16px; text-align:center; opacity:.7;">
+          <td colspan="6" class="estoque-empty">
             Nenhum item encontrado neste depósito.
           </td>
         </tr>
@@ -288,104 +249,242 @@
       return;
     }
 
-    elementos.tabelaBody.innerHTML = relatorio.itens.map((item) => `
-      <tr>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0;">${item.sku}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0;">${item.nome}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0;">${item.unidade}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0; text-align:right;">${formatarNumero(item.estoque_minimo)}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0; text-align:right;">${formatarNumero(item.quantidade)}</td>
-        <td style="padding:12px; border-bottom:1px solid #f0f0f0; text-align:center;">${montarStatusTag(item.abaixo_minimo)}</td>
-      </tr>
-    `).join("");
+    tbody.innerHTML = itens
+      .map((item) => {
+        const abaixoMinimo = Boolean(item.abaixo_minimo);
+
+        return `
+          <tr>
+            <td>${item.sku || "-"}</td>
+            <td>${item.nome || "-"}</td>
+            <td>${item.unidade || "-"}</td>
+            <td>${formatarNumero(item.estoque_minimo)}</td>
+            <td>${formatarNumero(item.quantidade)}</td>
+            <td>
+              <span class="estoque-badge ${abaixoMinimo ? "alerta" : "ok"}">
+                ${abaixoMinimo ? "Abaixo do mínimo" : "OK"}
+              </span>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function obterFiltros() {
+    return {
+      busca: document.getElementById("filtro-busca").value.trim(),
+      depositoId: document.getElementById("filtro-deposito").value,
+      somenteAbaixoMinimo: document.getElementById("filtro-abaixo-minimo").checked,
+    };
+  }
+
+  function montarQueryString({ busca, somenteAbaixoMinimo }) {
+    const params = new URLSearchParams();
+
+    if (busca) {
+      params.set("busca", busca);
+    }
+
+    if (somenteAbaixoMinimo) {
+      params.set("somente_abaixo_minimo", "true");
+    }
+
+    const qs = params.toString();
+    return qs ? `?${qs}` : "";
+  }
+
+  async function carregarDepositos() {
+    const select = document.getElementById("filtro-deposito");
+
+    try {
+      const response = await fetchAutenticado("/api/estoque/depositos");
+
+      if (!response.ok) {
+        throw new Error("Erro ao carregar depósitos.");
+      }
+
+      const depositos = await response.json();
+
+      select.innerHTML = '<option value="">Selecione um depósito</option>';
+
+      depositos.forEach((deposito) => {
+        const option = document.createElement("option");
+        option.value = deposito.id;
+        option.textContent = deposito.nome;
+        select.appendChild(option);
+      });
+    } catch (error) {
+      console.error(error);
+      select.innerHTML = '<option value="">Erro ao carregar depósitos</option>';
+    }
   }
 
   async function carregarRelatorioResumido() {
-    const { busca, somenteAbaixoMinimo } = getFiltros();
-    const query = montarQueryString({ busca, somenteAbaixoMinimo });
+    const { busca, somenteAbaixoMinimo } = obterFiltros();
+    const queryString = montarQueryString({ busca, somenteAbaixoMinimo });
 
-    elementos.statusTabela.textContent = "Carregando...";
-    atualizarLinksCsv();
+    document.getElementById("titulo-tabela").textContent = "Posição resumida";
+    atualizarStatusTabela("Carregando...");
+    esconderAlertaAuth();
 
     try {
-      const response = await fetch(`/api/estoque/relatorios/posicao-resumida${query}`, {
-        headers: getHeaders(),
-      });
+      const response = await fetchAutenticado(`/api/estoque/relatorios/posicao-resumida${queryString}`);
 
       if (!response.ok) {
-        throw new Error("Falha ao carregar relatório resumido.");
+        throw new Error("Erro ao carregar relatório resumido.");
       }
 
-      const relatorio = await response.json();
-      renderizarTabelaResumida(relatorio);
+      const data = await response.json();
+
+      estadoEstoque.modo = "resumido";
+      estadoEstoque.depositoIdAtual = null;
+
+      atualizarCards(data.total_produtos, data.total_abaixo_minimo);
+      renderizarTabelaResumida(data.itens || []);
+      atualizarStatusTabela("Dados carregados.");
     } catch (error) {
       console.error(error);
-      elementos.statusTabela.textContent = "Erro ao carregar";
-      elementos.tabelaBody.innerHTML = `
+      atualizarCards(0, 0);
+      document.getElementById("tbody-posicao").innerHTML = `
         <tr>
-          <td colspan="6" style="padding:16px; text-align:center; color:#991b1b;">
-            Erro ao carregar relatório resumido.
+          <td colspan="6" class="estoque-empty erro">
+            ${error.message === "Nao autenticado"
+              ? "Sessão inválida. Faça login novamente."
+              : "Erro ao carregar relatório resumido."}
           </td>
         </tr>
       `;
+      atualizarStatusTabela(
+        error.message === "Nao autenticado" ? "Sessão inválida" : "Erro ao carregar",
+        true
+      );
     }
   }
 
   async function carregarRelatorioPorDeposito() {
-    const { busca, depositoId, somenteAbaixoMinimo } = getFiltros();
+    const { busca, depositoId, somenteAbaixoMinimo } = obterFiltros();
 
     if (!depositoId) {
       alert("Selecione um depósito.");
       return;
     }
 
-    const query = montarQueryString({ busca, somenteAbaixoMinimo });
+    const queryString = montarQueryString({ busca, somenteAbaixoMinimo });
 
-    elementos.statusTabela.textContent = "Carregando...";
-    atualizarLinksCsv();
+    document.getElementById("titulo-tabela").textContent = "Posição por depósito";
+    atualizarStatusTabela("Carregando...");
+    esconderAlertaAuth();
 
     try {
-      const response = await fetch(`/api/estoque/relatorios/posicao-por-deposito/${depositoId}${query}`, {
-        headers: getHeaders(),
-      });
+      const response = await fetchAutenticado(
+        `/api/estoque/relatorios/posicao-por-deposito/${depositoId}${queryString}`
+      );
 
       if (!response.ok) {
-        throw new Error("Falha ao carregar relatório por depósito.");
+        throw new Error("Erro ao carregar posição por depósito.");
       }
 
-      const relatorio = await response.json();
-      renderizarTabelaDepositos(relatorio);
+      const data = await response.json();
+
+      estadoEstoque.modo = "deposito";
+      estadoEstoque.depositoIdAtual = depositoId;
+
+      atualizarCards(data.total_produtos, data.total_abaixo_minimo);
+      renderizarTabelaDeposito(data.itens || []);
+      document.getElementById("titulo-tabela").textContent = `Posição por depósito: ${data.deposito_nome}`;
+      atualizarStatusTabela("Dados carregados.");
     } catch (error) {
       console.error(error);
-      elementos.statusTabela.textContent = "Erro ao carregar";
-      elementos.tabelaBody.innerHTML = `
+      atualizarCards(0, 0);
+      document.getElementById("tbody-posicao").innerHTML = `
         <tr>
-          <td colspan="6" style="padding:16px; text-align:center; color:#991b1b;">
-            Erro ao carregar relatório por depósito.
+          <td colspan="6" class="estoque-empty erro">
+            ${error.message === "Nao autenticado"
+              ? "Sessão inválida. Faça login novamente."
+              : "Erro ao carregar relatório por depósito."}
           </td>
         </tr>
       `;
+      atualizarStatusTabela(
+        error.message === "Nao autenticado" ? "Sessão inválida" : "Erro ao carregar",
+        true
+      );
     }
   }
 
-  elementos.btnFiltrar.addEventListener("click", carregarRelatorioResumido);
+  async function baixarArquivo(url, nomeArquivo) {
+    const response = await fetchAutenticado(url, { method: "GET" });
 
-  elementos.btnLimpar.addEventListener("click", () => {
-    elementos.busca.value = "";
-    elementos.deposito.value = "";
-    elementos.abaixoMinimo.checked = false;
-    atualizarLinksCsv();
+    if (!response.ok) {
+      throw new Error("Erro ao exportar CSV.");
+    }
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = blobUrl;
+    link.download = nomeArquivo;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(blobUrl);
+  }
+
+  async function exportarCsvResumido() {
+    const { busca, somenteAbaixoMinimo } = obterFiltros();
+    const queryString = montarQueryString({ busca, somenteAbaixoMinimo });
+
+    try {
+      await baixarArquivo(
+        `/api/estoque/relatorios/posicao-resumida.csv${queryString}`,
+        "estoque_posicao_resumida.csv"
+      );
+    } catch (error) {
+      console.error(error);
+      alert(error.message === "Nao autenticado" ? "Faça login novamente." : "Erro ao exportar CSV resumido.");
+    }
+  }
+
+  async function exportarCsvDeposito() {
+    const { busca, depositoId, somenteAbaixoMinimo } = obterFiltros();
+
+    if (!depositoId) {
+      alert("Selecione um depósito para exportar.");
+      return;
+    }
+
+    const queryString = montarQueryString({ busca, somenteAbaixoMinimo });
+
+    try {
+      await baixarArquivo(
+        `/api/estoque/relatorios/posicao-por-deposito/${depositoId}/csv${queryString}`,
+        `estoque_posicao_deposito_${depositoId}.csv`
+      );
+    } catch (error) {
+      console.error(error);
+      alert(error.message === "Nao autenticado" ? "Faça login novamente." : "Erro ao exportar CSV por depósito.");
+    }
+  }
+
+  function limparFiltros() {
+    document.getElementById("filtro-busca").value = "";
+    document.getElementById("filtro-deposito").value = "";
+    document.getElementById("filtro-abaixo-minimo").checked = false;
     carregarRelatorioResumido();
-  });
+  }
 
-  elementos.btnVerDeposito.addEventListener("click", carregarRelatorioPorDeposito);
-  elementos.deposito.addEventListener("change", atualizarLinksCsv);
-  elementos.busca.addEventListener("input", atualizarLinksCsv);
-  elementos.abaixoMinimo.addEventListener("change", atualizarLinksCsv);
+  document.addEventListener("DOMContentLoaded", async () => {
+    document.getElementById("btn-filtrar").addEventListener("click", carregarRelatorioResumido);
+    document.getElementById("btn-limpar").addEventListener("click", limparFiltros);
+    document.getElementById("btn-ver-deposito").addEventListener("click", carregarRelatorioPorDeposito);
+    document.getElementById("btn-exportar-resumido").addEventListener("click", exportarCsvResumido);
+    document.getElementById("btn-exportar-deposito").addEventListener("click", exportarCsvDeposito);
 
-  carregarDepositos().then(() => {
-    atualizarLinksCsv();
-    carregarRelatorioResumido();
+    await carregarDepositos();
+    await carregarRelatorioResumido();
   });
 </script>
 {% endblock %}
