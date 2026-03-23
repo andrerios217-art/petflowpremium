@@ -16,6 +16,7 @@ from app.schemas.estoque import (
     EstoqueDepositoUpdate,
     EstoqueMovimentoAjusteIn,
     EstoqueMovimentoEntradaManualIn,
+    EstoqueMovimentoSaidaManualIn,
     EstoqueTransferenciaIn,
     ProdutoCategoriaCreate,
     ProdutoCategoriaUpdate,
@@ -436,6 +437,55 @@ def registrar_entrada_manual(
         saldo_antes=saldo_antes,
         saldo_depois=saldo_depois,
         custo_unitario=payload.custo_unitario,
+        documento_referencia=payload.documento_referencia,
+        observacao=payload.observacao,
+    )
+    db.add(movimento)
+    db.commit()
+    db.refresh(movimento)
+    return movimento
+
+
+def registrar_saida_manual(
+    db: Session,
+    empresa_id: int,
+    usuario_id: int | None,
+    payload: EstoqueMovimentoSaidaManualIn,
+):
+    _get_deposito_or_404(db, empresa_id, payload.deposito_id)
+    _get_produto_or_404(db, empresa_id, payload.produto_id)
+
+    saldo = _get_or_create_saldo(
+        db=db,
+        empresa_id=empresa_id,
+        deposito_id=payload.deposito_id,
+        produto_id=payload.produto_id,
+    )
+
+    saldo_antes = Decimal(str(saldo.quantidade_atual))
+    quantidade = Decimal(str(payload.quantidade))
+    saldo_depois = saldo_antes - quantidade
+
+    if saldo_depois < ZERO:
+        raise HTTPException(
+            status_code=400,
+            detail="Saldo insuficiente para saída manual.",
+        )
+
+    saldo.quantidade_atual = saldo_depois
+
+    movimento = EstoqueMovimento(
+        empresa_id=empresa_id,
+        deposito_id=payload.deposito_id,
+        produto_id=payload.produto_id,
+        usuario_id=usuario_id,
+        tipo_movimento="SAIDA",
+        origem="MANUAL",
+        origem_id=None,
+        quantidade=quantidade,
+        saldo_antes=saldo_antes,
+        saldo_depois=saldo_depois,
+        custo_unitario=None,
         documento_referencia=payload.documento_referencia,
         observacao=payload.observacao,
     )

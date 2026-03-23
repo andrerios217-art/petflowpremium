@@ -12,6 +12,7 @@ from app.schemas.estoque import (
     EstoqueMovimentoAjusteIn,
     EstoqueMovimentoEntradaManualIn,
     EstoqueMovimentoOut,
+    EstoqueMovimentoSaidaManualIn,
     EstoqueSaldoOut,
     EstoqueTransferenciaIn,
     ProdutoCategoriaCreate,
@@ -175,6 +176,17 @@ def registrar_entrada_manual(
 ):
     empresa_id = _empresa_id_header(x_empresa_id)
     return estoque_crud.registrar_entrada_manual(db, empresa_id, x_usuario_id, payload)
+
+
+@router.post("/movimentos/saida-manual", response_model=EstoqueMovimentoOut)
+def registrar_saida_manual(
+    payload: EstoqueMovimentoSaidaManualIn,
+    x_empresa_id: Optional[int] = Header(default=None, alias="X-Empresa-Id"),
+    x_usuario_id: Optional[int] = Header(default=None, alias="X-Usuario-Id"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = _empresa_id_header(x_empresa_id)
+    return estoque_crud.registrar_saida_manual(db, empresa_id, x_usuario_id, payload)
 
 
 @router.post("/movimentos/ajuste", response_model=EstoqueMovimentoOut)

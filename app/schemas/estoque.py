@@ -169,6 +169,14 @@ class EstoqueMovimentoEntradaManualIn(BaseModel):
     observacao: Optional[str] = None
 
 
+class EstoqueMovimentoSaidaManualIn(BaseModel):
+    deposito_id: int
+    produto_id: int
+    quantidade: Decimal = Field(..., gt=0)
+    documento_referencia: Optional[str] = Field(default=None, max_length=120)
+    observacao: Optional[str] = None
+
+
 class EstoqueMovimentoAjusteIn(BaseModel):
     deposito_id: int
     produto_id: int
