@@ -11,3 +11,5 @@ python-multipart
 jinja2
 email-validator
 alembic
+pytest
+httpx
