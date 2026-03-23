@@ -15,7 +15,8 @@ def app():
     app = FastAPI()
     app.include_router(estoque_router)
     app.dependency_overrides[get_db] = _fake_db
-    return app
+    yield app
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
