@@ -6,29 +6,34 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.security import verify_password
+from app.models.agendamento import Agendamento
+from app.models.agendamento_servico import AgendamentoServico
 from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.caixa_movimento import CaixaMovimento
 from app.models.caixa_sessao import CaixaSessao
 from app.models.cliente import Cliente
 from app.models.empresa import Empresa
+from app.models.estoque_deposito import EstoqueDeposito
+from app.models.estoque_movimento import EstoqueMovimento
+from app.models.estoque_saldo import EstoqueSaldo
 from app.models.financeiro_receber import FinanceiroReceber
 from app.models.pdv_pagamento import PdvPagamento
 from app.models.pdv_venda import PdvVenda
 from app.models.pdv_venda_item import PdvVendaItem
-from app.models.usuario import Usuario
 from app.models.producao import Producao
-from app.models.agendamento import Agendamento
-from app.models.agendamento_servico import AgendamentoServico
+from app.models.produto import Produto
+from app.models.usuario import Usuario
 from app.schemas.pdv import (
     PdvCancelRequest,
     PdvCheckoutRequest,
     PdvVendaCreate,
     PdvVendaItemAdd,
-    PdvVendaUpdate,
     PdvVendaProducaoCreate,
+    PdvVendaUpdate,
 )
 
 DECIMAL_2 = Decimal("0.01")
@@ -92,6 +97,21 @@ def _match_cliente(cliente: Cliente, tokens: list[str], telefone_digits: str) ->
     return all(token in base for token in tokens)
 
 
+def _match_produto(produto: Produto, tokens: list[str]) -> bool:
+    if not tokens:
+        return True
+
+    nome = _normalizar_texto(getattr(produto, "nome", None))
+    sku = _normalizar_texto(getattr(produto, "sku", None))
+    descricao = _normalizar_texto(getattr(produto, "descricao", None))
+
+    base = " ".join([nome, sku, descricao]).strip()
+    if not base:
+        return False
+
+    return all(token in base for token in tokens)
+
+
 def _carregar_venda_query(db: Session):
     return (
         db.query(PdvVenda)
@@ -143,6 +163,22 @@ def _get_usuario_or_404(db: Session, usuario_id: int) -> Usuario:
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     return usuario
+
+
+def _get_produto_catalogo_or_404(db: Session, produto_id: int, empresa_id: int) -> Produto:
+    produto = (
+        db.query(Produto)
+        .filter(
+            Produto.id == produto_id,
+            Produto.empresa_id == empresa_id,
+        )
+        .first()
+    )
+    if not produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado para esta empresa.")
+    if not produto.ativo:
+        raise HTTPException(status_code=400, detail="Produto inativo não pode ser vendido no PDV.")
+    return produto
 
 
 def _get_venda_or_404(db: Session, venda_id: int, for_update: bool = False) -> PdvVenda:
@@ -224,6 +260,35 @@ def _descricao_atendimento(atendimento: AtendimentoClinico) -> str:
     if pet_nome:
         return f"{descricao_base} - {pet_nome}"
     return descricao_base
+
+
+def _descricao_producao(producao: Producao) -> str:
+    agendamento = getattr(producao, "agendamento", None)
+    pet = getattr(agendamento, "pet", None) if agendamento else None
+    pet_nome = getattr(pet, "nome", None) if pet else None
+
+    nomes = []
+    for item in getattr(agendamento, "servicos_agendamento", []) or []:
+        servico = getattr(item, "servico", None)
+        nome_servico = (getattr(servico, "nome", None) or "").strip() if servico else ""
+        if nome_servico:
+            nomes.append(nome_servico)
+
+    descricao_base = ", ".join(nomes[:5]) if nomes else "Serviços petshop"
+    if len(nomes) > 5:
+        descricao_base += ", ..."
+
+    if pet_nome:
+        return f"{descricao_base} - {pet_nome}"
+    return descricao_base
+
+
+def _calcular_total_producao(producao: Producao) -> Decimal:
+    total = Decimal("0.00")
+    agendamento = getattr(producao, "agendamento", None)
+    for item in getattr(agendamento, "servicos_agendamento", []) or []:
+        total += Decimal(str(getattr(item, "preco", 0) or 0))
+    return _decimal_2(total)
 
 
 def _validar_venda_aberta(venda: PdvVenda):
@@ -374,7 +439,142 @@ def _registrar_movimento_estorno(db: Session, venda: PdvVenda, forma_pagamento: 
     return movimento
 
 
-# -------------------- BUSCAS / LISTAGENS --------------------
+def _get_deposito_padrao_pdv_or_404(db: Session, empresa_id: int) -> EstoqueDeposito:
+    deposito = (
+        db.query(EstoqueDeposito)
+        .filter(EstoqueDeposito.empresa_id == empresa_id)
+        .order_by(EstoqueDeposito.id.asc())
+        .first()
+    )
+    if not deposito:
+        raise HTTPException(
+            status_code=400,
+            detail="Nenhum depósito cadastrado para a empresa. Configure o estoque antes de finalizar a venda.",
+        )
+    return deposito
+
+
+def _buscar_saldo_for_update(
+    db: Session,
+    empresa_id: int,
+    deposito_id: int,
+    produto_id: int,
+) -> EstoqueSaldo | None:
+    return (
+        db.query(EstoqueSaldo)
+        .filter(
+            EstoqueSaldo.empresa_id == empresa_id,
+            EstoqueSaldo.deposito_id == deposito_id,
+            EstoqueSaldo.produto_id == produto_id,
+        )
+        .with_for_update()
+        .first()
+    )
+
+
+def _itens_produto_para_baixa(venda: PdvVenda) -> list[PdvVendaItem]:
+    itens = []
+    for item in venda.itens or []:
+        if getattr(item, "deve_baixar_estoque", False):
+            itens.append(item)
+    return itens
+
+
+def _validar_saldo_estoque_venda(
+    db: Session,
+    venda: PdvVenda,
+    deposito_id: int,
+):
+    for item in _itens_produto_para_baixa(venda):
+        saldo = _buscar_saldo_for_update(
+            db=db,
+            empresa_id=venda.empresa_id,
+            deposito_id=deposito_id,
+            produto_id=item.produto_id,
+        )
+
+        saldo_atual = _decimal_3(saldo.quantidade_atual if saldo else Decimal("0.000"))
+        quantidade_item = _decimal_3(item.quantidade)
+
+        if saldo_atual < quantidade_item:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Saldo insuficiente para o produto ID {item.produto_id}. "
+                    f"Disponível: {saldo_atual}. Necessário: {quantidade_item}."
+                ),
+            )
+
+
+def _baixar_estoque_venda(
+    db: Session,
+    venda: PdvVenda,
+    deposito_id: int,
+    usuario_id: int | None,
+):
+    for item in _itens_produto_para_baixa(venda):
+        saldo = _buscar_saldo_for_update(
+            db=db,
+            empresa_id=venda.empresa_id,
+            deposito_id=deposito_id,
+            produto_id=item.produto_id,
+        )
+
+        if not saldo:
+            saldo = EstoqueSaldo(
+                empresa_id=venda.empresa_id,
+                deposito_id=deposito_id,
+                produto_id=item.produto_id,
+                quantidade_atual=Decimal("0.000"),
+                updated_at=_agora_utc(),
+            )
+            db.add(saldo)
+            db.flush()
+
+            saldo = _buscar_saldo_for_update(
+                db=db,
+                empresa_id=venda.empresa_id,
+                deposito_id=deposito_id,
+                produto_id=item.produto_id,
+            )
+
+        saldo_antes = _decimal_3(saldo.quantidade_atual)
+        quantidade_item = _decimal_3(item.quantidade)
+        saldo_depois = _decimal_3(saldo_antes - quantidade_item)
+
+        if saldo_depois < Decimal("0.000"):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Saldo insuficiente para o produto ID {item.produto_id}. "
+                    f"Disponível: {saldo_antes}. Necessário: {quantidade_item}."
+                ),
+            )
+
+        movimento = EstoqueMovimento(
+            empresa_id=venda.empresa_id,
+            deposito_id=deposito_id,
+            produto_id=item.produto_id,
+            usuario_id=usuario_id,
+            tipo_movimento="SAIDA",
+            origem="PDV",
+            origem_id=venda.id,
+            quantidade=quantidade_item,
+            saldo_antes=saldo_antes,
+            saldo_depois=saldo_depois,
+            custo_unitario=None,
+            documento_referencia=venda.numero_venda,
+            observacao=f"Baixa automática por venda PDV #{venda.id}",
+            created_at=_agora_utc(),
+        )
+        db.add(movimento)
+
+        saldo.quantidade_atual = saldo_depois
+        saldo.updated_at = _agora_utc()
+        db.add(saldo)
+
+    db.flush()
+
 
 def buscar_clientes(db: Session, empresa_id: int, termo: str, limite: int = 20) -> list[Cliente]:
     _get_empresa_or_404(db, empresa_id)
@@ -398,6 +598,36 @@ def buscar_clientes(db: Session, empresa_id: int, termo: str, limite: int = 20) 
     return encontrados[:limite]
 
 
+def buscar_produtos(db: Session, empresa_id: int, termo: str, limite: int = 20) -> list[Produto]:
+    _get_empresa_or_404(db, empresa_id)
+
+    termo = (termo or "").strip()
+    if not termo:
+        return []
+
+    tokens = _tokens_busca(termo)
+    like = f"%{termo.strip()}%"
+
+    query = (
+        db.query(Produto)
+        .filter(
+            Produto.empresa_id == empresa_id,
+            Produto.ativo.is_(True),
+            or_(
+                Produto.nome.ilike(like),
+                Produto.sku.ilike(like),
+                Produto.descricao.ilike(like),
+            ),
+        )
+        .order_by(Produto.nome.asc(), Produto.id.asc())
+        .limit(max(limite * 3, 50))
+    )
+
+    candidatos = query.all()
+    encontrados = [p for p in candidatos if _match_produto(p, tokens)]
+    return encontrados[:limite]
+
+
 def listar_atendimentos_prontos(db: Session, empresa_id: int, cliente_id: int | None = None):
     _get_empresa_or_404(db, empresa_id)
 
@@ -415,35 +645,6 @@ def listar_atendimentos_prontos(db: Session, empresa_id: int, cliente_id: int | 
         query = query.filter(AtendimentoClinico.cliente_id == cliente_id)
 
     return query.all()
-
-
-def _descricao_producao(producao: Producao) -> str:
-    agendamento = getattr(producao, "agendamento", None)
-    pet = getattr(agendamento, "pet", None) if agendamento else None
-    pet_nome = getattr(pet, "nome", None) if pet else None
-
-    nomes = []
-    for item in getattr(agendamento, "servicos_agendamento", []) or []:
-        servico = getattr(item, "servico", None)
-        nome_servico = (getattr(servico, "nome", None) or "").strip() if servico else ""
-        if nome_servico:
-            nomes.append(nome_servico)
-
-    descricao_base = ", ".join(nomes[:5]) if nomes else "Serviços petshop"
-    if len(nomes) > 5:
-        descricao_base += ", ..."
-
-    if pet_nome:
-        return f"{descricao_base} - {pet_nome}"
-    return descricao_base
-
-
-def _calcular_total_producao(producao: Producao) -> Decimal:
-    total = Decimal("0.00")
-    agendamento = getattr(producao, "agendamento", None)
-    for item in getattr(agendamento, "servicos_agendamento", []) or []:
-        total += Decimal(str(getattr(item, "preco", 0) or 0))
-    return _decimal_2(total)
 
 
 def listar_producao_prontos(db: Session, empresa_id: int, cliente_id: int | None = None):
@@ -474,12 +675,9 @@ def listar_producao_prontos(db: Session, empresa_id: int, cliente_id: int | None
     return query.all()
 
 
-# -------------------- PRODUÇÃO -> PDV --------------------
-
 def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> PdvVenda:
     _get_empresa_or_404(db, payload.empresa_id)
 
-    # trava somente producao (sem outer join)
     producao_lock = (
         db.query(Producao)
         .filter(Producao.id == payload.producao_id)
@@ -489,7 +687,6 @@ def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> Pd
     if not producao_lock:
         raise HTTPException(status_code=404, detail="Produção não encontrada.")
 
-    # recarrega com selectinload
     producao = (
         db.query(Producao)
         .options(
@@ -552,13 +749,13 @@ def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> Pd
         created_at=_agora_utc(),
         updated_at=_agora_utc(),
     )
-    item.definir_como_produto(
-        produto_id=producao.id,
+    item.definir_como_item_producao(
         descricao_snapshot=descricao,
         valor_unitario=total,
         quantidade=Decimal("1.000"),
         desconto_valor=Decimal("0.00"),
         observacao=None,
+        produto_id=None,
     )
 
     db.add(item)
@@ -575,8 +772,6 @@ def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> Pd
     db.commit()
     return _recarregar_venda(db, venda.id)
 
-
-# -------------------- VENDAS --------------------
 
 def criar_venda(db: Session, payload: PdvVendaCreate) -> PdvVenda:
     _get_empresa_or_404(db, payload.empresa_id)
@@ -679,7 +874,6 @@ def adicionar_item(db: Session, venda_id: int, payload: PdvVendaItemAdd) -> PdvV
         _validar_atendimento_disponivel_para_pdv(db, atendimento, venda)
 
         valor_total = _calcular_total_atendimento(atendimento)
-        # PERMITIR 0.00 (retorno veterinário/cortesia)
         item.definir_como_servico(
             atendimento_clinico_id=atendimento.id,
             descricao_snapshot=_descricao_atendimento(atendimento),
@@ -689,13 +883,28 @@ def adicionar_item(db: Session, venda_id: int, payload: PdvVendaItemAdd) -> PdvV
             observacao=payload.observacao,
         )
     else:
-        item.definir_como_produto(
+        if not payload.produto_id:
+            raise HTTPException(status_code=400, detail="produto_id é obrigatório para item de produto.")
+
+        produto = _get_produto_catalogo_or_404(
+            db=db,
             produto_id=payload.produto_id,
-            descricao_snapshot=payload.descricao_snapshot,
-            valor_unitario=payload.valor_unitario,
+            empresa_id=venda.empresa_id,
+        )
+
+        descricao_snapshot = payload.descricao_snapshot or produto.nome
+        valor_unitario = payload.valor_unitario
+        if valor_unitario is None:
+            valor_unitario = produto.preco_venda_atual
+
+        item.definir_como_produto_catalogo(
+            produto_id=produto.id,
+            descricao_snapshot=descricao_snapshot,
+            valor_unitario=valor_unitario,
             quantidade=payload.quantidade,
             desconto_valor=payload.desconto_valor,
             observacao=payload.observacao,
+            gera_movimento_estoque=True,
         )
 
     db.add(item)
@@ -754,11 +963,29 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
     pagamento_payload = payload.pagamento
     forma_pagamento = pagamento_payload.forma_pagamento
     valor_pago = _decimal_2(pagamento_payload.valor)
+    usuario_fechamento_id = pagamento_payload.usuario_id or venda.usuario_abertura_id
 
-    # permitir fechar venda zerada (retorno/cortesia)
+    itens_para_baixa = _itens_produto_para_baixa(venda)
+    deposito_pdv = None
+    if itens_para_baixa:
+        deposito_pdv = _get_deposito_padrao_pdv_or_404(db, venda.empresa_id)
+        _validar_saldo_estoque_venda(
+            db=db,
+            venda=venda,
+            deposito_id=deposito_pdv.id,
+        )
+
     if total == Decimal("0.00"):
         if valor_pago != Decimal("0.00"):
             raise HTTPException(status_code=400, detail="Venda zerada: valor pago deve ser 0,00.")
+
+        if itens_para_baixa and deposito_pdv:
+            _baixar_estoque_venda(
+                db=db,
+                venda=venda,
+                deposito_id=deposito_pdv.id,
+                usuario_id=usuario_fechamento_id,
+            )
 
         for item in venda.itens or []:
             if item.tipo_item == "SERVICE" and item.atendimento_clinico_id:
@@ -767,14 +994,12 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
                 atendimento.updated_at = _agora_utc()
                 db.add(atendimento)
 
-        usuario_fechamento_id = pagamento_payload.usuario_id or venda.usuario_abertura_id
         venda.fechar(usuario_fechamento_id=usuario_fechamento_id)
         db.add(venda)
 
         db.commit()
         return _recarregar_venda(db, venda.id)
 
-    # fluxo normal
     if valor_pago <= Decimal("0.00"):
         raise HTTPException(status_code=400, detail="Valor de pagamento inválido.")
     if valor_pago != total:
@@ -787,13 +1012,21 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
         status="RECEBIDO",
         referencia=pagamento_payload.referencia,
         observacoes=pagamento_payload.observacoes,
-        usuario_id=pagamento_payload.usuario_id or venda.usuario_abertura_id,
+        usuario_id=usuario_fechamento_id,
         recebido_em=pagamento_payload.recebido_em or _agora_utc(),
         created_at=_agora_utc(),
         updated_at=_agora_utc(),
     )
     db.add(pagamento)
     db.flush()
+
+    if itens_para_baixa and deposito_pdv:
+        _baixar_estoque_venda(
+            db=db,
+            venda=venda,
+            deposito_id=deposito_pdv.id,
+            usuario_id=pagamento.usuario_id,
+        )
 
     for item in venda.itens or []:
         if item.tipo_item == "SERVICE" and item.atendimento_clinico_id:
