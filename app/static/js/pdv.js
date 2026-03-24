@@ -8,6 +8,7 @@
     producaoPronta: [],
     atendimentosProntos: [],
     operadores: [],
+    produtosEncontrados: [],
   };
 
   const els = {
@@ -349,6 +350,124 @@
         if (usuario) onSelect(usuario);
       });
     });
+  }
+
+  function renderProdutosResultado() {
+    if (!els.produtosResultado) return;
+
+    const produtos = state.produtosEncontrados || [];
+    if (!produtos.length) {
+      setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto encontrado.</div>`);
+      return;
+    }
+
+    setHtml(
+      els.produtosResultado,
+      produtos
+        .map((produto) => {
+          const nome = escapeHtml(produto.nome || "Produto");
+          const sku = produto.sku ? `<div class="pdv-muted">SKU: ${escapeHtml(produto.sku)}</div>` : "";
+          const unidade = produto.unidade ? `<div class="pdv-muted">Unidade: ${escapeHtml(produto.unidade)}</div>` : "";
+          const preco = formatMoney(produto.preco_venda_atual || 0);
+
+          return `
+          <div class="pdv-producao-item">
+            <div class="pdv-producao-item__info">
+              <strong>${nome}</strong>
+              ${sku}
+              ${unidade}
+            </div>
+            <div class="pdv-producao-item__actions">
+              <strong>${preco}</strong>
+              <button
+                type="button"
+                class="pdv-btn pdv-btn-primary"
+                data-action="adicionar-produto"
+                data-produto-id="${escapeHtml(produto.id)}"
+              >
+                Adicionar
+              </button>
+            </div>
+          </div>
+        `;
+        })
+        .join("")
+    );
+  }
+
+  async function buscarProdutos(termo, limite = 20) {
+    const empresaId = getEmpresaId();
+    const q = String(termo || "").trim();
+
+    if (!q) {
+      state.produtosEncontrados = [];
+      if (els.produtosResultado) {
+        setHtml(els.produtosResultado, `<div class="pdv-empty-state">Digite algo para buscar produtos.</div>`);
+      }
+      return [];
+    }
+
+    const data = await request(
+      `/api/pdv/produtos/busca?empresa_id=${empresaId}&q=${encodeURIComponent(q)}&limite=${limite}`
+    );
+
+    state.produtosEncontrados = Array.isArray(data) ? data : [];
+    renderProdutosResultado();
+    return state.produtosEncontrados;
+  }
+
+  async function criarVendaBalcao() {
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
+
+    const empresaId = getEmpresaId();
+    const caixaSessaoId = getCaixaSessaoId();
+    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
+
+    const venda = await request("/api/pdv/vendas", {
+      method: "POST",
+      body: JSON.stringify({
+        empresa_id: empresaId,
+        caixa_sessao_id: caixaSessaoId,
+        modo_cliente: "WALK_IN",
+      }),
+    });
+
+    state.vendaAtual = venda;
+    renderVenda();
+    renderControlsState();
+    return venda;
+  }
+
+  async function adicionarProdutoNaVenda(produtoId) {
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de adicionar produtos.");
+
+    if (!hasVendaAberta()) {
+      await criarVendaBalcao();
+    }
+
+    if (!hasVendaAberta()) throw new Error("Não foi possível abrir uma venda.");
+
+    const produto = (state.produtosEncontrados || []).find((p) => Number(p.id) === Number(produtoId));
+    if (!produto) throw new Error("Produto não encontrado no resultado da busca.");
+
+    const payload = {
+      tipo_item: "PRODUCT",
+      produto_id: Number(produto.id),
+      descricao_snapshot: produto.nome || "Produto",
+      quantidade: 1,
+      valor_unitario: Number(toNumber(produto.preco_venda_atual, 0).toFixed(2)),
+      desconto_valor: 0,
+    };
+
+    const vendaAtualizada = await request(`/api/pdv/vendas/${state.vendaAtual.id}/itens`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    state.vendaAtual = vendaAtualizada;
+    renderVenda();
+    renderControlsState();
+    showAlert("Produto adicionado na venda.", "success");
   }
 
   async function carregarOperadores(termo, limite = 50) {
@@ -706,7 +825,6 @@
     const formaPagamento = String(els.formaPagamento?.value || "DINHEIRO").trim() || "DINHEIRO";
     const valor = toNumber(venda.valor_total, 0);
 
-    // permite baixa de venda zerada (retorno/cortesia)
     if (valor < 0) throw new Error("Total inválido.");
 
     const payload = {
@@ -721,11 +839,10 @@
       body: JSON.stringify(payload),
     });
 
-    // ✅ NOVO: após finalizar, PDV volta vazio (não mantém venda fechada)
     state.vendaAtual = null;
 
-    // ✅ NOVO: limpa busca/resultado para não confundir operador
     if (els.buscaProduto) setValue(els.buscaProduto, "");
+    state.produtosEncontrados = [];
     if (els.produtosResultado) {
       setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
     }
@@ -741,7 +858,6 @@
       console.warn("Falha ao recarregar resumo do caixa:", error);
     }
 
-    // ✅ NOVO: atualiza listas de prontos após finalizar
     try {
       await carregarProducaoPronta();
       await carregarAtendimentosProntos();
@@ -1235,6 +1351,37 @@
       }
     });
 
+    els.btnBuscarProduto?.addEventListener("click", async () => {
+      try {
+        await buscarProdutos(els.buscaProduto?.value);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.buscaProduto?.addEventListener("keydown", async (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      try {
+        await buscarProdutos(els.buscaProduto?.value);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.produtosResultado?.addEventListener("click", async (event) => {
+      const btn = event.target?.closest?.('[data-action="adicionar-produto"]');
+      if (!btn) return;
+
+      try {
+        const produtoId = btn.getAttribute("data-produto-id");
+        if (!produtoId) throw new Error("Produto inválido.");
+        await adicionarProdutoNaVenda(produtoId);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
     els.producaoLista?.addEventListener("click", async (event) => {
       const btn = event.target?.closest?.('[data-action="puxar-producao"]');
       if (!btn) return;
@@ -1257,6 +1404,15 @@
         const clienteId = btn.getAttribute("data-cliente-id");
         if (!atendimentoId || !clienteId) throw new Error("Atendimento inválido.");
         await adicionarAtendimentoNaVenda(atendimentoId, clienteId);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnVendaBalcao?.addEventListener("click", async () => {
+      try {
+        await criarVendaBalcao();
+        showAlert("Venda balcão iniciada.", "success");
       } catch (error) {
         showAlert(error.message, "danger");
       }
@@ -1376,7 +1532,7 @@
 
     bindModalSearch(els.btnBuscarGerenteSuprimento, {
       inputEl: els.caixaGerenteSuprimentoBusca,
-      listEl: els.caixaGerenteSuprimentoOperadorLista,
+      listEl: els.caixaGerenteSuprimentoLista,
       idEl: els.caixaGerenteSuprimentoId,
       nameEl: els.caixaGerenteSuprimentoNome,
       onlyManager: true,
@@ -1409,6 +1565,11 @@
     renderCaixa();
     renderVenda();
     syncValorPagamento();
+
+    if (els.produtosResultado) {
+      setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
+    }
+
     bindEvents();
     bindFloatingActions();
 

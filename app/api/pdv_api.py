@@ -9,21 +9,22 @@ from app.crud.pdv import (
     adicionar_item,
     atualizar_venda,
     buscar_clientes,
+    buscar_produtos,
     cancelar_venda,
     checkout_venda,
     criar_venda,
+    enviar_producao_para_pdv,
     listar_atendimentos_prontos,
     listar_producao_prontos,
-    enviar_producao_para_pdv,
     listar_vendas,
     obter_venda,
     remover_item,
 )
 from app.models.atendimento_clinico import AtendimentoClinico
-from app.models.producao import Producao
 from app.models.pdv_pagamento import PdvPagamento
 from app.models.pdv_venda import PdvVenda
 from app.models.pdv_venda_item import PdvVendaItem
+from app.models.producao import Producao
 from app.models.usuario import Usuario
 from app.schemas.pdv import (
     PdvAtendimentoProntoOut,
@@ -32,11 +33,11 @@ from app.schemas.pdv import (
     PdvClienteBuscaOut,
     PdvOperacaoResponse,
     PdvProducaoProntoOut,
-    PdvVendaProducaoCreate,
     PdvVendaCreate,
     PdvVendaItemAdd,
     PdvVendaListOut,
     PdvVendaOut,
+    PdvVendaProducaoCreate,
     PdvVendaUpdate,
 )
 
@@ -55,6 +56,22 @@ def _serializar_cliente(cliente):
         "nome": getattr(cliente, "nome", None),
         "cpf": getattr(cliente, "cpf", None),
         "telefone": getattr(cliente, "telefone", None),
+    }
+
+
+def _serializar_produto(produto):
+    if not produto:
+        return None
+    return {
+        "id": produto.id,
+        "empresa_id": produto.empresa_id,
+        "sku": getattr(produto, "sku", None),
+        "nome": getattr(produto, "nome", None),
+        "unidade": getattr(produto, "unidade", None),
+        "ativo": bool(getattr(produto, "ativo", False)),
+        "aceita_fracionado": bool(getattr(produto, "aceita_fracionado", False)),
+        "preco_venda_atual": _to_float(getattr(produto, "preco_venda_atual", 0)),
+        "estoque_minimo": _to_float(getattr(produto, "estoque_minimo", 0)),
     }
 
 
@@ -254,11 +271,7 @@ def listar_operadores_pdv(
             )
         )
 
-    operadores = (
-        query.order_by(Usuario.nome.asc(), Usuario.id.asc())
-        .limit(limite)
-        .all()
-    )
+    operadores = query.order_by(Usuario.nome.asc(), Usuario.id.asc()).limit(limite).all()
     return [_serializar_operador(usuario) for usuario in operadores]
 
 
@@ -271,6 +284,17 @@ def buscar_clientes_pdv(
 ):
     clientes = buscar_clientes(db, empresa_id=empresa_id, termo=q, limite=limite)
     return [_serializar_cliente(cliente) for cliente in clientes]
+
+
+@router.get("/produtos/busca")
+def buscar_produtos_pdv(
+    empresa_id: int = Query(..., ge=1),
+    q: str = Query(..., min_length=1),
+    limite: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    produtos = buscar_produtos(db, empresa_id=empresa_id, termo=q, limite=limite)
+    return [_serializar_produto(produto) for produto in produtos]
 
 
 @router.get("/atendimentos/prontos", response_model=list[PdvAtendimentoProntoOut])
