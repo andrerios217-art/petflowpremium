@@ -63,10 +63,16 @@ def atualizar_categoria(
 @router.get("/produtos", response_model=list[ProdutoOut])
 def listar_produtos(
     busca: Optional[str] = None,
+    incluir_inativos: bool = False,
     empresa_id: int = Depends(get_empresa_id_atual),
     db: Session = Depends(get_db),
 ):
-    return estoque_crud.listar_produtos(db, empresa_id, busca)
+    return estoque_crud.listar_produtos(
+        db=db,
+        empresa_id=empresa_id,
+        busca=busca,
+        incluir_inativos=incluir_inativos,
+    )
 
 
 @router.post("/produtos", response_model=ProdutoOut)
@@ -85,6 +91,43 @@ def obter_produto(
     db: Session = Depends(get_db),
 ):
     return estoque_crud.obter_produto(db, empresa_id, produto_id)
+
+
+@router.put("/produtos/{produto_id}", response_model=ProdutoOut)
+def atualizar_produto(
+    produto_id: int,
+    payload: ProdutoUpdate,
+    empresa_id: int = Depends(get_empresa_id_atual),
+    db: Session = Depends(get_db),
+):
+    return estoque_crud.atualizar_produto(db, empresa_id, produto_id, payload)
+
+
+@router.post("/produtos/{produto_id}/ativar", response_model=ProdutoOut)
+def ativar_produto(
+    produto_id: int,
+    empresa_id: int = Depends(get_empresa_id_atual),
+    db: Session = Depends(get_db),
+):
+    return estoque_crud.ativar_produto(db, empresa_id, produto_id)
+
+
+@router.post("/produtos/{produto_id}/desativar", response_model=ProdutoOut)
+def desativar_produto(
+    produto_id: int,
+    empresa_id: int = Depends(get_empresa_id_atual),
+    db: Session = Depends(get_db),
+):
+    return estoque_crud.desativar_produto(db, empresa_id, produto_id)
+
+
+@router.post("/produtos/codigos-barras", response_model=ProdutoCodigoBarrasOut)
+def criar_codigo_barras(
+    payload: ProdutoCodigoBarrasCreate,
+    empresa_id: int = Depends(get_empresa_id_atual),
+    db: Session = Depends(get_db),
+):
+    return estoque_crud.criar_codigo_barras(db, empresa_id, payload)
 
 
 @router.get("/posicao/{produto_id}", response_model=EstoquePosicaoProdutoOut)
@@ -177,25 +220,6 @@ def relatorio_posicao_por_deposito_csv(
             "Content-Disposition": f'attachment; filename="estoque_posicao_deposito_{deposito_id}.csv"'
         },
     )
-
-
-@router.put("/produtos/{produto_id}", response_model=ProdutoOut)
-def atualizar_produto(
-    produto_id: int,
-    payload: ProdutoUpdate,
-    empresa_id: int = Depends(get_empresa_id_atual),
-    db: Session = Depends(get_db),
-):
-    return estoque_crud.atualizar_produto(db, empresa_id, produto_id, payload)
-
-
-@router.post("/produtos/codigos-barras", response_model=ProdutoCodigoBarrasOut)
-def criar_codigo_barras(
-    payload: ProdutoCodigoBarrasCreate,
-    empresa_id: int = Depends(get_empresa_id_atual),
-    db: Session = Depends(get_db),
-):
-    return estoque_crud.criar_codigo_barras(db, empresa_id, payload)
 
 
 @router.get("/depositos", response_model=list[EstoqueDepositoOut])

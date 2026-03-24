@@ -14,6 +14,20 @@
   display: block;
 }
 
+.estoque-alerta.erro {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.estoque-card-number {
+  display: inline-block;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
 .estoque-card-number.alerta {
   color: #b91c1c;
 }
@@ -26,7 +40,7 @@
 
 .estoque-filtros-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 1.4fr) minmax(220px, 1fr);
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
   gap: 16px;
 }
 
@@ -34,6 +48,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .estoque-field label {
@@ -43,7 +58,8 @@
 }
 
 .estoque-field input,
-.estoque-field select {
+.estoque-field select,
+.estoque-field textarea {
   width: 100%;
   min-height: 46px;
   border: 1px solid #dbe2ea;
@@ -53,11 +69,27 @@
   color: #0f172a;
   outline: none;
   font: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.estoque-field textarea {
+  min-height: 96px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.estoque-field input::placeholder,
+.estoque-field select::placeholder,
+.estoque-field textarea::placeholder {
+  color: #94a3b8;
 }
 
 .estoque-field input:focus,
-.estoque-field select:focus {
+.estoque-field select:focus,
+.estoque-field textarea:focus {
   border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
 }
 
 .estoque-filtros-rodape {
@@ -74,11 +106,13 @@
   gap: 10px;
   color: #334155;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .estoque-checkbox-wrap input {
   width: 16px;
   height: 16px;
+  cursor: pointer;
 }
 
 .estoque-actions-inline {
@@ -95,6 +129,10 @@
   margin-bottom: 12px;
 }
 
+.estoque-toolbar h2 {
+  margin: 0;
+}
+
 .estoque-status-topo {
   font-size: 14px;
   color: #64748b;
@@ -106,10 +144,12 @@
 
 .estoque-table-wrap {
   overflow-x: auto;
+  border-radius: 14px;
 }
 
 .estoque-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
 }
 
@@ -125,6 +165,8 @@
   font-size: 14px;
   font-weight: 700;
   color: #1e293b;
+  background: #f8fafc;
+  white-space: nowrap;
 }
 
 .estoque-table td {
@@ -182,5 +224,18 @@
 
   .estoque-actions-inline {
     width: 100%;
+  }
+
+  .estoque-actions-inline .primary-btn,
+  .estoque-actions-inline button {
+    width: 100%;
+  }
+
+  .estoque-card-number {
+    font-size: 24px;
+  }
+
+  .estoque-table {
+    min-width: 680px;
   }
 }
