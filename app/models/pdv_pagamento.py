@@ -47,6 +47,11 @@ class PdvPagamento(Base):
 
     valor = Column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
 
+    # NOVO:
+    # quantidade de parcelas apenas para controle interno.
+    # Para dinheiro, pix e débito, deve ficar 1.
+    quantidade_parcelas = Column(Integer, nullable=False, default=1)
+
     # Status:
     # - RECEBIDO
     # - CANCELADO
@@ -77,8 +82,19 @@ class PdvPagamento(Base):
             name="ck_pdv_pagamentos_status",
         ),
         CheckConstraint(
-            "valor > 0",
-            name="ck_pdv_pagamentos_valor_positive",
+            "valor >= 0",
+            name="ck_pdv_pagamentos_valor_non_negative",
+        ),
+        CheckConstraint(
+            "quantidade_parcelas >= 1 AND quantidade_parcelas <= 12",
+            name="ck_pdv_pagamentos_quantidade_parcelas_range",
+        ),
+        CheckConstraint(
+            "("
+            "forma_pagamento = 'CARTAO_CREDITO' "
+            "OR quantidade_parcelas = 1"
+            ")",
+            name="ck_pdv_pagamentos_parcelas_somente_credito",
         ),
     )
 
@@ -96,6 +112,10 @@ class PdvPagamento(Base):
     @property
     def eh_cartao(self) -> bool:
         return self.forma_pagamento in ("CARTAO_DEBITO", "CARTAO_CREDITO")
+
+    @property
+    def eh_cartao_credito(self) -> bool:
+        return self.forma_pagamento == "CARTAO_CREDITO"
 
     def cancelar(self, observacoes: str | None = None):
         self.status = "CANCELADO"

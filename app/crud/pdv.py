@@ -750,17 +750,17 @@ def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> Pd
         updated_at=_agora_utc(),
     )
     item.definir_como_item_producao(
-        descricao_snapshot=descricao,
-        valor_unitario=total,
-        quantidade=Decimal("1.000"),
-        desconto_valor=Decimal("0.00"),
-        observacao=None,
-        produto_id=None,
-    )
+    descricao_snapshot=descricao,
+    valor_unitario=total,
+    quantidade=Decimal("1.000"),
+    desconto_valor=Decimal("0.00"),
+    observacao=None,
+)
 
     db.add(item)
     db.flush()
 
+    venda = _recarregar_venda(db, venda.id)
     venda.recalcular_totais()
     _atualizar_snapshots_cliente(venda)
 
@@ -910,6 +910,7 @@ def adicionar_item(db: Session, venda_id: int, payload: PdvVendaItemAdd) -> PdvV
     db.add(item)
     db.flush()
 
+    venda = _recarregar_venda(db, venda.id)
     venda.recalcular_totais()
     _atualizar_snapshots_cliente(venda)
 
@@ -942,6 +943,7 @@ def remover_item(db: Session, venda_id: int, item_id: int) -> PdvVenda:
     db.delete(item)
     db.flush()
 
+    venda = _recarregar_venda(db, venda.id)
     venda.recalcular_totais()
     _atualizar_snapshots_cliente(venda)
 
@@ -963,7 +965,18 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
     pagamento_payload = payload.pagamento
     forma_pagamento = pagamento_payload.forma_pagamento
     valor_pago = _decimal_2(pagamento_payload.valor)
+    quantidade_parcelas = int(getattr(pagamento_payload, "quantidade_parcelas", 1) or 1)
     usuario_fechamento_id = pagamento_payload.usuario_id or venda.usuario_abertura_id
+
+    if forma_pagamento == "CARTAO_CREDITO":
+        if quantidade_parcelas < 1 or quantidade_parcelas > 12:
+            raise HTTPException(status_code=400, detail="Quantidade de parcelas inválida para cartão de crédito.")
+    else:
+        if quantidade_parcelas != 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Quantidade de parcelas deve ser 1 para DINHEIRO, PIX e CARTAO_DEBITO.",
+            )
 
     itens_para_baixa = _itens_produto_para_baixa(venda)
     deposito_pdv = None
@@ -1009,6 +1022,7 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
         venda_id=venda.id,
         forma_pagamento=forma_pagamento,
         valor=valor_pago,
+        quantidade_parcelas=quantidade_parcelas,
         status="RECEBIDO",
         referencia=pagamento_payload.referencia,
         observacoes=pagamento_payload.observacoes,

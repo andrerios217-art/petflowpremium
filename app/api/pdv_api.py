@@ -93,21 +93,21 @@ def _serializar_item(item: PdvVendaItem):
     }
 
 
-def _serializar_pagamento(pagamento: PdvPagamento):
+def _serializar_pagamento(pagamento: PdvPagamento) -> dict:
     return {
         "id": pagamento.id,
         "venda_id": pagamento.venda_id,
         "forma_pagamento": pagamento.forma_pagamento,
-        "valor": _to_float(pagamento.valor),
+        "valor": float(pagamento.valor or 0),
+        "quantidade_parcelas": pagamento.quantidade_parcelas,
         "status": pagamento.status,
         "referencia": pagamento.referencia,
         "observacoes": pagamento.observacoes,
         "usuario_id": pagamento.usuario_id,
-        "recebido_em": pagamento.recebido_em.isoformat() if pagamento.recebido_em else None,
-        "created_at": pagamento.created_at.isoformat() if pagamento.created_at else None,
-        "updated_at": pagamento.updated_at.isoformat() if pagamento.updated_at else None,
+        "recebido_em": pagamento.recebido_em,
+        "created_at": pagamento.created_at,
+        "updated_at": pagamento.updated_at,
     }
-
 
 def _serializar_venda(venda: PdvVenda):
     return {
