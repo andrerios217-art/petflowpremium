@@ -28,17 +28,17 @@ class PdvVendaItem(Base):
     venda_id = Column(Integer, ForeignKey("pdv_vendas.id"), nullable=False, index=True)
 
     # Natureza comercial do item no PDV
-    # - SERVICE = atendimento/serviço
-    # - PRODUCT = item vendido como produto
+    # - SERVICE = atendimento/serviço (inclui item vindo da produção)
+    # - PRODUCT = item vendido como produto de catálogo
     tipo_item = Column(String(20), nullable=False, index=True)
 
     # Origem operacional do item
-    # - SERVICE = atendimento/serviço
+    # - SERVICE = atendimento/serviço clínico
     # - CATALOG_PRODUCT = produto real do catálogo
     # - PRODUCTION = item vindo do fluxo de produção
     origem_item = Column(String(30), nullable=False, index=True)
 
-    # Para itens de serviço
+    # Para itens de serviço clínico
     atendimento_clinico_id = Column(
         Integer,
         ForeignKey("atendimentos_clinicos.id"),
@@ -56,7 +56,6 @@ class PdvVendaItem(Base):
     )
 
     # Regra explícita de estoque
-    # Não inferir mais apenas por tipo_item
     gera_movimento_estoque = Column(
         Boolean,
         nullable=False,
@@ -116,17 +115,18 @@ class PdvVendaItem(Base):
             ") "
             "OR "
             "("
-            "tipo_item = 'PRODUCT' "
-            "AND origem_item = 'CATALOG_PRODUCT' "
-            "AND produto_id IS NOT NULL "
-            "AND atendimento_clinico_id IS NULL"
+            "tipo_item = 'SERVICE' "
+            "AND origem_item = 'PRODUCTION' "
+            "AND atendimento_clinico_id IS NULL "
+            "AND produto_id IS NULL "
+            "AND gera_movimento_estoque = false"
             ") "
             "OR "
             "("
             "tipo_item = 'PRODUCT' "
-            "AND origem_item = 'PRODUCTION' "
-            "AND atendimento_clinico_id IS NULL "
-            "AND gera_movimento_estoque = false"
+            "AND origem_item = 'CATALOG_PRODUCT' "
+            "AND produto_id IS NOT NULL "
+            "AND atendimento_clinico_id IS NULL"
             ")",
             name="ck_pdv_venda_itens_consistencia_origem",
         ),
@@ -150,7 +150,7 @@ class PdvVendaItem(Base):
 
     @property
     def eh_item_producao(self) -> bool:
-        return self.tipo_item == "PRODUCT" and self.origem_item == "PRODUCTION"
+        return self.tipo_item == "SERVICE" and self.origem_item == "PRODUCTION"
 
     @property
     def deve_baixar_estoque(self) -> bool:
@@ -223,11 +223,10 @@ class PdvVendaItem(Base):
         quantidade: Decimal | float | str = Decimal("1.000"),
         desconto_valor: Decimal | float | str = Decimal("0.00"),
         observacao: str | None = None,
-        produto_id: int | None = None,
     ):
-        self.tipo_item = "PRODUCT"
+        self.tipo_item = "SERVICE"
         self.origem_item = "PRODUCTION"
-        self.produto_id = produto_id
+        self.produto_id = None
         self.atendimento_clinico_id = None
         self.gera_movimento_estoque = False
         self.descricao_snapshot = descricao_snapshot

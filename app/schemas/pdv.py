@@ -80,10 +80,23 @@ class PdvPagamentoCreate(BaseModel):
     forma_pagamento: FormaPagamentoLiteral
     # ALTERADO: permitir 0 para baixa de serviço zerado (retorno/cortesia)
     valor: Decimal = Field(ge=0)
+    quantidade_parcelas: int = Field(default=1, ge=1, le=12)
     referencia: str | None = None
     observacoes: str | None = None
     usuario_id: int | None = None
     recebido_em: datetime | None = None
+
+    @model_validator(mode="after")
+    def validar_parcelas_por_forma_pagamento(self):
+        if self.forma_pagamento == "CARTAO_CREDITO":
+            if self.quantidade_parcelas < 1 or self.quantidade_parcelas > 12:
+                raise ValueError("quantidade_parcelas deve estar entre 1 e 12 para cartão de crédito.")
+        else:
+            if self.quantidade_parcelas != 1:
+                raise ValueError(
+                    "quantidade_parcelas deve ser 1 para DINHEIRO, PIX e CARTAO_DEBITO."
+                )
+        return self
 
 
 class PdvCheckoutRequest(BaseModel):
@@ -122,6 +135,7 @@ class PdvPagamentoOut(BaseModel):
     venda_id: int
     forma_pagamento: FormaPagamentoLiteral
     valor: Decimal
+    quantidade_parcelas: int
     status: StatusPagamentoLiteral
     referencia: str | None = None
     observacoes: str | None = None

@@ -145,6 +145,9 @@
     caixaGerenteFechamentoNome: document.getElementById("caixa-gerente-fechamento-nome"),
     caixaSenhaGerenteFechamento: document.getElementById("caixa-senha-gerente-fechamento"),
     btnConfirmarFecharCaixa: document.getElementById("btn-confirmar-fechar-caixa"),
+
+    parcelasContainer: null,
+    quantidadeParcelas: null,
   };
 
   function setText(el, value) {
@@ -236,7 +239,6 @@
 
     const contentType = response.headers.get("content-type") || "";
     const isJson = contentType.includes("application/json");
-
     const data = isJson ? await response.json() : await response.text();
 
     if (!response.ok) {
@@ -352,6 +354,80 @@
     });
   }
 
+  function ensureParcelasControl() {
+    if (!els.formaPagamento) return;
+
+    let container = document.getElementById("pdv-parcelas-container");
+    let select = document.getElementById("pdv-quantidade-parcelas");
+
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "pdv-parcelas-container";
+      container.className = "pdv-hidden";
+      container.style.marginTop = "12px";
+
+      container.innerHTML = `
+        <label for="pdv-quantidade-parcelas" style="display:block;margin-bottom:6px;font-weight:600;">
+          Parcelas
+        </label>
+        <select id="pdv-quantidade-parcelas" class="form-select">
+          ${Array.from({ length: 12 }, (_, index) => {
+            const n = index + 1;
+            return `<option value="${n}">${n}x</option>`;
+          }).join("")}
+        </select>
+      `;
+    }
+
+    if (!container.parentElement) {
+      const anchor =
+        els.valorPagamento?.closest(".form-group") ||
+        els.formaPagamento?.closest(".form-group") ||
+        els.formaPagamento?.parentElement;
+
+      if (anchor && anchor.parentElement) {
+        anchor.insertAdjacentElement("afterend", container);
+      } else if (els.formaPagamento.parentElement) {
+        els.formaPagamento.parentElement.appendChild(container);
+      }
+    }
+
+    select = container.querySelector("#pdv-quantidade-parcelas");
+
+    els.parcelasContainer = container;
+    els.quantidadeParcelas = select;
+
+    if (els.quantidadeParcelas && !els.quantidadeParcelas.value) {
+      els.quantidadeParcelas.value = "1";
+    }
+  }
+
+  function getQuantidadeParcelasSelecionada() {
+    const formaPagamento = String(els.formaPagamento?.value || "").trim();
+    if (formaPagamento !== "CARTAO_CREDITO") return 1;
+
+    const parcelas = toNumber(els.quantidadeParcelas?.value, 1);
+    if (!Number.isFinite(parcelas) || parcelas < 1) return 1;
+    if (parcelas > 12) return 12;
+    return Math.trunc(parcelas);
+  }
+
+  function updateParcelasVisibility() {
+    ensureParcelasControl();
+
+    const formaPagamento = String(els.formaPagamento?.value || "").trim();
+    const mostrar = formaPagamento === "CARTAO_CREDITO";
+
+    if (mostrar) {
+      showEl(els.parcelasContainer);
+    } else {
+      hideEl(els.parcelasContainer);
+      if (els.quantidadeParcelas) {
+        els.quantidadeParcelas.value = "1";
+      }
+    }
+  }
+
   function renderProdutosResultado() {
     if (!els.produtosResultado) return;
 
@@ -399,12 +475,20 @@
     const empresaId = getEmpresaId();
     const q = String(termo || "").trim();
 
+    if (!empresaId || empresaId <= 0) {
+      throw new Error("empresa_id inválido para busca de produtos.");
+    }
+
     if (!q) {
       state.produtosEncontrados = [];
       if (els.produtosResultado) {
         setHtml(els.produtosResultado, `<div class="pdv-empty-state">Digite algo para buscar produtos.</div>`);
       }
       return [];
+    }
+
+    if (els.produtosResultado) {
+      setHtml(els.produtosResultado, `<div class="pdv-empty-state">Buscando produtos...</div>`);
     }
 
     const data = await request(
@@ -414,6 +498,55 @@
     state.produtosEncontrados = Array.isArray(data) ? data : [];
     renderProdutosResultado();
     return state.produtosEncontrados;
+  }
+
+  async function handleBuscarProdutosAction(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const termo = String(els.buscaProduto?.value || "").trim();
+    if (!termo) {
+      state.produtosEncontrados = [];
+      if (els.produtosResultado) {
+        setHtml(els.produtosResultado, `<div class="pdv-empty-state">Digite algo para buscar produtos.</div>`);
+      }
+      showAlert("Digite o nome do produto para buscar.", "warning");
+      return;
+    }
+
+    const btn = els.btnBuscarProduto;
+    const textoOriginal = btn?.textContent || "Buscar";
+
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Buscando...";
+      }
+
+      await buscarProdutos(termo);
+
+      if (!(state.produtosEncontrados || []).length) {
+        showAlert("Nenhum produto encontrado para a busca informada.", "warning");
+      } else {
+        showAlert(`Encontrado(s) ${state.produtosEncontrados.length} produto(s).`, "success");
+      }
+    } catch (error) {
+      state.produtosEncontrados = [];
+      if (els.produtosResultado) {
+        setHtml(
+          els.produtosResultado,
+          `<div class="pdv-empty-state">Falha ao buscar produtos: ${escapeHtml(error.message || "erro inesperado")}</div>`
+        );
+      }
+      throw error;
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+      }
+    }
   }
 
   async function criarVendaBalcao() {
@@ -691,13 +824,16 @@
     setText(els.totalDesconto, formatMoney(venda?.desconto_valor || 0));
     setText(els.totalAcrescimo, formatMoney(venda?.acrescimo_valor || 0));
     setText(els.totalFinal, formatMoney(venda?.valor_total || 0));
+
     if (els.descontoPercent) {
       const subtotal = toNumber(venda?.subtotal || 0, 0);
       const desc = toNumber(venda?.desconto_valor || 0, 0);
       const pct = subtotal > 0 ? (desc / subtotal) * 100 : 0;
       setValue(els.descontoPercent, venda ? pct.toFixed(2) : "");
     }
+
     syncValorPagamento();
+    updateParcelasVisibility();
     renderControlsState();
   }
 
@@ -824,6 +960,7 @@
 
     const formaPagamento = String(els.formaPagamento?.value || "DINHEIRO").trim() || "DINHEIRO";
     const valor = toNumber(venda.valor_total, 0);
+    const quantidadeParcelas = getQuantidadeParcelasSelecionada();
 
     if (valor < 0) throw new Error("Total inválido.");
 
@@ -831,6 +968,7 @@
       pagamento: {
         forma_pagamento: formaPagamento,
         valor: Number(valor.toFixed(2)),
+        quantidade_parcelas: quantidadeParcelas,
       },
     };
 
@@ -847,6 +985,8 @@
       setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
     }
     if (els.descontoPercent) setValue(els.descontoPercent, "");
+    if (els.quantidadeParcelas) setValue(els.quantidadeParcelas, "1");
+    updateParcelasVisibility();
 
     renderVenda();
     renderControlsState();
@@ -1351,9 +1491,9 @@
       }
     });
 
-    els.btnBuscarProduto?.addEventListener("click", async () => {
+    els.btnBuscarProduto?.addEventListener("click", async (event) => {
       try {
-        await buscarProdutos(els.buscaProduto?.value);
+        await handleBuscarProdutosAction(event);
       } catch (error) {
         showAlert(error.message, "danger");
       }
@@ -1361,12 +1501,15 @@
 
     els.buscaProduto?.addEventListener("keydown", async (event) => {
       if (event.key !== "Enter") return;
-      event.preventDefault();
       try {
-        await buscarProdutos(els.buscaProduto?.value);
+        await handleBuscarProdutosAction(event);
       } catch (error) {
         showAlert(error.message, "danger");
       }
+    });
+
+    els.formaPagamento?.addEventListener("change", () => {
+      updateParcelasVisibility();
     });
 
     els.produtosResultado?.addEventListener("click", async (event) => {
@@ -1569,6 +1712,9 @@
     if (els.produtosResultado) {
       setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
     }
+
+    ensureParcelasControl();
+    updateParcelasVisibility();
 
     bindEvents();
     bindFloatingActions();
