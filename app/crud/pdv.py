@@ -863,10 +863,10 @@ def adicionar_item(db: Session, venda_id: int, payload: PdvVendaItemAdd) -> PdvV
     _validar_venda_aberta(venda)
 
     item = PdvVendaItem(
-        venda_id=venda.id,
-        created_at=_agora_utc(),
-        updated_at=_agora_utc(),
-    )
+    venda=venda,
+    created_at=_agora_utc(),
+    updated_at=_agora_utc(),
+)
 
     if payload.tipo_item == "SERVICE":
         atendimento_lock = _get_atendimento_or_404(db, payload.atendimento_clinico_id, for_update=True)

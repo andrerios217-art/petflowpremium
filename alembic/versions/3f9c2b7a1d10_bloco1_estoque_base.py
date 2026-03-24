@@ -1,20 +1,12 @@
-"""bloco1 estoque base
-
-Revision ID: xxxxxxxxxxxx
-Revises: 1218e1e21f2f
-Create Date: 2026-03-21 21:10:00.000000
-"""
-
 from alembic import op
 import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "xxxxxxxxxxxx"
+revision = "3f9c2b7a1d10"
 down_revision = "1218e1e21f2f"
 branch_labels = None
 depends_on = None
-
 
 def upgrade() -> None:
     op.create_table(

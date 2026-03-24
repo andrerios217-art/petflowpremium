@@ -103,6 +103,83 @@ def _get_or_create_saldo(
     return saldo
 
 
+def _normalizar_texto(valor: str | None) -> str | None:
+    if valor is None:
+        return None
+    texto = valor.strip()
+    return texto or None
+
+
+def _sincronizar_codigo_barras_principal(
+    db: Session,
+    empresa_id: int,
+    produto: Produto,
+    codigo_principal: str | None,
+):
+    codigo_normalizado = _normalizar_texto(codigo_principal)
+
+    if not codigo_normalizado:
+        (
+            db.query(ProdutoCodigoBarras)
+            .filter(
+                ProdutoCodigoBarras.empresa_id == empresa_id,
+                ProdutoCodigoBarras.produto_id == produto.id,
+                ProdutoCodigoBarras.principal.is_(True),
+            )
+            .update({"principal": False}, synchronize_session=False)
+        )
+        produto.codigo_barras_principal = None
+        return
+
+    codigo_existente = (
+        db.query(ProdutoCodigoBarras)
+        .filter(
+            ProdutoCodigoBarras.empresa_id == empresa_id,
+            ProdutoCodigoBarras.codigo == codigo_normalizado,
+            ProdutoCodigoBarras.produto_id != produto.id,
+        )
+        .first()
+    )
+    if codigo_existente:
+        raise HTTPException(status_code=400, detail="Código de barras principal já cadastrado em outro produto.")
+
+    (
+        db.query(ProdutoCodigoBarras)
+        .filter(
+            ProdutoCodigoBarras.empresa_id == empresa_id,
+            ProdutoCodigoBarras.produto_id == produto.id,
+        )
+        .update({"principal": False}, synchronize_session=False)
+    )
+
+    codigo_produto = (
+        db.query(ProdutoCodigoBarras)
+        .filter(
+            ProdutoCodigoBarras.empresa_id == empresa_id,
+            ProdutoCodigoBarras.produto_id == produto.id,
+            ProdutoCodigoBarras.codigo == codigo_normalizado,
+        )
+        .first()
+    )
+
+    if codigo_produto:
+        codigo_produto.principal = True
+        codigo_produto.ativo = True
+    else:
+        db.add(
+            ProdutoCodigoBarras(
+                empresa_id=empresa_id,
+                produto_id=produto.id,
+                codigo=codigo_normalizado,
+                tipo="PRINCIPAL",
+                principal=True,
+                ativo=True,
+            )
+        )
+
+    produto.codigo_barras_principal = codigo_normalizado
+
+
 def listar_categorias(db: Session, empresa_id: int):
     return (
         db.query(ProdutoCategoria)
@@ -160,12 +237,20 @@ def atualizar_categoria(
     return categoria
 
 
-def listar_produtos(db: Session, empresa_id: int, busca: str | None = None):
+def listar_produtos(
+    db: Session,
+    empresa_id: int,
+    busca: str | None = None,
+    incluir_inativos: bool = False,
+):
     query = (
         db.query(Produto)
         .options(joinedload(Produto.codigos_barras))
         .filter(Produto.empresa_id == empresa_id)
     )
+
+    if not incluir_inativos:
+        query = query.filter(Produto.ativo.is_(True))
 
     if busca:
         like = f"%{busca.strip()}%"
@@ -174,6 +259,7 @@ def listar_produtos(db: Session, empresa_id: int, busca: str | None = None):
                 Produto.nome.ilike(like),
                 Produto.sku.ilike(like),
                 Produto.descricao.ilike(like),
+                Produto.codigo_barras_principal.ilike(like),
             )
         )
 
@@ -193,17 +279,43 @@ def criar_produto(db: Session, empresa_id: int, payload: ProdutoCreate):
         unidade=payload.unidade.strip(),
         ativo=payload.ativo,
         aceita_fracionado=payload.aceita_fracionado,
+        codigo_barras_principal=_normalizar_texto(payload.codigo_barras_principal),
         preco_venda_atual=payload.preco_venda_atual,
+        custo_medio_atual=payload.custo_medio_atual,
         estoque_minimo=payload.estoque_minimo,
+        ncm=_normalizar_texto(payload.ncm),
+        cest=_normalizar_texto(payload.cest),
+        cfop_padrao=_normalizar_texto(payload.cfop_padrao),
+        origem_fiscal=_normalizar_texto(payload.origem_fiscal),
+        cst_icms=_normalizar_texto(payload.cst_icms),
+        csosn=_normalizar_texto(payload.csosn),
+        cst_pis=_normalizar_texto(payload.cst_pis),
+        cst_cofins=_normalizar_texto(payload.cst_cofins),
+        aliquota_icms=payload.aliquota_icms,
+        aliquota_pis=payload.aliquota_pis,
+        aliquota_cofins=payload.aliquota_cofins,
         observacao=payload.observacao,
     )
     db.add(produto)
 
     try:
+        db.flush()
+        _sincronizar_codigo_barras_principal(
+            db=db,
+            empresa_id=empresa_id,
+            produto=produto,
+            codigo_principal=payload.codigo_barras_principal,
+        )
         db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Já existe um produto com esse SKU.")
+        raise HTTPException(
+            status_code=400,
+            detail="Já existe um produto com esse SKU ou código de barras principal.",
+        )
 
     db.refresh(produto)
     return _get_produto_or_404(db, empresa_id, produto.id)
@@ -242,23 +354,87 @@ def atualizar_produto(
         produto.aceita_fracionado = data["aceita_fracionado"]
     if "preco_venda_atual" in data:
         produto.preco_venda_atual = data["preco_venda_atual"]
+    if "custo_medio_atual" in data:
+        produto.custo_medio_atual = data["custo_medio_atual"]
     if "estoque_minimo" in data:
         produto.estoque_minimo = data["estoque_minimo"]
+
+    if "ncm" in data:
+        produto.ncm = _normalizar_texto(data["ncm"])
+    if "cest" in data:
+        produto.cest = _normalizar_texto(data["cest"])
+    if "cfop_padrao" in data:
+        produto.cfop_padrao = _normalizar_texto(data["cfop_padrao"])
+    if "origem_fiscal" in data:
+        produto.origem_fiscal = _normalizar_texto(data["origem_fiscal"])
+    if "cst_icms" in data:
+        produto.cst_icms = _normalizar_texto(data["cst_icms"])
+    if "csosn" in data:
+        produto.csosn = _normalizar_texto(data["csosn"])
+    if "cst_pis" in data:
+        produto.cst_pis = _normalizar_texto(data["cst_pis"])
+    if "cst_cofins" in data:
+        produto.cst_cofins = _normalizar_texto(data["cst_cofins"])
+
+    if "aliquota_icms" in data:
+        produto.aliquota_icms = data["aliquota_icms"]
+    if "aliquota_pis" in data:
+        produto.aliquota_pis = data["aliquota_pis"]
+    if "aliquota_cofins" in data:
+        produto.aliquota_cofins = data["aliquota_cofins"]
+
     if "observacao" in data:
         produto.observacao = data["observacao"]
 
     try:
+        if "codigo_barras_principal" in data:
+            _sincronizar_codigo_barras_principal(
+                db=db,
+                empresa_id=empresa_id,
+                produto=produto,
+                codigo_principal=data["codigo_barras_principal"],
+            )
         db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Já existe um produto com esse SKU.")
+        raise HTTPException(
+            status_code=400,
+            detail="Já existe um produto com esse SKU ou código de barras principal.",
+        )
 
     db.refresh(produto)
     return _get_produto_or_404(db, empresa_id, produto.id)
 
 
+def ativar_produto(
+    db: Session,
+    empresa_id: int,
+    produto_id: int,
+):
+    produto = _get_produto_or_404(db, empresa_id, produto_id)
+    produto.ativo = True
+    db.commit()
+    db.refresh(produto)
+    return _get_produto_or_404(db, empresa_id, produto.id)
+
+
+def desativar_produto(
+    db: Session,
+    empresa_id: int,
+    produto_id: int,
+):
+    produto = _get_produto_or_404(db, empresa_id, produto_id)
+    produto.ativo = False
+    db.commit()
+    db.refresh(produto)
+    return _get_produto_or_404(db, empresa_id, produto.id)
+
+
 def criar_codigo_barras(db: Session, empresa_id: int, payload: ProdutoCodigoBarrasCreate):
-    _get_produto_or_404(db, empresa_id, payload.produto_id)
+    produto = _get_produto_or_404(db, empresa_id, payload.produto_id)
 
     if payload.principal:
         (
@@ -282,6 +458,11 @@ def criar_codigo_barras(db: Session, empresa_id: int, payload: ProdutoCodigoBarr
     db.add(codigo)
 
     try:
+        db.flush()
+
+        if payload.principal:
+            produto.codigo_barras_principal = payload.codigo.strip()
+
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -413,7 +594,7 @@ def registrar_entrada_manual(
     payload: EstoqueMovimentoEntradaManualIn,
 ):
     _get_deposito_or_404(db, empresa_id, payload.deposito_id)
-    _get_produto_or_404(db, empresa_id, payload.produto_id)
+    produto = _get_produto_or_404(db, empresa_id, payload.produto_id)
 
     saldo = _get_or_create_saldo(
         db=db,
@@ -427,6 +608,9 @@ def registrar_entrada_manual(
     saldo_depois = saldo_antes + quantidade
 
     saldo.quantidade_atual = saldo_depois
+
+    if payload.custo_unitario is not None:
+        produto.custo_medio_atual = payload.custo_unitario
 
     movimento = EstoqueMovimento(
         empresa_id=empresa_id,
@@ -779,6 +963,7 @@ def relatorio_posicao_resumida(
                 Produto.nome.ilike(like),
                 Produto.sku.ilike(like),
                 Produto.descricao.ilike(like),
+                Produto.codigo_barras_principal.ilike(like),
             )
         )
 
@@ -905,6 +1090,7 @@ def relatorio_posicao_por_deposito(
                 Produto.nome.ilike(like),
                 Produto.sku.ilike(like),
                 Produto.descricao.ilike(like),
+                Produto.codigo_barras_principal.ilike(like),
             )
         )
 

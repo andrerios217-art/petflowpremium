@@ -8,7 +8,7 @@
 <section class="page-header">
   <div>
     <h1>Estoque</h1>
-    <p>Posição resumida, alertas de mínimo e visão por depósito.</p>
+    <p>Posição resumida, alertas de mínimo, visão por depósito e entrada manual.</p>
   </div>
 
   <div class="page-header-actions">
@@ -22,6 +22,7 @@
 </section>
 
 <div id="alerta-auth" class="estoque-alerta"></div>
+<div id="alerta-operacao" class="estoque-alerta"></div>
 
 <section class="stats-grid">
   <div class="glass-card">
@@ -32,6 +33,83 @@
   <div class="glass-card">
     <span class="card-label">Abaixo do mínimo</span>
     <strong id="card-abaixo-minimo" class="estoque-card-number alerta">0</strong>
+  </div>
+</section>
+
+<section style="margin-top: 24px;">
+  <div class="glass-card">
+    <h2>Entrada manual</h2>
+
+    <div class="estoque-filtros-bloco">
+      <div class="estoque-filtros-grid">
+        <div class="estoque-field">
+          <label for="entrada-produto">Produto</label>
+          <select id="entrada-produto">
+            <option value="">Selecione um produto</option>
+          </select>
+        </div>
+
+        <div class="estoque-field">
+          <label for="entrada-deposito">Depósito</label>
+          <select id="entrada-deposito">
+            <option value="">Selecione um depósito</option>
+          </select>
+        </div>
+
+        <div class="estoque-field">
+          <label for="entrada-quantidade">Quantidade</label>
+          <input
+            id="entrada-quantidade"
+            type="number"
+            min="0.001"
+            step="0.001"
+            placeholder="0,000"
+          />
+        </div>
+
+        <div class="estoque-field">
+          <label for="entrada-custo-unitario">Custo unitário</label>
+          <input
+            id="entrada-custo-unitario"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0,00"
+          />
+        </div>
+
+        <div class="estoque-field">
+          <label for="entrada-documento">Documento referência</label>
+          <input
+            id="entrada-documento"
+            type="text"
+            maxlength="100"
+            placeholder="Ex.: NF 12345"
+          />
+        </div>
+
+        <div class="estoque-field">
+          <label for="entrada-observacao">Observação</label>
+          <input
+            id="entrada-observacao"
+            type="text"
+            maxlength="255"
+            placeholder="Observação opcional"
+          />
+        </div>
+      </div>
+
+      <div class="estoque-filtros-rodape">
+        <div class="estoque-actions-inline">
+          <button id="btn-registrar-entrada" class="primary-btn" type="button">
+            Registrar entrada
+          </button>
+          <button id="btn-limpar-entrada" class="primary-btn" type="button">
+            Limpar formulário
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -105,10 +183,45 @@
   </div>
 </section>
 
+<section style="margin-top: 24px; margin-bottom: 24px;">
+  <div class="glass-card">
+    <div class="estoque-toolbar">
+      <h2>Movimentos recentes</h2>
+      <span id="status-movimentos" class="estoque-status-topo">Aguardando carregamento...</span>
+    </div>
+
+    <div class="estoque-table-wrap">
+      <table class="estoque-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Tipo</th>
+            <th>Origem</th>
+            <th>Produto</th>
+            <th>Depósito</th>
+            <th>Quantidade</th>
+            <th>Custo unitário</th>
+            <th>Documento</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-movimentos">
+          <tr>
+            <td colspan="8" class="estoque-empty">
+              Aguardando carregamento...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <script>
   const estadoEstoque = {
     modo: "resumido",
     depositoIdAtual: null,
+    produtos: [],
+    depositos: [],
   };
 
   function mostrarAlertaAuth(mensagem) {
@@ -121,6 +234,20 @@
     const el = document.getElementById("alerta-auth");
     el.textContent = "";
     el.classList.remove("is-visible");
+  }
+
+  function mostrarAlertaOperacao(mensagem, erro = false) {
+    const el = document.getElementById("alerta-operacao");
+    el.textContent = mensagem;
+    el.classList.add("is-visible");
+    el.classList.toggle("erro", erro);
+  }
+
+  function esconderAlertaOperacao() {
+    const el = document.getElementById("alerta-operacao");
+    el.textContent = "";
+    el.classList.remove("is-visible");
+    el.classList.remove("erro");
   }
 
   function obterTokenAutenticacao() {
@@ -180,6 +307,21 @@
     return response;
   }
 
+  async function extrairMensagemErro(response, mensagemPadrao) {
+    try {
+      const erro = await response.json();
+      if (typeof erro?.detail === "string" && erro.detail.trim()) {
+        return erro.detail;
+      }
+      if (Array.isArray(erro?.detail)) {
+        return erro.detail.map((item) => item.msg || item.message || JSON.stringify(item)).join(" | ");
+      }
+    } catch (_) {
+      // ignora parse
+    }
+    return mensagemPadrao;
+  }
+
   function atualizarCards(totalProdutos, totalAbaixoMinimo) {
     document.getElementById("card-total-produtos").textContent = totalProdutos ?? 0;
     document.getElementById("card-abaixo-minimo").textContent = totalAbaixoMinimo ?? 0;
@@ -191,12 +333,69 @@
     el.classList.toggle("erro", erro);
   }
 
-  function formatarNumero(valor) {
+  function atualizarStatusMovimentos(texto, erro = false) {
+    const el = document.getElementById("status-movimentos");
+    el.textContent = texto;
+    el.classList.toggle("erro", erro);
+  }
+
+  function formatarNumero(valor, casas = 2) {
     const numero = Number(valor || 0);
     return numero.toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: casas,
+      maximumFractionDigits: casas,
     });
+  }
+
+  function formatarDataHora(valor) {
+    if (!valor) {
+      return "-";
+    }
+
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) {
+      return "-";
+    }
+
+    return data.toLocaleString("pt-BR");
+  }
+
+  function preencherSelect(selectId, itens, placeholder, valueKey = "id", labelBuilder = null) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = "";
+
+    const optionPadrao = document.createElement("option");
+    optionPadrao.value = "";
+    optionPadrao.textContent = placeholder;
+    select.appendChild(optionPadrao);
+
+    itens.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = item[valueKey];
+      option.textContent = labelBuilder
+        ? labelBuilder(item)
+        : String(item.nome || item.descricao || item.id);
+      select.appendChild(option);
+    });
+  }
+
+  function obterNomeProduto(item) {
+    return (
+      item.produto_nome ||
+      item.nome_produto ||
+      item.produto?.nome ||
+      item.nome ||
+      "-"
+    );
+  }
+
+  function obterNomeDeposito(item) {
+    return (
+      item.deposito_nome ||
+      item.nome_deposito ||
+      item.deposito?.nome ||
+      "-"
+    );
   }
 
   function renderizarTabelaResumida(itens) {
@@ -271,6 +470,38 @@
       .join("");
   }
 
+  function renderizarMovimentos(itens) {
+    const tbody = document.getElementById("tbody-movimentos");
+
+    if (!itens || itens.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="estoque-empty">
+            Nenhum movimento encontrado.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = itens
+      .map((item) => {
+        return `
+          <tr>
+            <td>${formatarDataHora(item.created_at || item.data_movimento || item.data)}</td>
+            <td>${item.tipo_movimento || "-"}</td>
+            <td>${item.origem || "-"}</td>
+            <td>${obterNomeProduto(item)}</td>
+            <td>${obterNomeDeposito(item)}</td>
+            <td>${formatarNumero(item.quantidade, 3)}</td>
+            <td>${formatarNumero(item.custo_unitario)}</td>
+            <td>${item.documento_referencia || "-"}</td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
   function obterFiltros() {
     return {
       busca: document.getElementById("filtro-busca").value.trim(),
@@ -294,29 +525,102 @@
     return qs ? `?${qs}` : "";
   }
 
-  async function carregarDepositos() {
-    const select = document.getElementById("filtro-deposito");
+  function limparFormularioEntrada() {
+    document.getElementById("entrada-produto").value = "";
+    document.getElementById("entrada-deposito").value = "";
+    document.getElementById("entrada-quantidade").value = "";
+    document.getElementById("entrada-custo-unitario").value = "";
+    document.getElementById("entrada-documento").value = "";
+    document.getElementById("entrada-observacao").value = "";
+  }
 
+  function obterPayloadEntradaManual() {
+    const produtoId = document.getElementById("entrada-produto").value;
+    const depositoId = document.getElementById("entrada-deposito").value;
+    const quantidade = document.getElementById("entrada-quantidade").value;
+    const custoUnitario = document.getElementById("entrada-custo-unitario").value;
+    const documentoReferencia = document.getElementById("entrada-documento").value.trim();
+    const observacao = document.getElementById("entrada-observacao").value.trim();
+
+    if (!produtoId) {
+      throw new Error("Selecione um produto.");
+    }
+
+    if (!depositoId) {
+      throw new Error("Selecione um depósito.");
+    }
+
+    if (!quantidade || Number(quantidade) <= 0) {
+      throw new Error("Informe uma quantidade maior que zero.");
+    }
+
+    if (custoUnitario === "" || Number(custoUnitario) < 0) {
+      throw new Error("Informe um custo unitário válido.");
+    }
+
+    return {
+      produto_id: Number(produtoId),
+      deposito_id: Number(depositoId),
+      quantidade: Number(quantidade),
+      custo_unitario: Number(custoUnitario),
+      documento_referencia: documentoReferencia || null,
+      observacao: observacao || null,
+    };
+  }
+
+  async function carregarProdutos() {
+    try {
+      const response = await fetchAutenticado("/api/estoque/produtos");
+
+      if (!response.ok) {
+        throw new Error(await extrairMensagemErro(response, "Erro ao carregar produtos."));
+      }
+
+      const produtos = await response.json();
+      estadoEstoque.produtos = Array.isArray(produtos) ? produtos : [];
+
+      preencherSelect(
+        "entrada-produto",
+        estadoEstoque.produtos,
+        "Selecione um produto",
+        "id",
+        (produto) => {
+          const sku = produto.sku ? `${produto.sku} - ` : "";
+          return `${sku}${produto.nome || "Produto sem nome"}`;
+        }
+      );
+    } catch (error) {
+      console.error(error);
+      preencherSelect("entrada-produto", [], "Erro ao carregar produtos");
+    }
+  }
+
+  async function carregarDepositos() {
     try {
       const response = await fetchAutenticado("/api/estoque/depositos");
 
       if (!response.ok) {
-        throw new Error("Erro ao carregar depósitos.");
+        throw new Error(await extrairMensagemErro(response, "Erro ao carregar depósitos."));
       }
 
       const depositos = await response.json();
+      estadoEstoque.depositos = Array.isArray(depositos) ? depositos : [];
 
-      select.innerHTML = '<option value="">Selecione um depósito</option>';
+      preencherSelect(
+        "filtro-deposito",
+        estadoEstoque.depositos,
+        "Selecione um depósito"
+      );
 
-      depositos.forEach((deposito) => {
-        const option = document.createElement("option");
-        option.value = deposito.id;
-        option.textContent = deposito.nome;
-        select.appendChild(option);
-      });
+      preencherSelect(
+        "entrada-deposito",
+        estadoEstoque.depositos,
+        "Selecione um depósito"
+      );
     } catch (error) {
       console.error(error);
-      select.innerHTML = '<option value="">Erro ao carregar depósitos</option>';
+      preencherSelect("filtro-deposito", [], "Erro ao carregar depósitos");
+      preencherSelect("entrada-deposito", [], "Erro ao carregar depósitos");
     }
   }
 
@@ -332,7 +636,7 @@
       const response = await fetchAutenticado(`/api/estoque/relatorios/posicao-resumida${queryString}`);
 
       if (!response.ok) {
-        throw new Error("Erro ao carregar relatório resumido.");
+        throw new Error(await extrairMensagemErro(response, "Erro ao carregar relatório resumido."));
       }
 
       const data = await response.json();
@@ -351,7 +655,7 @@
           <td colspan="6" class="estoque-empty erro">
             ${error.message === "Nao autenticado"
               ? "Sessão inválida. Faça login novamente."
-              : "Erro ao carregar relatório resumido."}
+              : error.message}
           </td>
         </tr>
       `;
@@ -366,7 +670,7 @@
     const { busca, depositoId, somenteAbaixoMinimo } = obterFiltros();
 
     if (!depositoId) {
-      alert("Selecione um depósito.");
+      mostrarAlertaOperacao("Selecione um depósito.", true);
       return;
     }
 
@@ -375,6 +679,7 @@
     document.getElementById("titulo-tabela").textContent = "Posição por depósito";
     atualizarStatusTabela("Carregando...");
     esconderAlertaAuth();
+    esconderAlertaOperacao();
 
     try {
       const response = await fetchAutenticado(
@@ -382,7 +687,7 @@
       );
 
       if (!response.ok) {
-        throw new Error("Erro ao carregar posição por depósito.");
+        throw new Error(await extrairMensagemErro(response, "Erro ao carregar posição por depósito."));
       }
 
       const data = await response.json();
@@ -402,7 +707,7 @@
           <td colspan="6" class="estoque-empty erro">
             ${error.message === "Nao autenticado"
               ? "Sessão inválida. Faça login novamente."
-              : "Erro ao carregar relatório por depósito."}
+              : error.message}
           </td>
         </tr>
       `;
@@ -413,11 +718,100 @@
     }
   }
 
+  async function recarregarTabelaPrincipal() {
+    if (estadoEstoque.modo === "deposito" && estadoEstoque.depositoIdAtual) {
+      await carregarRelatorioPorDeposito();
+      return;
+    }
+
+    await carregarRelatorioResumido();
+  }
+
+  async function carregarMovimentosRecentes() {
+    atualizarStatusMovimentos("Carregando...");
+
+    try {
+      const response = await fetchAutenticado("/api/estoque/movimentos");
+
+      if (!response.ok) {
+        throw new Error(await extrairMensagemErro(response, "Erro ao carregar movimentos."));
+      }
+
+      const movimentos = await response.json();
+      const lista = Array.isArray(movimentos) ? movimentos.slice(0, 15) : [];
+
+      renderizarMovimentos(lista);
+      atualizarStatusMovimentos("Dados carregados.");
+    } catch (error) {
+      console.error(error);
+      document.getElementById("tbody-movimentos").innerHTML = `
+        <tr>
+          <td colspan="8" class="estoque-empty erro">
+            ${error.message === "Nao autenticado"
+              ? "Sessão inválida. Faça login novamente."
+              : error.message}
+          </td>
+        </tr>
+      `;
+      atualizarStatusMovimentos(
+        error.message === "Nao autenticado" ? "Sessão inválida" : "Erro ao carregar",
+        true
+      );
+    }
+  }
+
+  async function registrarEntradaManual() {
+    esconderAlertaOperacao();
+    esconderAlertaAuth();
+
+    let payload;
+
+    try {
+      payload = obterPayloadEntradaManual();
+    } catch (error) {
+      mostrarAlertaOperacao(error.message, true);
+      return;
+    }
+
+    const botao = document.getElementById("btn-registrar-entrada");
+    const textoOriginal = botao.textContent;
+    botao.disabled = true;
+    botao.textContent = "Registrando...";
+
+    try {
+      const response = await fetchAutenticado("/api/estoque/movimentos/entrada-manual", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(await extrairMensagemErro(response, "Erro ao registrar entrada manual."));
+      }
+
+      await response.json();
+
+      mostrarAlertaOperacao("Entrada manual registrada com sucesso.");
+      limparFormularioEntrada();
+
+      await recarregarTabelaPrincipal();
+      await carregarMovimentosRecentes();
+    } catch (error) {
+      console.error(error);
+      mostrarAlertaOperacao(
+        error.message === "Nao autenticado" ? "Faça login novamente." : error.message,
+        true
+      );
+    } finally {
+      botao.disabled = false;
+      botao.textContent = textoOriginal;
+    }
+  }
+
   async function baixarArquivo(url, nomeArquivo) {
     const response = await fetchAutenticado(url, { method: "GET" });
 
     if (!response.ok) {
-      throw new Error("Erro ao exportar CSV.");
+      throw new Error(await extrairMensagemErro(response, "Erro ao exportar CSV."));
     }
 
     const blob = await response.blob();
@@ -444,7 +838,10 @@
       );
     } catch (error) {
       console.error(error);
-      alert(error.message === "Nao autenticado" ? "Faça login novamente." : "Erro ao exportar CSV resumido.");
+      mostrarAlertaOperacao(
+        error.message === "Nao autenticado" ? "Faça login novamente." : error.message,
+        true
+      );
     }
   }
 
@@ -452,7 +849,7 @@
     const { busca, depositoId, somenteAbaixoMinimo } = obterFiltros();
 
     if (!depositoId) {
-      alert("Selecione um depósito para exportar.");
+      mostrarAlertaOperacao("Selecione um depósito para exportar.", true);
       return;
     }
 
@@ -465,7 +862,10 @@
       );
     } catch (error) {
       console.error(error);
-      alert(error.message === "Nao autenticado" ? "Faça login novamente." : "Erro ao exportar CSV por depósito.");
+      mostrarAlertaOperacao(
+        error.message === "Nao autenticado" ? "Faça login novamente." : error.message,
+        true
+      );
     }
   }
 
@@ -473,7 +873,34 @@
     document.getElementById("filtro-busca").value = "";
     document.getElementById("filtro-deposito").value = "";
     document.getElementById("filtro-abaixo-minimo").checked = false;
+    esconderAlertaOperacao();
     carregarRelatorioResumido();
+  }
+
+  function configurarAtalhos() {
+    const busca = document.getElementById("filtro-busca");
+    busca.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        carregarRelatorioResumido();
+      }
+    });
+
+    const camposEntrada = [
+      document.getElementById("entrada-quantidade"),
+      document.getElementById("entrada-custo-unitario"),
+      document.getElementById("entrada-documento"),
+      document.getElementById("entrada-observacao"),
+    ];
+
+    camposEntrada.forEach((campo) => {
+      campo.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          registrarEntradaManual();
+        }
+      });
+    });
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -482,9 +909,15 @@
     document.getElementById("btn-ver-deposito").addEventListener("click", carregarRelatorioPorDeposito);
     document.getElementById("btn-exportar-resumido").addEventListener("click", exportarCsvResumido);
     document.getElementById("btn-exportar-deposito").addEventListener("click", exportarCsvDeposito);
+    document.getElementById("btn-registrar-entrada").addEventListener("click", registrarEntradaManual);
+    document.getElementById("btn-limpar-entrada").addEventListener("click", limparFormularioEntrada);
+
+    configurarAtalhos();
 
     await carregarDepositos();
+    await carregarProdutos();
     await carregarRelatorioResumido();
+    await carregarMovimentosRecentes();
   });
 </script>
 {% endblock %}

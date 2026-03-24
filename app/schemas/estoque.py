@@ -58,10 +58,30 @@ class ProdutoBase(BaseModel):
     nome: str = Field(..., min_length=1, max_length=150)
     descricao: Optional[str] = None
     unidade: str = Field(default="UN", min_length=1, max_length=20)
+
     ativo: bool = True
     aceita_fracionado: bool = False
-    preco_venda_atual: Decimal = Decimal("0")
-    estoque_minimo: Decimal = Decimal("0")
+
+    codigo_barras_principal: Optional[str] = Field(default=None, max_length=60)
+
+    preco_venda_atual: Decimal = Field(default=Decimal("0.00"), ge=0)
+    custo_medio_atual: Decimal = Field(default=Decimal("0.0000"), ge=0)
+    estoque_minimo: Decimal = Field(default=Decimal("0.000"), ge=0)
+
+    ncm: Optional[str] = Field(default=None, max_length=20)
+    cest: Optional[str] = Field(default=None, max_length=20)
+    cfop_padrao: Optional[str] = Field(default=None, max_length=10)
+    origem_fiscal: Optional[str] = Field(default=None, max_length=1)
+
+    cst_icms: Optional[str] = Field(default=None, max_length=4)
+    csosn: Optional[str] = Field(default=None, max_length=4)
+    cst_pis: Optional[str] = Field(default=None, max_length=4)
+    cst_cofins: Optional[str] = Field(default=None, max_length=4)
+
+    aliquota_icms: Decimal = Field(default=Decimal("0.00"), ge=0, le=100)
+    aliquota_pis: Decimal = Field(default=Decimal("0.00"), ge=0, le=100)
+    aliquota_cofins: Decimal = Field(default=Decimal("0.00"), ge=0, le=100)
+
     observacao: Optional[str] = None
 
 
@@ -75,10 +95,30 @@ class ProdutoUpdate(BaseModel):
     nome: Optional[str] = Field(default=None, min_length=1, max_length=150)
     descricao: Optional[str] = None
     unidade: Optional[str] = Field(default=None, min_length=1, max_length=20)
+
     ativo: Optional[bool] = None
     aceita_fracionado: Optional[bool] = None
-    preco_venda_atual: Optional[Decimal] = None
-    estoque_minimo: Optional[Decimal] = None
+
+    codigo_barras_principal: Optional[str] = Field(default=None, max_length=60)
+
+    preco_venda_atual: Optional[Decimal] = Field(default=None, ge=0)
+    custo_medio_atual: Optional[Decimal] = Field(default=None, ge=0)
+    estoque_minimo: Optional[Decimal] = Field(default=None, ge=0)
+
+    ncm: Optional[str] = Field(default=None, max_length=20)
+    cest: Optional[str] = Field(default=None, max_length=20)
+    cfop_padrao: Optional[str] = Field(default=None, max_length=10)
+    origem_fiscal: Optional[str] = Field(default=None, max_length=1)
+
+    cst_icms: Optional[str] = Field(default=None, max_length=4)
+    csosn: Optional[str] = Field(default=None, max_length=4)
+    cst_pis: Optional[str] = Field(default=None, max_length=4)
+    cst_cofins: Optional[str] = Field(default=None, max_length=4)
+
+    aliquota_icms: Optional[Decimal] = Field(default=None, ge=0, le=100)
+    aliquota_pis: Optional[Decimal] = Field(default=None, ge=0, le=100)
+    aliquota_cofins: Optional[Decimal] = Field(default=None, ge=0, le=100)
+
     observacao: Optional[str] = None
 
 
@@ -108,14 +148,34 @@ class ProdutoOut(BaseModel):
     nome: str
     descricao: Optional[str]
     unidade: str
+
     ativo: bool
     aceita_fracionado: bool
+
+    codigo_barras_principal: Optional[str]
+
     preco_venda_atual: Decimal
+    custo_medio_atual: Decimal
     estoque_minimo: Decimal
+
+    ncm: Optional[str]
+    cest: Optional[str]
+    cfop_padrao: Optional[str]
+    origem_fiscal: Optional[str]
+
+    cst_icms: Optional[str]
+    csosn: Optional[str]
+    cst_pis: Optional[str]
+    cst_cofins: Optional[str]
+
+    aliquota_icms: Decimal
+    aliquota_pis: Decimal
+    aliquota_cofins: Decimal
+
     observacao: Optional[str]
     created_at: datetime
     updated_at: datetime
-    codigos_barras: list[ProdutoCodigoBarrasOut] = []
+    codigos_barras: list[ProdutoCodigoBarrasOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
