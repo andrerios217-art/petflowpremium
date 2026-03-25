@@ -60,6 +60,14 @@ def _get_produto_or_404(db: Session, empresa_id: int, produto_id: int) -> Produt
     return produto
 
 
+def _validar_produto_ativo_para_movimentacao(produto: Produto):
+    if not bool(produto.ativo):
+        raise HTTPException(
+            status_code=400,
+            detail="Produto inativo não pode ser usado em novas movimentações manuais.",
+        )
+
+
 def _get_deposito_or_404(db: Session, empresa_id: int, deposito_id: int) -> EstoqueDeposito:
     deposito = (
         db.query(EstoqueDeposito)
@@ -595,6 +603,7 @@ def registrar_entrada_manual(
 ):
     _get_deposito_or_404(db, empresa_id, payload.deposito_id)
     produto = _get_produto_or_404(db, empresa_id, payload.produto_id)
+    _validar_produto_ativo_para_movimentacao(produto)
 
     saldo = _get_or_create_saldo(
         db=db,
@@ -640,7 +649,8 @@ def registrar_saida_manual(
     payload: EstoqueMovimentoSaidaManualIn,
 ):
     _get_deposito_or_404(db, empresa_id, payload.deposito_id)
-    _get_produto_or_404(db, empresa_id, payload.produto_id)
+    produto = _get_produto_or_404(db, empresa_id, payload.produto_id)
+    _validar_produto_ativo_para_movimentacao(produto)
 
     saldo = _get_or_create_saldo(
         db=db,
@@ -689,7 +699,8 @@ def registrar_ajuste_manual(
     payload: EstoqueMovimentoAjusteIn,
 ):
     _get_deposito_or_404(db, empresa_id, payload.deposito_id)
-    _get_produto_or_404(db, empresa_id, payload.produto_id)
+    produto = _get_produto_or_404(db, empresa_id, payload.produto_id)
+    _validar_produto_ativo_para_movimentacao(produto)
 
     saldo = _get_or_create_saldo(
         db=db,
@@ -745,7 +756,8 @@ def registrar_transferencia(
 
     _get_deposito_or_404(db, empresa_id, payload.deposito_origem_id)
     _get_deposito_or_404(db, empresa_id, payload.deposito_destino_id)
-    _get_produto_or_404(db, empresa_id, payload.produto_id)
+    produto = _get_produto_or_404(db, empresa_id, payload.produto_id)
+    _validar_produto_ativo_para_movimentacao(produto)
 
     saldo_origem = _get_or_create_saldo(
         db=db,
@@ -836,7 +848,8 @@ def registrar_inventario(
     payload: EstoqueInventarioIn,
 ):
     _get_deposito_or_404(db, empresa_id, payload.deposito_id)
-    _get_produto_or_404(db, empresa_id, payload.produto_id)
+    produto = _get_produto_or_404(db, empresa_id, payload.produto_id)
+    _validar_produto_ativo_para_movimentacao(produto)
 
     saldo = _get_or_create_saldo(
         db=db,
