@@ -20,6 +20,8 @@ from app.models.estoque_saldo import EstoqueSaldo
 from app.models.financeiro_pagar import FinanceiroPagar
 from app.models.financeiro_receber import FinanceiroReceber
 from app.models.funcionario import Funcionario
+from app.models.nota_entrada import NotaEntrada
+from app.models.nota_entrada_item import NotaEntradaItem
 from app.models.permissao import Permissao
 from app.models.pet import Pet
 from app.models.pet_alergia import PetAlergia
@@ -37,5 +39,6 @@ from app.models.producao_historico import ProducaoHistorico
 from app.models.produto import Produto
 from app.models.produto_categoria import ProdutoCategoria
 from app.models.produto_codigo_barras import ProdutoCodigoBarras
+from app.models.produto_fornecedor_vinculo import ProdutoFornecedorVinculo
 from app.models.servico import Servico
 from app.models.usuario import Usuario

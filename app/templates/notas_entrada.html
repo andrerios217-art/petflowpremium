@@ -1,0 +1,585 @@
+{% extends "layout/base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/notas_entrada.css" />
+{% endblock %}
+
+{% block content %}
+<section class="nfe-page">
+  <div class="nfe-header">
+    <div>
+      <h1>Importar XML</h1>
+      <p>Etapa 4B · Importe XML da NF-e, revise o match automático e faça o vínculo manual dos itens pendentes.</p>
+    </div>
+    <div class="nfe-header-actions">
+      <button id="btn-atualizar-notas" type="button" class="secondary-btn">Atualizar</button>
+    </div>
+  </div>
+
+  <div id="nfe-alerta" class="nfe-alerta"></div>
+
+  <div class="nfe-grid">
+    <section class="card nfe-card">
+      <div class="nfe-card-header">
+        <h2>Importar XML</h2>
+      </div>
+
+      <form id="form-importar-xml" class="nfe-form">
+        <div class="nfe-field">
+          <label for="arquivo_xml">Arquivo XML da NF-e</label>
+          <input id="arquivo_xml" name="arquivo_xml" type="file" accept=".xml,text/xml,application/xml" required />
+        </div>
+
+        <div class="nfe-actions">
+          <button type="submit" class="primary-btn">Importar XML</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card nfe-card">
+      <div class="nfe-card-header">
+        <h2>Notas importadas</h2>
+      </div>
+
+      <div id="lista-notas" class="nfe-lista-notas">
+        <div class="nfe-empty">Carregando notas...</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card nfe-card nfe-detalhe-card">
+    <div class="nfe-card-header">
+      <div>
+        <h2>Detalhe da nota</h2>
+        <p id="detalhe-subtitulo" class="nfe-muted">Selecione uma nota para revisar os itens.</p>
+      </div>
+    </div>
+
+    <div id="detalhe-nota-vazio" class="nfe-empty">
+      Nenhuma nota selecionada.
+    </div>
+
+    <div id="detalhe-nota-conteudo" class="nfe-hidden">
+      <div class="nfe-resumo-grid">
+        <div class="nfe-resumo-item">
+          <span class="nfe-label">Fornecedor</span>
+          <strong id="detalhe-fornecedor">-</strong>
+        </div>
+        <div class="nfe-resumo-item">
+          <span class="nfe-label">CNPJ</span>
+          <strong id="detalhe-cnpj">-</strong>
+        </div>
+        <div class="nfe-resumo-item">
+          <span class="nfe-label">Número / Série</span>
+          <strong id="detalhe-numero-serie">-</strong>
+        </div>
+        <div class="nfe-resumo-item">
+          <span class="nfe-label">Chave</span>
+          <strong id="detalhe-chave">-</strong>
+        </div>
+        <div class="nfe-resumo-item">
+          <span class="nfe-label">Total produtos</span>
+          <strong id="detalhe-total-produtos">R$ 0,00</strong>
+        </div>
+        <div class="nfe-resumo-item">
+          <span class="nfe-label">Total nota</span>
+          <strong id="detalhe-total-nota">R$ 0,00</strong>
+        </div>
+      </div>
+
+      <div class="nfe-table-wrap">
+        <table class="nfe-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Produto NF</th>
+              <th>Barcode NF</th>
+              <th>Qtd</th>
+              <th>Vl. unit.</th>
+              <th>Match</th>
+              <th>Produto vinculado</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-itens-nota">
+            <tr>
+              <td colspan="8" class="nfe-empty">Nenhum item carregado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div id="modal-vinculo" class="nfe-modal nfe-hidden">
+    <div class="nfe-modal-backdrop"></div>
+    <div class="nfe-modal-content">
+      <div class="nfe-card-header">
+        <div>
+          <h3>Vincular item da nota</h3>
+          <p id="modal-item-descricao" class="nfe-muted">-</p>
+        </div>
+        <button type="button" id="btn-fechar-modal" class="secondary-btn">Fechar</button>
+      </div>
+
+      <div class="nfe-modal-body">
+        <div class="nfe-field">
+          <label for="busca_produto_vinculo">Buscar produto</label>
+          <input
+            id="busca_produto_vinculo"
+            type="text"
+            placeholder="Digite nome, SKU ou código de barras"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="nfe-field-inline">
+          <label class="nfe-checkbox-wrap">
+            <input id="salvar_vinculo_fornecedor" type="checkbox" checked />
+            <span>Salvar vínculo fornecedor/produto</span>
+          </label>
+        </div>
+
+        <div id="resultado-busca-produtos" class="nfe-busca-resultados">
+          <div class="nfe-empty">Digite ao menos 2 caracteres para buscar.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const alertaEl = document.getElementById("nfe-alerta");
+  const listaNotasEl = document.getElementById("lista-notas");
+  const detalheVazioEl = document.getElementById("detalhe-nota-vazio");
+  const detalheConteudoEl = document.getElementById("detalhe-nota-conteudo");
+  const detalheSubtituloEl = document.getElementById("detalhe-subtitulo");
+  const tbodyItensEl = document.getElementById("tbody-itens-nota");
+  const modalEl = document.getElementById("modal-vinculo");
+  const buscaProdutoInput = document.getElementById("busca_produto_vinculo");
+  const resultadoBuscaProdutosEl = document.getElementById("resultado-busca-produtos");
+  const salvarVinculoFornecedorEl = document.getElementById("salvar_vinculo_fornecedor");
+
+  let notaSelecionadaId = null;
+  let itemSelecionado = null;
+  let debounceBusca = null;
+
+  function getToken() {
+    return localStorage.getItem("petflow_token");
+  }
+
+  function mostrarAlerta(mensagem, tipo = "sucesso") {
+    alertaEl.textContent = mensagem;
+    alertaEl.className = `nfe-alerta is-visible ${tipo === "erro" ? "erro" : "sucesso"}`;
+  }
+
+  function limparAlerta() {
+    alertaEl.textContent = "";
+    alertaEl.className = "nfe-alerta";
+  }
+
+  function getAuthHeaders(contentType = "application/json") {
+    const token = getToken();
+    const headers = {};
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    if (contentType) {
+      headers["Content-Type"] = contentType;
+    }
+
+    return headers;
+  }
+
+  function formatarMoeda(valor) {
+    const numero = Number(valor || 0);
+    return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function escapeHtml(texto) {
+    return String(texto ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function formatarData(dataIso) {
+    if (!dataIso) return "-";
+    const data = new Date(dataIso);
+    if (Number.isNaN(data.getTime())) return "-";
+    return data.toLocaleString("pt-BR");
+  }
+
+  function badgeMatch(item) {
+    if (item.match_tipo === "CODIGO_BARRAS") {
+      return `<span class="nfe-badge ok">Código de barras</span>`;
+    }
+    if (item.match_tipo === "VINCULO_FORNECEDOR" || item.match_tipo === "CODIGO_FORNECEDOR") {
+      return `<span class="nfe-badge ok">Vínculo fornecedor</span>`;
+    }
+    if (item.match_tipo === "MANUAL") {
+      return `<span class="nfe-badge manual">Manual</span>`;
+    }
+    return `<span class="nfe-badge alerta">Sem match</span>`;
+  }
+
+  function renderizarListaNotas(notas) {
+    if (!Array.isArray(notas) || notas.length === 0) {
+      listaNotasEl.innerHTML = `<div class="nfe-empty">Nenhuma nota importada ainda.</div>`;
+      return;
+    }
+
+    listaNotasEl.innerHTML = notas.map((nota) => {
+      const ativa = Number(notaSelecionadaId) === Number(nota.id);
+      return `
+        <button
+          type="button"
+          class="nfe-nota-card ${ativa ? "ativa" : ""}"
+          data-nota-id="${nota.id}"
+        >
+          <div class="nfe-nota-card-topo">
+            <strong>NF ${escapeHtml(nota.numero || "-")} / Série ${escapeHtml(nota.serie || "-")}</strong>
+            <span class="nfe-badge ${nota.status === "IMPORTADA" ? "manual" : "ok"}">${escapeHtml(nota.status)}</span>
+          </div>
+          <div class="nfe-nota-card-linha">Fornecedor: ${escapeHtml(nota.fornecedor_nome || "-")}</div>
+          <div class="nfe-nota-card-linha">CNPJ: ${escapeHtml(nota.fornecedor_cnpj || "-")}</div>
+          <div class="nfe-nota-card-linha">Emissão: ${escapeHtml(formatarData(nota.data_emissao))}</div>
+          <div class="nfe-nota-card-linha">Total: ${escapeHtml(formatarMoeda(nota.valor_total_nota))}</div>
+        </button>
+      `;
+    }).join("");
+
+    document.querySelectorAll("[data-nota-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const notaId = Number(btn.dataset.notaId);
+        carregarDetalheNota(notaId);
+      });
+    });
+  }
+
+  function renderizarDetalheNota(nota) {
+    detalheVazioEl.classList.add("nfe-hidden");
+    detalheConteudoEl.classList.remove("nfe-hidden");
+
+    document.getElementById("detalhe-fornecedor").textContent = nota.fornecedor_nome || "-";
+    document.getElementById("detalhe-cnpj").textContent = nota.fornecedor_cnpj || "-";
+    document.getElementById("detalhe-numero-serie").textContent = `NF ${nota.numero || "-"} / Série ${nota.serie || "-"}`;
+    document.getElementById("detalhe-chave").textContent = nota.chave_acesso || "-";
+    document.getElementById("detalhe-total-produtos").textContent = formatarMoeda(nota.valor_total_produtos);
+    document.getElementById("detalhe-total-nota").textContent = formatarMoeda(nota.valor_total_nota);
+    detalheSubtituloEl.textContent = `Importada em ${formatarData(nota.created_at)} · ${nota.itens.length} item(ns)`;
+
+    if (!Array.isArray(nota.itens) || nota.itens.length === 0) {
+      tbodyItensEl.innerHTML = `<tr><td colspan="8" class="nfe-empty">Nenhum item encontrado nesta nota.</td></tr>`;
+      return;
+    }
+
+    tbodyItensEl.innerHTML = nota.itens.map((item) => {
+      const barcode = item.codigo_barras_tributavel_nf || item.codigo_barras_nf || "-";
+      const produtoVinculado = item.produto
+        ? `
+          <div class="nfe-produto-vinculado ${item.produto.ativo ? "" : "inativo"}">
+            <strong>${escapeHtml(item.produto.sku)} - ${escapeHtml(item.produto.nome)}</strong>
+            <span>${escapeHtml(item.produto.unidade)} · ${item.produto.ativo ? "Ativo" : "Inativo"}</span>
+          </div>
+        `
+        : `<span class="nfe-sem-vinculo">Não vinculado</span>`;
+
+      const observacao = item.observacao_match
+        ? `<div class="nfe-match-observacao">${escapeHtml(item.observacao_match)}</div>`
+        : "";
+
+      return `
+        <tr class="${item.produto && !item.produto.ativo ? "linha-produto-inativo" : ""}">
+          <td>${item.item_numero}</td>
+          <td>
+            <div><strong>${escapeHtml(item.descricao_nf)}</strong></div>
+            <div class="nfe-muted">CFOP ${escapeHtml(item.cfop || "-")} · NCM ${escapeHtml(item.ncm || "-")}</div>
+          </td>
+          <td>${escapeHtml(barcode)}</td>
+          <td>${escapeHtml(item.quantidade_comercial)}</td>
+          <td>${escapeHtml(formatarMoeda(item.valor_unitario_comercial))}</td>
+          <td>
+            ${badgeMatch(item)}
+            ${observacao}
+          </td>
+          <td>${produtoVinculado}</td>
+          <td>
+            <button
+              type="button"
+              class="secondary-btn btn-vincular-item"
+              data-item-id="${item.id}"
+            >
+              Vincular
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    document.querySelectorAll(".btn-vincular-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const itemId = Number(btn.dataset.itemId);
+        const item = nota.itens.find((it) => Number(it.id) === itemId);
+        abrirModalVinculo(item);
+      });
+    });
+  }
+
+  async function extrairErroResposta(response, mensagemPadrao) {
+    const textoCru = await response.text();
+    let detalhe = mensagemPadrao;
+
+    try {
+      const json = textoCru ? JSON.parse(textoCru) : null;
+      if (json?.detail) {
+        detalhe = json.detail;
+      } else if (json?.message) {
+        detalhe = json.message;
+      } else if (textoCru) {
+        detalhe = textoCru;
+      }
+    } catch {
+      if (textoCru) {
+        detalhe = textoCru;
+      }
+    }
+
+    console.error("Erro API /notas-entrada:", {
+      status: response.status,
+      statusText: response.statusText,
+      detalhe,
+    });
+
+    return detalhe;
+  }
+
+  async function validarResposta(response, mensagemPadrao) {
+    if (response.ok) {
+      return;
+    }
+
+    const detalhe = await extrairErroResposta(response, mensagemPadrao);
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(`Falha de autenticação: ${detalhe}`);
+    }
+
+    throw new Error(detalhe || mensagemPadrao);
+  }
+
+  async function carregarNotas() {
+    try {
+      const response = await fetch("/api/notas-entrada", {
+        headers: getAuthHeaders(null),
+      });
+
+      await validarResposta(response, "Não foi possível carregar as notas de entrada.");
+
+      const notas = await response.json();
+      renderizarListaNotas(notas);
+    } catch (error) {
+      console.error(error);
+      listaNotasEl.innerHTML = `<div class="nfe-empty erro">${escapeHtml(error.message || "Erro ao carregar notas.")}</div>`;
+      mostrarAlerta(error.message || "Erro ao carregar notas.", "erro");
+    }
+  }
+
+  async function carregarDetalheNota(notaId) {
+    try {
+      notaSelecionadaId = notaId;
+      await carregarNotas();
+
+      const response = await fetch(`/api/notas-entrada/${notaId}`, {
+        headers: getAuthHeaders(null),
+      });
+
+      await validarResposta(response, "Não foi possível carregar o detalhe da nota.");
+
+      const nota = await response.json();
+      renderizarDetalheNota(nota);
+    } catch (error) {
+      console.error(error);
+      mostrarAlerta(error.message || "Erro ao carregar detalhe da nota.", "erro");
+    }
+  }
+
+  function abrirModalVinculo(item) {
+    itemSelecionado = item;
+    document.getElementById("modal-item-descricao").textContent = item?.descricao_nf || "-";
+    buscaProdutoInput.value = "";
+    resultadoBuscaProdutosEl.innerHTML = `<div class="nfe-empty">Digite ao menos 2 caracteres para buscar.</div>`;
+    modalEl.classList.remove("nfe-hidden");
+  }
+
+  function fecharModalVinculo() {
+    modalEl.classList.add("nfe-hidden");
+    itemSelecionado = null;
+    buscaProdutoInput.value = "";
+    resultadoBuscaProdutosEl.innerHTML = `<div class="nfe-empty">Digite ao menos 2 caracteres para buscar.</div>`;
+  }
+
+  async function buscarProdutosParaVinculo(termo) {
+    if (!itemSelecionado) return;
+
+    if (!termo || termo.trim().length < 2) {
+      resultadoBuscaProdutosEl.innerHTML = `<div class="nfe-empty">Digite ao menos 2 caracteres para buscar.</div>`;
+      return;
+    }
+
+    resultadoBuscaProdutosEl.innerHTML = `<div class="nfe-empty">Buscando produtos...</div>`;
+
+    try {
+      const params = new URLSearchParams({
+        q: termo.trim(),
+        incluir_inativos: "true",
+        limite: "20",
+      });
+
+      const response = await fetch(`/api/notas-entrada/produtos/busca?${params.toString()}`, {
+        headers: getAuthHeaders(null),
+      });
+
+      await validarResposta(response, "Não foi possível buscar produtos.");
+
+      const produtos = await response.json();
+
+      if (!Array.isArray(produtos) || produtos.length === 0) {
+        resultadoBuscaProdutosEl.innerHTML = `<div class="nfe-empty">Nenhum produto encontrado.</div>`;
+        return;
+      }
+
+      resultadoBuscaProdutosEl.innerHTML = produtos.map((produto) => {
+        const inativoClass = produto.ativo ? "" : "inativo";
+        const badge = produto.ativo
+          ? `<span class="nfe-badge ok">Ativo</span>`
+          : `<span class="nfe-badge alerta">Inativo</span>`;
+
+        return `
+          <div class="nfe-produto-busca-item ${inativoClass}">
+            <div class="nfe-produto-busca-texto">
+              <strong>${escapeHtml(produto.sku)} - ${escapeHtml(produto.nome)}</strong>
+              <span>Barcode: ${escapeHtml(produto.codigo_barras_principal || "-")} · Unidade: ${escapeHtml(produto.unidade)}</span>
+              <span>Custo médio: ${escapeHtml(formatarMoeda(produto.custo_medio_atual))}</span>
+            </div>
+            <div class="nfe-produto-busca-acoes">
+              ${badge}
+              <button
+                type="button"
+                class="primary-btn btn-confirmar-vinculo"
+                data-produto-id="${produto.id}"
+              >
+                Vincular
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      document.querySelectorAll(".btn-confirmar-vinculo").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const produtoId = Number(btn.dataset.produtoId);
+          confirmarVinculoManual(produtoId);
+        });
+      });
+    } catch (error) {
+      console.error(error);
+      resultadoBuscaProdutosEl.innerHTML = `<div class="nfe-empty erro">${escapeHtml(error.message || "Erro ao buscar produtos.")}</div>`;
+      mostrarAlerta(error.message || "Erro ao buscar produtos.", "erro");
+    }
+  }
+
+  async function confirmarVinculoManual(produtoId) {
+    if (!itemSelecionado || !notaSelecionadaId) {
+      mostrarAlerta("Selecione um item válido para vincular.", "erro");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/notas-entrada/${notaSelecionadaId}/vincular-item`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify({
+          item_id: itemSelecionado.id,
+          produto_id: produtoId,
+          salvar_vinculo_fornecedor: !!salvarVinculoFornecedorEl.checked,
+        }),
+      });
+
+      await validarResposta(response, "Não foi possível vincular o item.");
+
+      fecharModalVinculo();
+      mostrarAlerta("Item vinculado com sucesso.");
+      await carregarDetalheNota(notaSelecionadaId);
+    } catch (error) {
+      console.error(error);
+      mostrarAlerta(error.message || "Erro ao vincular item.", "erro");
+    }
+  }
+
+  document.getElementById("form-importar-xml").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    limparAlerta();
+
+    const arquivoInput = document.getElementById("arquivo_xml");
+    const arquivo = arquivoInput.files?.[0];
+
+    if (!arquivo) {
+      mostrarAlerta("Selecione um arquivo XML para importar.", "erro");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("arquivo", arquivo);
+
+      const response = await fetch("/api/notas-entrada/importar-xml", {
+        method: "POST",
+        headers: getAuthHeaders(null),
+        body: formData,
+      });
+
+      await validarResposta(response, "Não foi possível importar o XML.");
+
+      const nota = await response.json();
+
+      arquivoInput.value = "";
+      mostrarAlerta("XML importado com sucesso.");
+      await carregarNotas();
+      await carregarDetalheNota(nota.id);
+    } catch (error) {
+      console.error(error);
+      mostrarAlerta(error.message || "Erro ao importar XML.", "erro");
+    }
+  });
+
+  document.getElementById("btn-atualizar-notas").addEventListener("click", async () => {
+    limparAlerta();
+    await carregarNotas();
+    if (notaSelecionadaId) {
+      await carregarDetalheNota(notaSelecionadaId);
+    }
+  });
+
+  document.getElementById("btn-fechar-modal").addEventListener("click", fecharModalVinculo);
+  modalEl.querySelector(".nfe-modal-backdrop").addEventListener("click", fecharModalVinculo);
+
+  buscaProdutoInput.addEventListener("input", (event) => {
+    const termo = event.target.value;
+    clearTimeout(debounceBusca);
+    debounceBusca = setTimeout(() => {
+      buscarProdutosParaVinculo(termo);
+    }, 300);
+  });
+
+  if (!getToken()) {
+    mostrarAlerta("Token ausente no navegador. Faça login novamente.", "erro");
+  } else {
+    carregarNotas();
+  }
+</script>
+{% endblock %}

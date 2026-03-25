@@ -20,6 +20,7 @@ from app.api.estoque_api import router as estoque_router
 from app.api.financeiro_api import router as financeiro_router
 from app.api.financeiro_dashboard import router as financeiro_dashboard_router
 from app.api.financeiro_pagar_api import router as financeiro_pagar_router
+from app.api.nota_entrada_api import router as nota_entrada_router
 from app.api.pdv_api import router as pdv_router
 from app.api.producao_api import router as producao_router
 
@@ -44,6 +45,7 @@ app.include_router(atendimento_clinico_router)
 app.include_router(producao_router)
 app.include_router(comissao_router)
 app.include_router(estoque_router)
+app.include_router(nota_entrada_router)
 app.include_router(financeiro_router)
 app.include_router(financeiro_dashboard_router)
 app.include_router(financeiro_pagar_router)
@@ -127,6 +129,11 @@ def producao_page(request: Request):
 @app.get("/estoque", response_class=HTMLResponse)
 def estoque_page(request: Request):
     return templates.TemplateResponse(request, "estoque.html", {"request": request})
+
+
+@app.get("/notas-entrada", response_class=HTMLResponse)
+def notas_entrada_page(request: Request):
+    return templates.TemplateResponse(request, "notas_entrada.html", {"request": request})
 
 
 @app.get("/financeiro", response_class=HTMLResponse)
