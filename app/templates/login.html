@@ -76,45 +76,85 @@
     </section>
   </div>
 
- <script>
-  document.getElementById("login-form").addEventListener("submit", async function (e) {
-    e.preventDefault();
+  <script>
+    function limparCredenciaisPetflow() {
+      const keys = [
+        "petflow_token",
+        "petflow_tipo_usuario",
+        "petflow_nome",
+        "petflow_permissoes"
+      ];
 
-    const email = document.getElementById("email").value;
-    const senha = document.getElementById("senha").value;
-    const remember = document.getElementById("remember-me").checked;
-    const msg = document.getElementById("login-message");
+      for (const key of keys) {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {}
 
-    msg.innerText = "Validando acesso...";
+        try {
+          sessionStorage.removeItem(key);
+        } catch (error) {}
+      }
+    }
 
-    try {
-      const response = await fetch("/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, senha })
-      });
+    function salvarCredenciaisPetflow(data, remember) {
+      const token = data?.access_token || "";
+      const tipoUsuario = data?.tipo_usuario || "";
+      const nome = data?.nome || "";
+      const permissoes = JSON.stringify(data?.permissoes || {});
 
-      if (response.ok) {
+      if (!token) {
+        throw new Error("Token de autenticação não recebido.");
+      }
+
+      limparCredenciaisPetflow();
+
+      localStorage.setItem("petflow_token", token);
+      localStorage.setItem("petflow_tipo_usuario", tipoUsuario);
+      localStorage.setItem("petflow_nome", nome);
+      localStorage.setItem("petflow_permissoes", permissoes);
+
+      if (!remember) {
+        sessionStorage.setItem("petflow_token", token);
+        sessionStorage.setItem("petflow_tipo_usuario", tipoUsuario);
+        sessionStorage.setItem("petflow_nome", nome);
+        sessionStorage.setItem("petflow_permissoes", permissoes);
+      }
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value.trim();
+      const senha = document.getElementById("senha").value;
+      const remember = document.getElementById("remember-me").checked;
+      const msg = document.getElementById("login-message");
+
+      msg.innerText = "Validando acesso...";
+
+      try {
+        const response = await fetch("/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ email, senha })
+        });
+
+        if (!response.ok) {
+          msg.innerText = "E-mail ou senha inválidos.";
+          return;
+        }
+
         const data = await response.json();
-
-        const storage = remember ? localStorage : sessionStorage;
-        storage.setItem("petflow_token", data.access_token);
-        storage.setItem("petflow_tipo_usuario", data.tipo_usuario || "");
-        storage.setItem("petflow_nome", data.nome || "");
-        storage.setItem("petflow_permissoes", JSON.stringify(data.permissoes || {}));
+        salvarCredenciaisPetflow(data, remember);
 
         msg.innerText = "Login realizado com sucesso.";
         window.location.href = "/dashboard";
-      } else {
-        msg.innerText = "E-mail ou senha inválidos.";
+      } catch (error) {
+        console.error("Erro no login:", error);
+        msg.innerText = "Não foi possível conectar ao servidor.";
       }
-    } catch (error) {
-      msg.innerText = "Não foi possível conectar ao servidor.";
-    }
-  });
-</script>
-
+    });
+  </script>
 </body>
 </html>
