@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import re
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.estoque_deposito import EstoqueDeposito
+from app.models.estoque_movimento import EstoqueMovimento
+from app.models.estoque_saldo import EstoqueSaldo
 from app.models.nota_entrada import NotaEntrada
 from app.models.nota_entrada_item import NotaEntradaItem
 from app.models.produto import Produto
@@ -13,12 +18,57 @@ from app.models.produto_codigo_barras import ProdutoCodigoBarras
 from app.models.produto_fornecedor_vinculo import ProdutoFornecedorVinculo
 from app.services.nfe_importacao import importar_nfe_do_xml
 
-
 MATCH_CODIGO_BARRAS = "CODIGO_BARRAS"
 MATCH_VINCULO_FORNECEDOR = "VINCULO_FORNECEDOR"
 MATCH_CODIGO_FORNECEDOR = "CODIGO_FORNECEDOR"
 MATCH_MANUAL = "MANUAL"
+MATCH_CRIADO_NF = "CRIADO_NF"
 MATCH_SEM = "SEM_MATCH"
+
+STATUS_IMPORTADA = "IMPORTADA"
+STATUS_CONFIRMADA = "CONFIRMADA"
+
+TIPO_ENTRADA = "ENTRADA"
+ORIGEM_NF_ENTRADA = "NF_ENTRADA"
+
+ZERO = Decimal("0")
+QTD_3 = Decimal("0.001")
+CUSTO_4 = Decimal("0.0001")
+PRECO_2 = Decimal("0.01")
+
+
+def _decimal(value) -> Decimal:
+    if value is None:
+        return ZERO
+    return Decimal(str(value))
+
+
+def _qtd(value) -> Decimal:
+    return _decimal(value).quantize(QTD_3, rounding=ROUND_HALF_UP)
+
+
+def _custo(value) -> Decimal:
+    return _decimal(value).quantize(CUSTO_4, rounding=ROUND_HALF_UP)
+
+
+def _preco(value) -> Decimal:
+    return _decimal(value).quantize(PRECO_2, rounding=ROUND_HALF_UP)
+
+
+def _somente_digitos(valor: str | None) -> str:
+    return re.sub(r"\D+", "", valor or "")
+
+
+def _slug_curto(valor: str | None) -> str:
+    texto = (valor or "").upper().strip()
+    texto = re.sub(r"[^A-Z0-9]+", "-", texto)
+    texto = re.sub(r"-{2,}", "-", texto).strip("-")
+    return texto[:40]
+
+
+def _normalizar_unidade(unidade: str | None) -> str:
+    valor = (unidade or "").strip().upper()
+    return valor[:20] if valor else "UN"
 
 
 def _buscar_produto_por_codigo_barras(
@@ -117,6 +167,9 @@ def _build_observacao_match(produto: Produto, origem: str) -> str:
             else "Vínculo manual realizado com produto inativo. Revise antes de confirmar a nota."
         )
 
+    if origem == MATCH_CRIADO_NF:
+        return "Produto criado a partir do item da NF e vinculado automaticamente."
+
     return "Produto não localizado automaticamente."
 
 
@@ -173,6 +226,294 @@ def _aplicar_match_automatico(
     item.observacao_match = "Produto não localizado automaticamente."
 
 
+def _get_or_create_saldo(
+    db: Session,
+    empresa_id: int,
+    deposito_id: int,
+    produto_id: int,
+) -> EstoqueSaldo:
+    saldo = (
+        db.query(EstoqueSaldo)
+        .filter(
+            EstoqueSaldo.empresa_id == empresa_id,
+            EstoqueSaldo.deposito_id == deposito_id,
+            EstoqueSaldo.produto_id == produto_id,
+        )
+        .first()
+    )
+    if saldo:
+        return saldo
+
+    saldo = EstoqueSaldo(
+        empresa_id=empresa_id,
+        deposito_id=deposito_id,
+        produto_id=produto_id,
+        quantidade_atual=ZERO,
+    )
+    db.add(saldo)
+    db.flush()
+    return saldo
+
+
+def _get_deposito_padrao_ativo(db: Session, empresa_id: int) -> EstoqueDeposito:
+    deposito = (
+        db.query(EstoqueDeposito)
+        .filter(
+            EstoqueDeposito.empresa_id == empresa_id,
+            EstoqueDeposito.ativo.is_(True),
+        )
+        .order_by(EstoqueDeposito.padrao.desc(), EstoqueDeposito.nome.asc())
+        .first()
+    )
+    if not deposito:
+        raise HTTPException(
+            status_code=400,
+            detail="Nenhum depósito ativo encontrado para lançar a entrada da nota.",
+        )
+    return deposito
+
+
+def _get_quantidade_item(item: NotaEntradaItem) -> Decimal:
+    quantidade = _decimal(item.quantidade_comercial)
+    if quantidade <= ZERO:
+        quantidade = _decimal(item.quantidade_tributavel)
+    quantidade = _qtd(quantidade)
+    if quantidade <= ZERO:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Item {item.item_numero} possui quantidade inválida para confirmação.",
+        )
+    return quantidade
+
+
+def _get_custo_unitario_item(item: NotaEntradaItem) -> Decimal:
+    custo = _decimal(item.valor_unitario_comercial)
+    if custo <= ZERO:
+        custo = _decimal(item.valor_unitario_tributavel)
+
+    if custo <= ZERO:
+        quantidade = _get_quantidade_item(item)
+        total = _decimal(item.valor_total_bruto) - _decimal(item.desconto)
+        if quantidade > ZERO and total > ZERO:
+            custo = total / quantidade
+
+    return _custo(custo if custo > ZERO else ZERO)
+
+
+def _calcular_custo_medio_ponderado(
+    saldo_anterior: Decimal,
+    custo_medio_anterior: Decimal,
+    quantidade_entrada: Decimal,
+    custo_entrada: Decimal,
+) -> Decimal:
+    if quantidade_entrada <= ZERO:
+        return _custo(custo_medio_anterior)
+
+    if saldo_anterior <= ZERO:
+        return _custo(custo_entrada)
+
+    quantidade_total = saldo_anterior + quantidade_entrada
+    if quantidade_total <= ZERO:
+        return _custo(custo_entrada)
+
+    valor_anterior = saldo_anterior * custo_medio_anterior
+    valor_entrada = quantidade_entrada * custo_entrada
+    novo_custo = (valor_anterior + valor_entrada) / quantidade_total
+    return _custo(novo_custo)
+
+
+def _bloquear_se_nota_confirmada(nota: NotaEntrada) -> None:
+    if nota.status == STATUS_CONFIRMADA:
+        raise HTTPException(
+            status_code=409,
+            detail="Nota já confirmada. Não é permitido alterar vínculos ou editar itens após gerar entrada no estoque.",
+        )
+
+
+def _validar_itens_para_confirmacao(itens: list[NotaEntradaItem]) -> None:
+    if not itens:
+        raise HTTPException(
+            status_code=400,
+            detail="A nota não possui itens para confirmação.",
+        )
+
+    itens_sem_vinculo = [item.item_numero for item in itens if not item.produto_id]
+    if itens_sem_vinculo:
+        itens_txt = ", ".join(str(x) for x in itens_sem_vinculo)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não é possível confirmar a nota. Itens sem produto vinculado: {itens_txt}.",
+        )
+
+    itens_inativos = [
+        item.item_numero
+        for item in itens
+        if item.produto is not None and not bool(item.produto.ativo)
+    ]
+    if itens_inativos:
+        itens_txt = ", ".join(str(x) for x in itens_inativos)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não é possível confirmar a nota. Há itens vinculados a produtos inativos: {itens_txt}.",
+        )
+
+
+def _enriquecer_nota_com_resumo_estoque(db: Session, nota: NotaEntrada) -> NotaEntrada:
+    nota.permite_edicao = nota.status != STATUS_CONFIRMADA
+    nota.bloqueada_para_edicao = nota.status == STATUS_CONFIRMADA
+    nota.motivo_bloqueio_edicao = (
+        "Nota já confirmada. Não é permitido alterar vínculos ou editar itens após gerar entrada no estoque."
+        if nota.status == STATUS_CONFIRMADA
+        else None
+    )
+
+    movimentos = (
+        db.query(EstoqueMovimento)
+        .options(
+            joinedload(EstoqueMovimento.produto),
+            joinedload(EstoqueMovimento.deposito),
+        )
+        .filter(
+            EstoqueMovimento.empresa_id == nota.empresa_id,
+            EstoqueMovimento.origem == ORIGEM_NF_ENTRADA,
+            EstoqueMovimento.origem_id == nota.id,
+        )
+        .order_by(EstoqueMovimento.id.asc())
+        .all()
+    )
+
+    nota.movimentacoes_estoque = []
+    nota.total_itens_confirmados = 0
+    nota.total_quantidade_entrada = ZERO
+    nota.total_produtos_afetados = 0
+    nota.resumo_estoque_disponivel = False
+    nota.confirmada_em = None
+
+    if not movimentos:
+        return nota
+
+    produto_ids: set[int] = set()
+    total_qtd = ZERO
+    confirmada_em = None
+
+    for movimento in movimentos:
+        quantidade = _qtd(movimento.quantidade)
+        custo_unitario = _custo(movimento.custo_unitario)
+        valor_total = (quantidade * custo_unitario).quantize(CUSTO_4, rounding=ROUND_HALF_UP)
+
+        nota.movimentacoes_estoque.append(
+            {
+                "movimento_id": movimento.id,
+                "produto_id": movimento.produto_id,
+                "produto_nome": movimento.produto.nome if movimento.produto else None,
+                "produto_sku": movimento.produto.sku if movimento.produto else None,
+                "deposito_id": movimento.deposito_id,
+                "deposito_nome": movimento.deposito.nome if movimento.deposito else None,
+                "quantidade": quantidade,
+                "saldo_antes": _qtd(movimento.saldo_antes),
+                "saldo_depois": _qtd(movimento.saldo_depois),
+                "custo_unitario": custo_unitario,
+                "valor_total": valor_total,
+                "origem": movimento.origem,
+                "origem_id": movimento.origem_id,
+                "origem_item_id": getattr(movimento, "origem_item_id", None),
+                "documento_referencia": movimento.documento_referencia,
+                "observacao": movimento.observacao,
+                "created_at": movimento.created_at,
+            }
+        )
+
+        produto_ids.add(movimento.produto_id)
+        total_qtd += quantidade
+
+        if movimento.created_at and (confirmada_em is None or movimento.created_at < confirmada_em):
+            confirmada_em = movimento.created_at
+
+    nota.total_itens_confirmados = len(nota.movimentacoes_estoque)
+    nota.total_quantidade_entrada = _qtd(total_qtd)
+    nota.total_produtos_afetados = len(produto_ids)
+    nota.resumo_estoque_disponivel = True
+    nota.confirmada_em = confirmada_em
+
+    return nota
+
+
+def _sku_ja_existe(db: Session, empresa_id: int, sku: str) -> bool:
+    return (
+        db.query(Produto.id)
+        .filter(
+            Produto.empresa_id == empresa_id,
+            Produto.sku == sku,
+        )
+        .first()
+        is not None
+    )
+
+
+def _gerar_sku_produto_nf(
+    db: Session,
+    empresa_id: int,
+    item: NotaEntradaItem,
+    sku_informado: str | None = None,
+) -> str:
+    sku_limpo = _slug_curto(sku_informado)
+    if sku_limpo:
+        if _sku_ja_existe(db, empresa_id, sku_limpo):
+            raise HTTPException(status_code=400, detail=f"Já existe produto com SKU '{sku_limpo}'.")
+        return sku_limpo
+
+    barcode = _somente_digitos(item.codigo_barras_tributavel_nf or item.codigo_barras_nf)
+    codigo_fornecedor = _slug_curto(item.codigo_fornecedor)
+    descricao_base = _slug_curto(item.descricao_nf)[:18]
+
+    base = barcode or codigo_fornecedor or descricao_base or f"NFITEM-{item.item_numero}"
+    base = f"NF-{base}"[:40]
+
+    sku = base
+    sequencia = 2
+    while _sku_ja_existe(db, empresa_id, sku):
+        sufixo = f"-{sequencia}"
+        sku = f"{base[: max(1, 40 - len(sufixo))]}{sufixo}"
+        sequencia += 1
+
+    return sku
+
+
+def _preparar_vinculo_fornecedor(
+    db: Session,
+    empresa_id: int,
+    nota: NotaEntrada,
+    item: NotaEntradaItem,
+    produto_id: int,
+) -> None:
+    if not nota.fornecedor_cnpj:
+        return
+
+    vinculo = (
+        db.query(ProdutoFornecedorVinculo)
+        .filter(
+            ProdutoFornecedorVinculo.empresa_id == empresa_id,
+            ProdutoFornecedorVinculo.fornecedor_cnpj == nota.fornecedor_cnpj,
+            ProdutoFornecedorVinculo.produto_id == produto_id,
+        )
+        .first()
+    )
+    if not vinculo:
+        vinculo = ProdutoFornecedorVinculo(
+            empresa_id=empresa_id,
+            fornecedor_cnpj=nota.fornecedor_cnpj,
+            produto_id=produto_id,
+        )
+        db.add(vinculo)
+
+    vinculo.codigo_fornecedor = item.codigo_fornecedor
+    vinculo.codigo_barras_fornecedor = item.codigo_barras_tributavel_nf or item.codigo_barras_nf
+    vinculo.ultima_descricao_nf = item.descricao_nf
+    vinculo.ultimo_ncm = item.ncm
+    vinculo.ultimo_cest = item.cest
+    vinculo.ultimo_cfop = item.cfop
+
+
 def importar_xml_nota_entrada(
     db: Session,
     empresa_id: int,
@@ -213,7 +554,7 @@ def importar_xml_nota_entrada(
         valor_seguro=nfe.valor_seguro,
         valor_desconto=nfe.valor_desconto,
         valor_outras_despesas=nfe.valor_outras_despesas,
-        status="IMPORTADA",
+        status=STATUS_IMPORTADA,
         xml_original=nfe.xml_original,
     )
 
@@ -265,7 +606,6 @@ def importar_xml_nota_entrada(
         db.add(item)
 
     db.commit()
-
     return obter_nota_entrada(db, empresa_id, nota.id)
 
 
@@ -288,7 +628,9 @@ def obter_nota_entrada(
 ) -> NotaEntrada:
     nota = (
         db.query(NotaEntrada)
-        .options(joinedload(NotaEntrada.itens).joinedload(NotaEntradaItem.produto))
+        .options(
+            joinedload(NotaEntrada.itens).joinedload(NotaEntradaItem.produto),
+        )
         .filter(
             NotaEntrada.id == nota_entrada_id,
             NotaEntrada.empresa_id == empresa_id,
@@ -297,7 +639,8 @@ def obter_nota_entrada(
     )
     if not nota:
         raise HTTPException(status_code=404, detail="Nota de entrada não encontrada.")
-    return nota
+
+    return _enriquecer_nota_com_resumo_estoque(db, nota)
 
 
 def buscar_produtos_para_vinculo(
@@ -351,6 +694,8 @@ def vincular_item_nota_entrada(
     if not nota:
         raise HTTPException(status_code=404, detail="Nota de entrada não encontrada.")
 
+    _bloquear_se_nota_confirmada(nota)
+
     item = (
         db.query(NotaEntradaItem)
         .filter(
@@ -378,32 +723,217 @@ def vincular_item_nota_entrada(
     item.match_confiavel = bool(produto.ativo)
     item.observacao_match = _build_observacao_match(produto, MATCH_MANUAL)
 
-    if salvar_vinculo_fornecedor and nota.fornecedor_cnpj:
-        vinculo = (
-            db.query(ProdutoFornecedorVinculo)
-            .filter(
-                ProdutoFornecedorVinculo.empresa_id == empresa_id,
-                ProdutoFornecedorVinculo.fornecedor_cnpj == nota.fornecedor_cnpj,
-                ProdutoFornecedorVinculo.produto_id == produto.id,
-            )
-            .first()
-        )
-
-        if not vinculo:
-            vinculo = ProdutoFornecedorVinculo(
-                empresa_id=empresa_id,
-                fornecedor_cnpj=nota.fornecedor_cnpj,
-                produto_id=produto.id,
-            )
-            db.add(vinculo)
-
-        vinculo.codigo_fornecedor = item.codigo_fornecedor
-        vinculo.codigo_barras_fornecedor = item.codigo_barras_tributavel_nf or item.codigo_barras_nf
-        vinculo.ultima_descricao_nf = item.descricao_nf
-        vinculo.ultimo_ncm = item.ncm
-        vinculo.ultimo_cest = item.cest
-        vinculo.ultimo_cfop = item.cfop
+    if salvar_vinculo_fornecedor:
+        _preparar_vinculo_fornecedor(db, empresa_id, nota, item, produto.id)
 
     db.commit()
+    return obter_nota_entrada(db, empresa_id, nota_entrada_id)
+
+
+def criar_produto_a_partir_item_nota(
+    db: Session,
+    empresa_id: int,
+    nota_entrada_id: int,
+    item_id: int,
+    sku: str | None = None,
+    nome: str | None = None,
+    unidade: str | None = None,
+    codigo_barras: str | None = None,
+    preco_venda: Decimal = ZERO,
+    custo_inicial: Decimal | None = None,
+    salvar_vinculo_fornecedor: bool = True,
+) -> NotaEntrada:
+    nota = (
+        db.query(NotaEntrada)
+        .filter(
+            NotaEntrada.id == nota_entrada_id,
+            NotaEntrada.empresa_id == empresa_id,
+        )
+        .first()
+    )
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota de entrada não encontrada.")
+
+    _bloquear_se_nota_confirmada(nota)
+
+    item = (
+        db.query(NotaEntradaItem)
+        .filter(
+            NotaEntradaItem.id == item_id,
+            NotaEntradaItem.nota_entrada_id == nota.id,
+        )
+        .first()
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Item da nota não encontrado.")
+
+    if item.produto_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Este item já possui produto vinculado.",
+        )
+
+    nome_final = (nome or item.descricao_nf or "").strip()
+    if not nome_final:
+        raise HTTPException(status_code=400, detail="Nome do produto é obrigatório.")
+
+    unidade_final = _normalizar_unidade(unidade or item.unidade_comercial or item.unidade_tributavel)
+    codigo_barras_final = (codigo_barras or item.codigo_barras_tributavel_nf or item.codigo_barras_nf or "").strip() or None
+
+    if codigo_barras_final:
+        existente = _buscar_produto_por_codigo_barras(db, empresa_id, codigo_barras_final)
+        if existente:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Já existe produto com este código de barras: {existente.nome} ({existente.sku}).",
+            )
+
+    sku_final = _gerar_sku_produto_nf(
+        db=db,
+        empresa_id=empresa_id,
+        item=item,
+        sku_informado=sku,
+    )
+
+    custo_final = _custo(custo_inicial if custo_inicial is not None else _get_custo_unitario_item(item))
+    preco_final = _preco(preco_venda)
+
+    produto = Produto(
+        empresa_id=empresa_id,
+        sku=sku_final,
+        nome=nome_final[:150],
+        descricao=(item.descricao_nf or "").strip() or None,
+        unidade=unidade_final,
+        ativo=True,
+        aceita_fracionado=False,
+        codigo_barras_principal=codigo_barras_final,
+        preco_venda_atual=preco_final,
+        custo_medio_atual=custo_final,
+        estoque_minimo=ZERO,
+        observacao="Produto criado automaticamente a partir de item de NF de entrada.",
+    )
+
+    if hasattr(produto, "ncm"):
+        produto.ncm = (item.ncm or "").strip() or None
+    if hasattr(produto, "cest"):
+        produto.cest = (item.cest or "").strip() or None
+    if hasattr(produto, "cfop_padrao"):
+        produto.cfop_padrao = (item.cfop or "").strip() or None
+    if hasattr(produto, "origem_fiscal"):
+        produto.origem_fiscal = (item.origem_fiscal or "").strip() or None
+    if hasattr(produto, "cst_icms"):
+        produto.cst_icms = (item.cst_icms or "").strip() or None
+    if hasattr(produto, "csosn"):
+        produto.csosn = (item.csosn or "").strip() or None
+    if hasattr(produto, "cst_pis"):
+        produto.cst_pis = (item.cst_pis or "").strip() or None
+    if hasattr(produto, "cst_cofins"):
+        produto.cst_cofins = (item.cst_cofins or "").strip() or None
+    if hasattr(produto, "aliquota_icms"):
+        produto.aliquota_icms = _preco(item.aliquota_icms)
+    if hasattr(produto, "aliquota_pis"):
+        produto.aliquota_pis = _preco(item.aliquota_pis)
+    if hasattr(produto, "aliquota_cofins"):
+        produto.aliquota_cofins = _preco(item.aliquota_cofins)
+
+    db.add(produto)
+    db.flush()
+
+    item.produto_id = produto.id
+    item.match_tipo = MATCH_CRIADO_NF
+    item.match_confiavel = True
+    item.observacao_match = _build_observacao_match(produto, MATCH_CRIADO_NF)
+
+    if salvar_vinculo_fornecedor:
+        _preparar_vinculo_fornecedor(db, empresa_id, nota, item, produto.id)
+
+    db.commit()
+    return obter_nota_entrada(db, empresa_id, nota_entrada_id)
+
+
+def confirmar_nota_entrada(
+    db: Session,
+    empresa_id: int,
+    nota_entrada_id: int,
+) -> NotaEntrada:
+    nota = (
+        db.query(NotaEntrada)
+        .options(
+            joinedload(NotaEntrada.itens).joinedload(NotaEntradaItem.produto),
+        )
+        .filter(
+            NotaEntrada.id == nota_entrada_id,
+            NotaEntrada.empresa_id == empresa_id,
+        )
+        .first()
+    )
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota de entrada não encontrada.")
+
+    _bloquear_se_nota_confirmada(nota)
+
+    itens = sorted(nota.itens or [], key=lambda x: x.item_numero)
+    _validar_itens_para_confirmacao(itens)
+
+    deposito = _get_deposito_padrao_ativo(db, empresa_id)
+
+    try:
+        for item in itens:
+            produto = item.produto
+            if not produto:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Produto do item {item.item_numero} não encontrado para confirmação.",
+                )
+
+            quantidade = _get_quantidade_item(item)
+            custo_unitario = _get_custo_unitario_item(item)
+
+            saldo = _get_or_create_saldo(
+                db=db,
+                empresa_id=empresa_id,
+                deposito_id=deposito.id,
+                produto_id=produto.id,
+            )
+
+            saldo_antes = _qtd(saldo.quantidade_atual)
+            saldo_depois = _qtd(saldo_antes + quantidade)
+            custo_anterior = _custo(produto.custo_medio_atual)
+            novo_custo_medio = _calcular_custo_medio_ponderado(
+                saldo_anterior=saldo_antes,
+                custo_medio_anterior=custo_anterior,
+                quantidade_entrada=quantidade,
+                custo_entrada=custo_unitario,
+            )
+
+            saldo.quantidade_atual = saldo_depois
+            produto.custo_medio_atual = novo_custo_medio
+
+            movimento = EstoqueMovimento(
+                empresa_id=empresa_id,
+                deposito_id=deposito.id,
+                produto_id=produto.id,
+                usuario_id=None,
+                tipo_movimento=TIPO_ENTRADA,
+                origem=ORIGEM_NF_ENTRADA,
+                origem_id=nota.id,
+                origem_item_id=item.id,
+                quantidade=quantidade,
+                saldo_antes=saldo_antes,
+                saldo_depois=saldo_depois,
+                custo_unitario=custo_unitario,
+                documento_referencia=nota.chave_acesso,
+                observacao=f"Entrada gerada pela confirmação da NF-e {nota.numero or '-'} item {item.item_numero}.",
+            )
+            db.add(movimento)
+
+        nota.status = STATUS_CONFIRMADA
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
     return obter_nota_entrada(db, empresa_id, nota_entrada_id)
