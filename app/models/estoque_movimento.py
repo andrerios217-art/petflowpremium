@@ -18,6 +18,7 @@ class EstoqueMovimento(Base):
     tipo_movimento = Column(String(20), nullable=False, index=True)
     origem = Column(String(20), nullable=False, index=True)
     origem_id = Column(Integer, nullable=True, index=True)
+    origem_item_id = Column(Integer, nullable=True, index=True)
 
     quantidade = Column(Numeric(14, 3), nullable=False)
     saldo_antes = Column(Numeric(14, 3), nullable=False)

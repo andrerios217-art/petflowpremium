@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_empresa_id_atual
 from app.crud import nota_entrada as nota_entrada_crud
 from app.schemas.nota_entrada import (
+    NotaEntradaCriarProdutoItemIn,
     NotaEntradaItemVincularIn,
     NotaEntradaOut,
     NotaEntradaResumoOut,
     ProdutoBuscaOut,
 )
-
 
 router = APIRouter(prefix="/api/notas-entrada", tags=["Notas de Entrada"])
 
@@ -77,4 +77,39 @@ def vincular_item_nota_entrada(
         item_id=payload.item_id,
         produto_id=payload.produto_id,
         salvar_vinculo_fornecedor=payload.salvar_vinculo_fornecedor,
+    )
+
+
+@router.post("/{nota_entrada_id}/criar-produto-item", response_model=NotaEntradaOut)
+def criar_produto_a_partir_item_nota(
+    nota_entrada_id: int,
+    payload: NotaEntradaCriarProdutoItemIn,
+    empresa_id: int = Depends(get_empresa_id_atual),
+    db: Session = Depends(get_db),
+):
+    return nota_entrada_crud.criar_produto_a_partir_item_nota(
+        db=db,
+        empresa_id=empresa_id,
+        nota_entrada_id=nota_entrada_id,
+        item_id=payload.item_id,
+        sku=payload.sku,
+        nome=payload.nome,
+        unidade=payload.unidade,
+        codigo_barras=payload.codigo_barras,
+        preco_venda=payload.preco_venda,
+        custo_inicial=payload.custo_inicial,
+        salvar_vinculo_fornecedor=payload.salvar_vinculo_fornecedor,
+    )
+
+
+@router.post("/{nota_entrada_id}/confirmar", response_model=NotaEntradaOut)
+def confirmar_nota_entrada(
+    nota_entrada_id: int,
+    empresa_id: int = Depends(get_empresa_id_atual),
+    db: Session = Depends(get_db),
+):
+    return nota_entrada_crud.confirmar_nota_entrada(
+        db=db,
+        empresa_id=empresa_id,
+        nota_entrada_id=nota_entrada_id,
     )

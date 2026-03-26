@@ -18,6 +18,26 @@ class ProdutoResumoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class NotaEntradaMovimentacaoEstoqueOut(BaseModel):
+    movimento_id: int
+    produto_id: int
+    produto_nome: Optional[str] = None
+    produto_sku: Optional[str] = None
+    deposito_id: Optional[int] = None
+    deposito_nome: Optional[str] = None
+    quantidade: Decimal
+    saldo_antes: Decimal
+    saldo_depois: Decimal
+    custo_unitario: Decimal
+    valor_total: Decimal
+    origem: str
+    origem_id: Optional[int] = None
+    origem_item_id: Optional[int] = None
+    documento_referencia: Optional[str] = None
+    observacao: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
 class NotaEntradaItemOut(BaseModel):
     id: int
     nota_entrada_id: int
@@ -103,6 +123,18 @@ class NotaEntradaOut(BaseModel):
 
     itens: list[NotaEntradaItemOut] = Field(default_factory=list)
 
+    confirmada_em: Optional[datetime] = None
+    total_itens_confirmados: int = 0
+    total_quantidade_entrada: Decimal = Decimal("0")
+    total_produtos_afetados: int = 0
+    resumo_estoque_disponivel: bool = False
+
+    permite_edicao: bool = True
+    bloqueada_para_edicao: bool = False
+    motivo_bloqueio_edicao: Optional[str] = None
+
+    movimentacoes_estoque: list[NotaEntradaMovimentacaoEstoqueOut] = Field(default_factory=list)
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -123,6 +155,7 @@ class NotaEntradaResumoOut(BaseModel):
 
     valor_total_produtos: Decimal
     valor_total_nota: Decimal
+
     status: str
 
     created_at: datetime
