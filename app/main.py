@@ -6,12 +6,14 @@ from fastapi.templating import Jinja2Templates
 from app.core.database import Base, engine
 from app.models import *  # noqa
 import app.models  # noqa
+
 from app.api import auth, empresas, usuarios, configuracoes
 from app.api import agenda_api
 from app.api import clientes_api
 from app.api import funcionarios_api
 from app.api import pets_api
 from app.api import servicos_api
+from app.api import precificacao_api
 from app.api.agenda_veterinaria_api import router as agenda_veterinaria_router
 from app.api.atendimento_clinico_api import router as atendimento_clinico_router
 from app.api.caixa_api import router as caixa_router
@@ -51,6 +53,7 @@ app.include_router(financeiro_dashboard_router)
 app.include_router(financeiro_pagar_router)
 app.include_router(pdv_router)
 app.include_router(caixa_router)
+app.include_router(precificacao_api.router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -97,9 +100,37 @@ def servicos_page(request: Request):
     return templates.TemplateResponse(request, "servicos.html", {"request": request})
 
 
+@app.get("/servicos/novo", response_class=HTMLResponse)
+def servicos_form_page(request: Request):
+    return templates.TemplateResponse(request, "servicos_form.html", {"request": request})
+
+
+@app.get("/servicos/editar/{servico_id}", response_class=HTMLResponse)
+def servicos_edit_page(request: Request, servico_id: int):
+    return templates.TemplateResponse(
+        request,
+        "servicos_form.html",
+        {"request": request, "servico_id": servico_id},
+    )
+
+
 @app.get("/funcionarios", response_class=HTMLResponse)
 def funcionarios_page(request: Request):
     return templates.TemplateResponse(request, "funcionarios.html", {"request": request})
+
+
+@app.get("/funcionarios/novo", response_class=HTMLResponse)
+def funcionarios_form_page(request: Request):
+    return templates.TemplateResponse(request, "funcionarios_form.html", {"request": request})
+
+
+@app.get("/funcionarios/editar/{funcionario_id}", response_class=HTMLResponse)
+def funcionarios_edit_page(request: Request, funcionario_id: int):
+    return templates.TemplateResponse(
+        request,
+        "funcionarios_form.html",
+        {"request": request, "funcionario_id": funcionario_id},
+    )
 
 
 @app.get("/agenda", response_class=HTMLResponse)
@@ -134,6 +165,11 @@ def estoque_page(request: Request):
 @app.get("/notas-entrada", response_class=HTMLResponse)
 def notas_entrada_page(request: Request):
     return templates.TemplateResponse(request, "notas_entrada.html", {"request": request})
+
+
+@app.get("/precificacao", response_class=HTMLResponse)
+def precificacao_page(request: Request):
+    return templates.TemplateResponse(request, "precificacao.html", {"request": request})
 
 
 @app.get("/financeiro", response_class=HTMLResponse)
@@ -171,31 +207,3 @@ def demonstrativo_comissao_page(request: Request, fechamento_id: int):
 @app.get("/configuracoes", response_class=HTMLResponse)
 def configuracoes_page(request: Request):
     return templates.TemplateResponse(request, "configuracoes.html", {"request": request})
-
-
-@app.get("/servicos/novo", response_class=HTMLResponse)
-def servicos_form_page(request: Request):
-    return templates.TemplateResponse(request, "servicos_form.html", {"request": request})
-
-
-@app.get("/servicos/editar/{servico_id}", response_class=HTMLResponse)
-def servicos_edit_page(request: Request, servico_id: int):
-    return templates.TemplateResponse(
-        request,
-        "servicos_form.html",
-        {"request": request, "servico_id": servico_id},
-    )
-
-
-@app.get("/funcionarios/novo", response_class=HTMLResponse)
-def funcionarios_form_page(request: Request):
-    return templates.TemplateResponse(request, "funcionarios_form.html", {"request": request})
-
-
-@app.get("/funcionarios/editar/{funcionario_id}", response_class=HTMLResponse)
-def funcionarios_edit_page(request: Request, funcionario_id: int):
-    return templates.TemplateResponse(
-        request,
-        "funcionarios_form.html",
-        {"request": request, "funcionario_id": funcionario_id},
-    )

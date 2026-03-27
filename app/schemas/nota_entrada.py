@@ -81,7 +81,7 @@ class NotaEntradaItemOut(BaseModel):
     valor_pis: Decimal
     valor_cofins: Decimal
 
-    match_tipo: str
+    match_tipo: Optional[str]
     match_confiavel: bool
     observacao_match: Optional[str]
 
@@ -167,6 +167,17 @@ class NotaEntradaResumoOut(BaseModel):
 class NotaEntradaItemVincularIn(BaseModel):
     item_id: int
     produto_id: int
+    salvar_vinculo_fornecedor: bool = True
+
+
+class NotaEntradaCriarProdutoItemIn(BaseModel):
+    item_id: int
+    sku: Optional[str] = None
+    nome: Optional[str] = None
+    unidade: Optional[str] = None
+    codigo_barras: Optional[str] = None
+    preco_venda: Decimal = Decimal("0.00")
+    custo_inicial: Optional[Decimal] = None
     salvar_vinculo_fornecedor: bool = True
 
 

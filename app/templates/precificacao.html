@@ -1,0 +1,289 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="space-y-6">
+    <div>
+        <h1 class="text-2xl font-semibold">Precificação</h1>
+        <p class="text-sm text-gray-600">
+            Configure a regra padrão da loja e as regras específicas por categoria.
+        </p>
+    </div>
+
+    <div class="rounded-lg border bg-white p-4 space-y-4">
+        <div>
+            <h2 class="text-lg font-medium">Regra padrão da empresa</h2>
+            <p class="text-sm text-gray-500">
+                Usada quando o produto não tiver regra específica por categoria.
+            </p>
+        </div>
+
+        <form id="form-config-padrao" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Modo</label>
+                <select id="modo_padrao" class="w-full rounded border px-3 py-2">
+                    <option value="MARKUP">Markup</option>
+                    <option value="MARGEM">Margem</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Percentual</label>
+                <input id="percentual_padrao" type="number" step="0.01" min="0" class="w-full rounded border px-3 py-2" />
+            </div>
+
+            <div class="flex items-end">
+                <label class="inline-flex items-center gap-2">
+                    <input id="ativo_padrao" type="checkbox" />
+                    <span class="text-sm">Ativo</span>
+                </label>
+            </div>
+
+            <div class="flex items-end">
+                <button type="submit" class="rounded bg-blue-600 text-white px-4 py-2">
+                    Salvar regra padrão
+                </button>
+            </div>
+        </form>
+
+        <div id="msg-config-padrao" class="text-sm"></div>
+    </div>
+
+    <div class="rounded-lg border bg-white p-4 space-y-4">
+        <div>
+            <h2 class="text-lg font-medium">Regra por categoria</h2>
+            <p class="text-sm text-gray-500">
+                Tem prioridade sobre a regra padrão da empresa.
+            </p>
+        </div>
+
+        <form id="form-regra-categoria" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Categoria</label>
+                <select id="categoria_id" class="w-full rounded border px-3 py-2">
+                    <option value="">Selecione</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Modo</label>
+                <select id="modo_categoria" class="w-full rounded border px-3 py-2">
+                    <option value="MARKUP">Markup</option>
+                    <option value="MARGEM">Margem</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Percentual</label>
+                <input id="percentual_categoria" type="number" step="0.01" min="0" class="w-full rounded border px-3 py-2" />
+            </div>
+
+            <div class="flex items-end">
+                <label class="inline-flex items-center gap-2">
+                    <input id="ativo_categoria" type="checkbox" checked />
+                    <span class="text-sm">Ativo</span>
+                </label>
+            </div>
+
+            <div class="flex items-end">
+                <button type="submit" class="rounded bg-blue-600 text-white px-4 py-2">
+                    Salvar regra da categoria
+                </button>
+            </div>
+        </form>
+
+        <div id="msg-regra-categoria" class="text-sm"></div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm border">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="border px-3 py-2 text-left">Categoria</th>
+                        <th class="border px-3 py-2 text-left">Modo</th>
+                        <th class="border px-3 py-2 text-left">Percentual</th>
+                        <th class="border px-3 py-2 text-left">Status</th>
+                        <th class="border px-3 py-2 text-left">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-regras-categoria">
+                    <tr>
+                        <td colspan="5" class="border px-3 py-4 text-center text-gray-500">
+                            Carregando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<script>
+async function apiFetch(url, options = {}) {
+    const response = await fetch(url, {
+        headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {})
+        },
+        ...options
+    });
+
+    if (!response.ok) {
+        let detail = "Erro ao processar a solicitação.";
+        try {
+            const data = await response.json();
+            detail = data.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+    }
+
+    if (response.status === 204) {
+        return null;
+    }
+
+    return response.json();
+}
+
+function setMessage(el, text, ok = true) {
+    el.textContent = text || "";
+    el.className = ok ? "text-sm text-green-600" : "text-sm text-red-600";
+}
+
+function formatPercentual(value) {
+    const num = Number(value || 0);
+    return `${num.toFixed(2)}%`;
+}
+
+function renderRegras(regras) {
+    const tbody = document.getElementById("tbody-regras-categoria");
+
+    if (!regras.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="border px-3 py-4 text-center text-gray-500">
+                    Nenhuma regra cadastrada.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = regras.map(regra => `
+        <tr>
+            <td class="border px-3 py-2">${regra.categoria_nome || regra.categoria_id}</td>
+            <td class="border px-3 py-2">${regra.modo}</td>
+            <td class="border px-3 py-2">${formatPercentual(regra.percentual)}</td>
+            <td class="border px-3 py-2">${regra.ativo ? "Ativa" : "Inativa"}</td>
+            <td class="border px-3 py-2">
+                <button
+                    class="rounded bg-red-600 text-white px-3 py-1"
+                    onclick="excluirRegraCategoria(${regra.categoria_id})"
+                >
+                    Excluir
+                </button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+async function carregarCategorias() {
+    const categorias = await apiFetch("/api/precificacao/categorias");
+    const select = document.getElementById("categoria_id");
+
+    select.innerHTML = '<option value="">Selecione</option>' + categorias.map(categoria => `
+        <option value="${categoria.id}">${categoria.nome}</option>
+    `).join("");
+}
+
+async function carregarConfiguracao() {
+    const data = await apiFetch("/api/precificacao/config");
+
+    if (data.config_padrao) {
+        document.getElementById("modo_padrao").value = data.config_padrao.modo_padrao;
+        document.getElementById("percentual_padrao").value = data.config_padrao.percentual_padrao;
+        document.getElementById("ativo_padrao").checked = !!data.config_padrao.ativo;
+    } else {
+        document.getElementById("modo_padrao").value = "MARKUP";
+        document.getElementById("percentual_padrao").value = "0.00";
+        document.getElementById("ativo_padrao").checked = true;
+    }
+
+    renderRegras(data.regras_categoria || []);
+}
+
+async function salvarConfigPadrao(event) {
+    event.preventDefault();
+
+    const msg = document.getElementById("msg-config-padrao");
+
+    try {
+        await apiFetch("/api/precificacao/config/padrao", {
+            method: "PUT",
+            body: JSON.stringify({
+                modo_padrao: document.getElementById("modo_padrao").value,
+                percentual_padrao: document.getElementById("percentual_padrao").value || 0,
+                ativo: document.getElementById("ativo_padrao").checked
+            })
+        });
+
+        setMessage(msg, "Regra padrão salva com sucesso.");
+        await carregarConfiguracao();
+    } catch (error) {
+        setMessage(msg, error.message, false);
+    }
+}
+
+async function salvarRegraCategoria(event) {
+    event.preventDefault();
+
+    const msg = document.getElementById("msg-regra-categoria");
+
+    try {
+        await apiFetch("/api/precificacao/categorias", {
+            method: "PUT",
+            body: JSON.stringify({
+                categoria_id: Number(document.getElementById("categoria_id").value),
+                modo: document.getElementById("modo_categoria").value,
+                percentual: document.getElementById("percentual_categoria").value || 0,
+                ativo: document.getElementById("ativo_categoria").checked
+            })
+        });
+
+        setMessage(msg, "Regra da categoria salva com sucesso.");
+        document.getElementById("form-regra-categoria").reset();
+        document.getElementById("ativo_categoria").checked = true;
+        await carregarConfiguracao();
+    } catch (error) {
+        setMessage(msg, error.message, false);
+    }
+}
+
+async function excluirRegraCategoria(categoriaId) {
+    const msg = document.getElementById("msg-regra-categoria");
+
+    if (!confirm("Deseja excluir a regra desta categoria?")) {
+        return;
+    }
+
+    try {
+        await apiFetch(`/api/precificacao/categorias/${categoriaId}`, {
+            method: "DELETE"
+        });
+        setMessage(msg, "Regra excluída com sucesso.");
+        await carregarConfiguracao();
+    } catch (error) {
+        setMessage(msg, error.message, false);
+    }
+}
+
+document.getElementById("form-config-padrao").addEventListener("submit", salvarConfigPadrao);
+document.getElementById("form-regra-categoria").addEventListener("submit", salvarRegraCategoria);
+
+(async function initPrecificacao() {
+    try {
+        await carregarCategorias();
+        await carregarConfiguracao();
+    } catch (error) {
+        setMessage(document.getElementById("msg-config-padrao"), error.message, false);
+    }
+})();
+</script>
+{% endblock %}
