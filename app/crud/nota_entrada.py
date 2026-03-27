@@ -18,6 +18,7 @@ from app.models.produto import Produto
 from app.models.produto_codigo_barras import ProdutoCodigoBarras
 from app.models.produto_fornecedor_vinculo import ProdutoFornecedorVinculo
 from app.services.nfe_importacao import importar_nfe_do_xml
+from app.services.precificacao import calcular_preco_venda_sugerido
 
 MATCH_CODIGO_BARRAS = "CODIGO_BARRAS"
 MATCH_VINCULO_FORNECEDOR = "VINCULO_FORNECEDOR"
@@ -543,6 +544,25 @@ def _preparar_vinculo_fornecedor(
     vinculo.ultimo_cfop = item.cfop
 
 
+def _resolver_preco_venda_inicial(
+    db: Session,
+    empresa_id: int,
+    custo_inicial: Decimal,
+    categoria_id: int | None,
+    preco_venda_informado: Decimal | None = None,
+) -> Decimal:
+    if preco_venda_informado is not None:
+        return _preco(preco_venda_informado)
+
+    preco_sugerido = calcular_preco_venda_sugerido(
+        db=db,
+        empresa_id=empresa_id,
+        custo=custo_inicial,
+        categoria_id=categoria_id,
+    )
+    return _preco(preco_sugerido)
+
+
 def _criar_produto_para_item_nota(
     db: Session,
     empresa_id: int,
@@ -552,7 +572,7 @@ def _criar_produto_para_item_nota(
     nome: str | None = None,
     unidade: str | None = None,
     codigo_barras: str | None = None,
-    preco_venda: Decimal = ZERO,
+    preco_venda: Decimal | None = None,
     custo_inicial: Decimal | None = None,
     salvar_vinculo_fornecedor: bool = True,
 ) -> Produto:
@@ -603,11 +623,18 @@ def _criar_produto_para_item_nota(
     )
     unidade_final = _normalizar_unidade(unidade or item.unidade_comercial or item.unidade_tributavel)
     custo_final = _custo(custo_inicial if custo_inicial is not None else _get_custo_unitario_item(item))
-    preco_venda_final = _preco(preco_venda)
+    categoria_id_final = None
+    preco_venda_final = _resolver_preco_venda_inicial(
+        db=db,
+        empresa_id=empresa_id,
+        custo_inicial=custo_final,
+        categoria_id=categoria_id_final,
+        preco_venda_informado=preco_venda,
+    )
 
     produto = Produto(
         empresa_id=empresa_id,
-        categoria_id=None,
+        categoria_id=categoria_id_final,
         sku=sku_final,
         nome=nome_final[:150],
         descricao=item.descricao_nf,
@@ -896,7 +923,7 @@ def criar_produto_a_partir_item_nota(
     nome: str | None = None,
     unidade: str | None = None,
     codigo_barras: str | None = None,
-    preco_venda: Decimal = ZERO,
+    preco_venda: Decimal | None = None,
     custo_inicial: Decimal | None = None,
     salvar_vinculo_fornecedor: bool = True,
 ) -> NotaEntrada:

@@ -4,14 +4,16 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_empresa_id_atual
 from app.crud import estoque as estoque_crud
 from app.crud import precificacao as precificacao_crud
+from app.schemas.estoque import ProdutoCategoriaOut
 from app.schemas.precificacao import (
     EmpresaCategoriaPrecificacaoOut,
     EmpresaCategoriaPrecificacaoUpsertIn,
     EmpresaPrecificacaoConfigOut,
     EmpresaPrecificacaoConfigUpsertIn,
     PrecificacaoConfigTelaOut,
+    ReprecificacaoLoteIn,
+    ReprecificacaoLoteOut,
 )
-from app.schemas.estoque import ProdutoCategoriaOut
 
 router = APIRouter(prefix="/api/precificacao", tags=["Precificação"])
 
@@ -63,3 +65,21 @@ def excluir_regra_categoria(
 ):
     precificacao_crud.excluir_regra_categoria(db, empresa_id, categoria_id)
     return {"ok": True}
+
+
+@router.post("/reprecificar/simular", response_model=ReprecificacaoLoteOut)
+def simular_reprecificacao(
+    payload: ReprecificacaoLoteIn,
+    empresa_id: int = Depends(get_empresa_id_atual),
+    db: Session = Depends(get_db),
+):
+    return precificacao_crud.simular_reprecificacao_lote(db, empresa_id, payload)
+
+
+@router.post("/reprecificar/aplicar", response_model=ReprecificacaoLoteOut)
+def aplicar_reprecificacao(
+    payload: ReprecificacaoLoteIn,
+    empresa_id: int = Depends(get_empresa_id_atual),
+    db: Session = Depends(get_db),
+):
+    return precificacao_crud.aplicar_reprecificacao_lote(db, empresa_id, payload)
