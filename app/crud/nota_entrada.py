@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.crud.estoque import _sincronizar_codigo_barras_principal
 from app.models.estoque_deposito import EstoqueDeposito
 from app.models.estoque_movimento import EstoqueMovimento
 from app.models.estoque_saldo import EstoqueSaldo
@@ -71,19 +72,37 @@ def _normalizar_unidade(unidade: str | None) -> str:
     return valor[:20] if valor else "UN"
 
 
+def _normalizar_texto(valor: str | None) -> str | None:
+    if valor is None:
+        return None
+    texto = valor.strip()
+    return texto or None
+
+
+def _normalizar_codigo_barras(valor: str | None) -> str | None:
+    texto = (valor or "").strip()
+    return texto or None
+
+
 def _buscar_produto_por_codigo_barras(
     db: Session,
     empresa_id: int,
     codigo: str | None,
 ) -> Optional[Produto]:
-    if not codigo:
+    codigo_normalizado = _normalizar_codigo_barras(codigo)
+    if not codigo_normalizado:
         return None
+
+    codigos_teste = [codigo_normalizado]
+    codigo_digitos = _somente_digitos(codigo_normalizado)
+    if codigo_digitos and codigo_digitos not in codigos_teste:
+        codigos_teste.append(codigo_digitos)
 
     produto = (
         db.query(Produto)
         .filter(
             Produto.empresa_id == empresa_id,
-            Produto.codigo_barras_principal == codigo,
+            Produto.codigo_barras_principal.in_(codigos_teste),
         )
         .first()
     )
@@ -95,7 +114,7 @@ def _buscar_produto_por_codigo_barras(
         .join(Produto, Produto.id == ProdutoCodigoBarras.produto_id)
         .filter(
             ProdutoCodigoBarras.empresa_id == empresa_id,
-            ProdutoCodigoBarras.codigo == codigo,
+            ProdutoCodigoBarras.codigo.in_(codigos_teste),
             Produto.empresa_id == empresa_id,
         )
         .first()
@@ -129,13 +148,19 @@ def _buscar_vinculo_fornecedor(
         if vinculo:
             return vinculo
 
-    if codigo_barras:
+    codigo_barras_normalizado = _normalizar_codigo_barras(codigo_barras)
+    if codigo_barras_normalizado:
+        codigos_teste = [codigo_barras_normalizado]
+        codigo_digitos = _somente_digitos(codigo_barras_normalizado)
+        if codigo_digitos and codigo_digitos not in codigos_teste:
+            codigos_teste.append(codigo_digitos)
+
         vinculo = (
             db.query(ProdutoFornecedorVinculo)
             .filter(
                 ProdutoFornecedorVinculo.empresa_id == empresa_id,
                 ProdutoFornecedorVinculo.fornecedor_cnpj == fornecedor_cnpj,
-                ProdutoFornecedorVinculo.codigo_barras_fornecedor == codigo_barras,
+                ProdutoFornecedorVinculo.codigo_barras_fornecedor.in_(codigos_teste),
             )
             .first()
         )
@@ -168,7 +193,7 @@ def _build_observacao_match(produto: Produto, origem: str) -> str:
         )
 
     if origem == MATCH_CRIADO_NF:
-        return "Produto criado a partir do item da NF e vinculado automaticamente."
+        return "Produto criado automaticamente a partir do item da NF."
 
     return "Produto não localizado automaticamente."
 
@@ -426,10 +451,12 @@ def _enriquecer_nota_com_resumo_estoque(db: Session, nota: NotaEntrada) -> NotaE
         produto_ids.add(movimento.produto_id)
         total_qtd += quantidade
 
-        if movimento.created_at and (confirmada_em is None or movimento.created_at < confirmada_em):
+        if confirmada_em is None or (
+            movimento.created_at is not None and movimento.created_at > confirmada_em
+        ):
             confirmada_em = movimento.created_at
 
-    nota.total_itens_confirmados = len(nota.movimentacoes_estoque)
+    nota.total_itens_confirmados = len(movimentos)
     nota.total_quantidade_entrada = _qtd(total_qtd)
     nota.total_produtos_afetados = len(produto_ids)
     nota.resumo_estoque_disponivel = True
@@ -507,11 +534,122 @@ def _preparar_vinculo_fornecedor(
         db.add(vinculo)
 
     vinculo.codigo_fornecedor = item.codigo_fornecedor
-    vinculo.codigo_barras_fornecedor = item.codigo_barras_tributavel_nf or item.codigo_barras_nf
+    vinculo.codigo_barras_fornecedor = _normalizar_codigo_barras(
+        item.codigo_barras_tributavel_nf or item.codigo_barras_nf
+    )
     vinculo.ultima_descricao_nf = item.descricao_nf
     vinculo.ultimo_ncm = item.ncm
     vinculo.ultimo_cest = item.cest
     vinculo.ultimo_cfop = item.cfop
+
+
+def _criar_produto_para_item_nota(
+    db: Session,
+    empresa_id: int,
+    nota: NotaEntrada,
+    item: NotaEntradaItem,
+    sku: str | None = None,
+    nome: str | None = None,
+    unidade: str | None = None,
+    codigo_barras: str | None = None,
+    preco_venda: Decimal = ZERO,
+    custo_inicial: Decimal | None = None,
+    salvar_vinculo_fornecedor: bool = True,
+) -> Produto:
+    if item.produto_id:
+        produto_existente = (
+            db.query(Produto)
+            .filter(
+                Produto.id == item.produto_id,
+                Produto.empresa_id == empresa_id,
+            )
+            .first()
+        )
+        if produto_existente:
+            return produto_existente
+
+    codigo_barras_final = _normalizar_codigo_barras(
+        codigo_barras or item.codigo_barras_tributavel_nf or item.codigo_barras_nf
+    )
+
+    produto_por_barcode = _buscar_produto_por_codigo_barras(
+        db=db,
+        empresa_id=empresa_id,
+        codigo=codigo_barras_final,
+    )
+    if produto_por_barcode:
+        item.produto_id = produto_por_barcode.id
+        item.match_tipo = MATCH_CODIGO_BARRAS
+        item.match_confiavel = bool(produto_por_barcode.ativo)
+        item.observacao_match = _build_observacao_match(produto_por_barcode, MATCH_CODIGO_BARRAS)
+
+        if salvar_vinculo_fornecedor:
+            _preparar_vinculo_fornecedor(db, empresa_id, nota, item, produto_por_barcode.id)
+
+        return produto_por_barcode
+
+    nome_final = (nome or item.descricao_nf or "").strip()
+    if not nome_final:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Item {item.item_numero} sem descrição válida para criar produto.",
+        )
+
+    sku_final = _gerar_sku_produto_nf(
+        db=db,
+        empresa_id=empresa_id,
+        item=item,
+        sku_informado=sku,
+    )
+    unidade_final = _normalizar_unidade(unidade or item.unidade_comercial or item.unidade_tributavel)
+    custo_final = _custo(custo_inicial if custo_inicial is not None else _get_custo_unitario_item(item))
+    preco_venda_final = _preco(preco_venda)
+
+    produto = Produto(
+        empresa_id=empresa_id,
+        categoria_id=None,
+        sku=sku_final,
+        nome=nome_final[:150],
+        descricao=item.descricao_nf,
+        unidade=unidade_final,
+        ativo=True,
+        aceita_fracionado=False,
+        codigo_barras_principal=codigo_barras_final,
+        preco_venda_atual=preco_venda_final,
+        custo_medio_atual=custo_final,
+        estoque_minimo=_qtd(ZERO),
+        ncm=_normalizar_texto(item.ncm),
+        cest=_normalizar_texto(item.cest),
+        cfop_padrao=_normalizar_texto(item.cfop),
+        origem_fiscal=_normalizar_texto(item.origem_fiscal),
+        cst_icms=_normalizar_texto(item.cst_icms),
+        csosn=_normalizar_texto(item.csosn),
+        cst_pis=_normalizar_texto(item.cst_pis),
+        cst_cofins=_normalizar_texto(item.cst_cofins),
+        aliquota_icms=_preco(item.aliquota_icms),
+        aliquota_pis=_preco(item.aliquota_pis),
+        aliquota_cofins=_preco(item.aliquota_cofins),
+        observacao="Produto criado automaticamente a partir da importação da NF-e.",
+    )
+    db.add(produto)
+    db.flush()
+
+    _sincronizar_codigo_barras_principal(
+        db=db,
+        empresa_id=empresa_id,
+        produto=produto,
+        codigo_principal=codigo_barras_final,
+    )
+
+    item.produto_id = produto.id
+    item.match_tipo = MATCH_CRIADO_NF
+    item.match_confiavel = True
+    item.observacao_match = _build_observacao_match(produto, MATCH_CRIADO_NF)
+
+    if salvar_vinculo_fornecedor:
+        _preparar_vinculo_fornecedor(db, empresa_id, nota, item, produto.id)
+
+    return produto
 
 
 def importar_xml_nota_entrada(
@@ -561,51 +699,71 @@ def importar_xml_nota_entrada(
     db.add(nota)
     db.flush()
 
-    for item_importado in nfe.itens:
-        item = NotaEntradaItem(
-            nota_entrada_id=nota.id,
-            item_numero=item_importado.item_numero,
-            codigo_fornecedor=item_importado.codigo_fornecedor,
-            codigo_barras_nf=item_importado.codigo_barras_nf,
-            codigo_barras_tributavel_nf=item_importado.codigo_barras_tributavel_nf,
-            descricao_nf=item_importado.descricao_nf,
-            ncm=item_importado.ncm,
-            cest=item_importado.cest,
-            cfop=item_importado.cfop,
-            unidade_comercial=item_importado.unidade_comercial,
-            unidade_tributavel=item_importado.unidade_tributavel,
-            quantidade_comercial=item_importado.quantidade_comercial,
-            quantidade_tributavel=item_importado.quantidade_tributavel,
-            valor_unitario_comercial=item_importado.valor_unitario_comercial,
-            valor_unitario_tributavel=item_importado.valor_unitario_tributavel,
-            valor_total_bruto=item_importado.valor_total_bruto,
-            desconto=item_importado.desconto,
-            frete=item_importado.frete,
-            seguro=item_importado.seguro,
-            outras_despesas=item_importado.outras_despesas,
-            origem_fiscal=item_importado.origem_fiscal,
-            cst_icms=item_importado.cst_icms,
-            csosn=item_importado.csosn,
-            cst_pis=item_importado.cst_pis,
-            cst_cofins=item_importado.cst_cofins,
-            aliquota_icms=item_importado.aliquota_icms,
-            aliquota_pis=item_importado.aliquota_pis,
-            aliquota_cofins=item_importado.aliquota_cofins,
-            valor_icms=item_importado.valor_icms,
-            valor_pis=item_importado.valor_pis,
-            valor_cofins=item_importado.valor_cofins,
-            match_tipo=MATCH_SEM,
-            match_confiavel=False,
-        )
-        _aplicar_match_automatico(
-            db=db,
-            empresa_id=empresa_id,
-            fornecedor_cnpj=nfe.fornecedor_cnpj,
-            item=item,
-        )
-        db.add(item)
+    try:
+        for item_importado in nfe.itens:
+            item = NotaEntradaItem(
+                nota_entrada_id=nota.id,
+                item_numero=item_importado.item_numero,
+                codigo_fornecedor=item_importado.codigo_fornecedor,
+                codigo_barras_nf=item_importado.codigo_barras_nf,
+                codigo_barras_tributavel_nf=item_importado.codigo_barras_tributavel_nf,
+                descricao_nf=item_importado.descricao_nf,
+                ncm=item_importado.ncm,
+                cest=item_importado.cest,
+                cfop=item_importado.cfop,
+                unidade_comercial=item_importado.unidade_comercial,
+                unidade_tributavel=item_importado.unidade_tributavel,
+                quantidade_comercial=item_importado.quantidade_comercial,
+                quantidade_tributavel=item_importado.quantidade_tributavel,
+                valor_unitario_comercial=item_importado.valor_unitario_comercial,
+                valor_unitario_tributavel=item_importado.valor_unitario_tributavel,
+                valor_total_bruto=item_importado.valor_total_bruto,
+                desconto=item_importado.desconto,
+                frete=item_importado.frete,
+                seguro=item_importado.seguro,
+                outras_despesas=item_importado.outras_despesas,
+                origem_fiscal=item_importado.origem_fiscal,
+                cst_icms=item_importado.cst_icms,
+                csosn=item_importado.csosn,
+                cst_pis=item_importado.cst_pis,
+                cst_cofins=item_importado.cst_cofins,
+                aliquota_icms=item_importado.aliquota_icms,
+                aliquota_pis=item_importado.aliquota_pis,
+                aliquota_cofins=item_importado.aliquota_cofins,
+                valor_icms=item_importado.valor_icms,
+                valor_pis=item_importado.valor_pis,
+                valor_cofins=item_importado.valor_cofins,
+                match_tipo=MATCH_SEM,
+                match_confiavel=False,
+            )
 
-    db.commit()
+            _aplicar_match_automatico(
+                db=db,
+                empresa_id=empresa_id,
+                fornecedor_cnpj=nfe.fornecedor_cnpj,
+                item=item,
+            )
+
+            db.add(item)
+            db.flush()
+
+            if not item.produto_id:
+                _criar_produto_para_item_nota(
+                    db=db,
+                    empresa_id=empresa_id,
+                    nota=nota,
+                    item=item,
+                    salvar_vinculo_fornecedor=True,
+                )
+
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+
     return obter_nota_entrada(db, empresa_id, nota.id)
 
 
@@ -613,12 +771,13 @@ def listar_notas_entrada(
     db: Session,
     empresa_id: int,
 ) -> list[NotaEntrada]:
-    return (
+    notas = (
         db.query(NotaEntrada)
         .filter(NotaEntrada.empresa_id == empresa_id)
         .order_by(NotaEntrada.id.desc())
         .all()
     )
+    return [_enriquecer_nota_com_resumo_estoque(db, nota) for nota in notas]
 
 
 def obter_nota_entrada(
@@ -628,9 +787,7 @@ def obter_nota_entrada(
 ) -> NotaEntrada:
     nota = (
         db.query(NotaEntrada)
-        .options(
-            joinedload(NotaEntrada.itens).joinedload(NotaEntradaItem.produto),
-        )
+        .options(joinedload(NotaEntrada.itens).joinedload(NotaEntradaItem.produto))
         .filter(
             NotaEntrada.id == nota_entrada_id,
             NotaEntrada.empresa_id == empresa_id,
@@ -767,85 +924,19 @@ def criar_produto_a_partir_item_nota(
     if not item:
         raise HTTPException(status_code=404, detail="Item da nota não encontrado.")
 
-    if item.produto_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Este item já possui produto vinculado.",
-        )
-
-    nome_final = (nome or item.descricao_nf or "").strip()
-    if not nome_final:
-        raise HTTPException(status_code=400, detail="Nome do produto é obrigatório.")
-
-    unidade_final = _normalizar_unidade(unidade or item.unidade_comercial or item.unidade_tributavel)
-    codigo_barras_final = (codigo_barras or item.codigo_barras_tributavel_nf or item.codigo_barras_nf or "").strip() or None
-
-    if codigo_barras_final:
-        existente = _buscar_produto_por_codigo_barras(db, empresa_id, codigo_barras_final)
-        if existente:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Já existe produto com este código de barras: {existente.nome} ({existente.sku}).",
-            )
-
-    sku_final = _gerar_sku_produto_nf(
+    _criar_produto_para_item_nota(
         db=db,
         empresa_id=empresa_id,
+        nota=nota,
         item=item,
-        sku_informado=sku,
+        sku=sku,
+        nome=nome,
+        unidade=unidade,
+        codigo_barras=codigo_barras,
+        preco_venda=preco_venda,
+        custo_inicial=custo_inicial,
+        salvar_vinculo_fornecedor=salvar_vinculo_fornecedor,
     )
-
-    custo_final = _custo(custo_inicial if custo_inicial is not None else _get_custo_unitario_item(item))
-    preco_final = _preco(preco_venda)
-
-    produto = Produto(
-        empresa_id=empresa_id,
-        sku=sku_final,
-        nome=nome_final[:150],
-        descricao=(item.descricao_nf or "").strip() or None,
-        unidade=unidade_final,
-        ativo=True,
-        aceita_fracionado=False,
-        codigo_barras_principal=codigo_barras_final,
-        preco_venda_atual=preco_final,
-        custo_medio_atual=custo_final,
-        estoque_minimo=ZERO,
-        observacao="Produto criado automaticamente a partir de item de NF de entrada.",
-    )
-
-    if hasattr(produto, "ncm"):
-        produto.ncm = (item.ncm or "").strip() or None
-    if hasattr(produto, "cest"):
-        produto.cest = (item.cest or "").strip() or None
-    if hasattr(produto, "cfop_padrao"):
-        produto.cfop_padrao = (item.cfop or "").strip() or None
-    if hasattr(produto, "origem_fiscal"):
-        produto.origem_fiscal = (item.origem_fiscal or "").strip() or None
-    if hasattr(produto, "cst_icms"):
-        produto.cst_icms = (item.cst_icms or "").strip() or None
-    if hasattr(produto, "csosn"):
-        produto.csosn = (item.csosn or "").strip() or None
-    if hasattr(produto, "cst_pis"):
-        produto.cst_pis = (item.cst_pis or "").strip() or None
-    if hasattr(produto, "cst_cofins"):
-        produto.cst_cofins = (item.cst_cofins or "").strip() or None
-    if hasattr(produto, "aliquota_icms"):
-        produto.aliquota_icms = _preco(item.aliquota_icms)
-    if hasattr(produto, "aliquota_pis"):
-        produto.aliquota_pis = _preco(item.aliquota_pis)
-    if hasattr(produto, "aliquota_cofins"):
-        produto.aliquota_cofins = _preco(item.aliquota_cofins)
-
-    db.add(produto)
-    db.flush()
-
-    item.produto_id = produto.id
-    item.match_tipo = MATCH_CRIADO_NF
-    item.match_confiavel = True
-    item.observacao_match = _build_observacao_match(produto, MATCH_CRIADO_NF)
-
-    if salvar_vinculo_fornecedor:
-        _preparar_vinculo_fornecedor(db, empresa_id, nota, item, produto.id)
 
     db.commit()
     return obter_nota_entrada(db, empresa_id, nota_entrada_id)

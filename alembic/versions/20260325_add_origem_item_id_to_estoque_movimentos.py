@@ -1,7 +1,7 @@
 """add origem_item_id to estoque_movimentos
 
-Revision ID: 20260325_add_origem_item_id_to_estoque_movimentos
-Revises: AJUSTAR_DOWN_REVISION_AQUI
+Revision ID: 20260325_orig_item_id
+Revises: 2f98199da853, 9b7a4c2d1e30
 Create Date: 2026-03-25 00:00:00.000000
 """
 
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "20260325_add_origem_item_id_to_estoque_movimentos"
-down_revision = "AJUSTAR_DOWN_REVISION_AQUI"
+revision = "20260325_orig_item_id"
+down_revision = ("2f98199da853", "9b7a4c2d1e30")
 branch_labels = None
 depends_on = None
 

@@ -13,6 +13,8 @@ from app.models.comissao_fechamento import ComissaoFechamento
 from app.models.comissao_lancamento import ComissaoLancamento
 from app.models.configuracao import Configuracao
 from app.models.empresa import Empresa
+from app.models.empresa_categoria_precificacao import EmpresaCategoriaPrecificacao
+from app.models.empresa_precificacao_config import EmpresaPrecificacaoConfig
 from app.models.endereco import Endereco
 from app.models.estoque_deposito import EstoqueDeposito
 from app.models.estoque_movimento import EstoqueMovimento
@@ -42,3 +44,8 @@ from app.models.produto_codigo_barras import ProdutoCodigoBarras
 from app.models.produto_fornecedor_vinculo import ProdutoFornecedorVinculo
 from app.models.servico import Servico
 from app.models.usuario import Usuario
+from app.api import auth
+from app.api import configuracoes
+from app.api import empresas
+from app.api import precificacao_api
+from app.api import usuarios
