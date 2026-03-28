@@ -1,516 +1,770 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
-<section class="space-y-6">
-    <div>
-        <h1 class="text-2xl font-semibold">Precificação</h1>
-        <p class="text-sm text-gray-600">
-            Configure a regra padrão da loja, regras por categoria e reprecificação em lote.
-        </p>
+<section class="precificacao-shell">
+  <div class="precificacao-hero">
+    <div class="precificacao-hero-text">
+      <span class="precificacao-kicker">Precificação</span>
+      <h1>Precificação Automática por Categoria</h1>
+      <p>
+        Configure a regra padrão da empresa e as regras específicas para
+        Ração, Petiscos, Brinquedos, Medicamentos, Produtos de higiene e
+        Produtos de limpeza. Produtos criados pela NF tentam classificar a
+        categoria automaticamente antes de calcular o preço.
+      </p>
     </div>
 
-    <div class="rounded-lg border bg-white p-4 space-y-4">
+    <div class="precificacao-hero-stats">
+      <div class="precificacao-stat-card">
+        <span class="precificacao-stat-label">Categorias base</span>
+        <strong>6 categorias automáticas</strong>
+      </div>
+
+      <div class="precificacao-stat-card">
+        <span class="precificacao-stat-label">Cálculo automático</span>
+        <strong>Regra da categoria → regra padrão</strong>
+      </div>
+    </div>
+  </div>
+
+  <div id="precificacao-alert" class="precificacao-alert" style="display: none;"></div>
+
+  <div class="precificacao-grid">
+    <section class="precificacao-card">
+      <div class="precificacao-card-header">
         <div>
-            <h2 class="text-lg font-medium">Regra padrão da empresa</h2>
-            <p class="text-sm text-gray-500">
-                Usada quando o produto não tiver regra específica por categoria.
-            </p>
+          <h2>Regra padrão da empresa</h2>
+          <p>Usada quando o produto não tiver regra específica por categoria.</p>
         </div>
+      </div>
 
-        <form id="form-config-padrao" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-                <label class="block text-sm font-medium mb-1">Modo</label>
-                <select id="modo_padrao" class="w-full rounded border px-3 py-2">
-                    <option value="MARKUP">Markup</option>
-                    <option value="MARGEM">Margem</option>
-                </select>
-            </div>
+      <form id="form-config-padrao" class="precificacao-form-grid precificacao-form-grid-3">
+        <label class="precificacao-field">
+          <span>Modo</span>
+          <select id="modo_padrao" name="modo_padrao" class="precificacao-input">
+            <option value="MARKUP">Markup</option>
+            <option value="MARGEM">Margem</option>
+          </select>
+        </label>
 
-            <div>
-                <label class="block text-sm font-medium mb-1">Percentual</label>
-                <input id="percentual_padrao" type="number" step="0.01" min="0" class="w-full rounded border px-3 py-2" />
-            </div>
+        <label class="precificacao-field">
+          <span>Percentual</span>
+          <input
+            type="number"
+            id="percentual_padrao"
+            name="percentual_padrao"
+            class="precificacao-input"
+            min="0"
+            step="0.01"
+            placeholder="0,00"
+          />
+        </label>
 
-            <div class="flex items-end">
-                <label class="inline-flex items-center gap-2">
-                    <input id="ativo_padrao" type="checkbox" />
-                    <span class="text-sm">Ativo</span>
-                </label>
-            </div>
+        <label class="precificacao-field precificacao-field-checkbox">
+          <span>Ativação</span>
+          <label class="precificacao-checkbox-line">
+            <input type="checkbox" id="ativo_padrao" name="ativo_padrao" />
+            <span>Regra padrão ativa</span>
+          </label>
+        </label>
 
-            <div class="flex items-end">
-                <button type="submit" class="rounded bg-blue-600 text-white px-4 py-2">
-                    Salvar regra padrão
-                </button>
-            </div>
-        </form>
+        <div class="precificacao-actions-row">
+          <button type="submit" class="precificacao-btn precificacao-btn-primary">
+            Salvar regra padrão
+          </button>
+        </div>
+      </form>
+    </section>
 
-        <div id="msg-config-padrao" class="text-sm"></div>
-    </div>
-
-    <div class="rounded-lg border bg-white p-4 space-y-4">
+    <section class="precificacao-card">
+      <div class="precificacao-card-header">
         <div>
-            <h2 class="text-lg font-medium">Regra por categoria</h2>
-            <p class="text-sm text-gray-500">
-                Tem prioridade sobre a regra padrão da empresa.
-            </p>
+          <h2>Categorização automática</h2>
+          <p>Baseada em descrição, NCM e, quando configurado, apoio de API externa.</p>
+        </div>
+      </div>
+
+      <div class="precificacao-info-stack">
+        <div class="precificacao-info-box">
+          <strong>Fluxo automático</strong>
+          <p>O produto criado pela NF tenta descobrir a categoria antes de calcular o preço.</p>
         </div>
 
-        <form id="form-regra-categoria" class="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-                <label class="block text-sm font-medium mb-1">Categoria</label>
-                <select id="categoria_id" class="w-full rounded border px-3 py-2">
-                    <option value="">Selecione</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium mb-1">Modo</label>
-                <select id="modo_categoria" class="w-full rounded border px-3 py-2">
-                    <option value="MARKUP">Markup</option>
-                    <option value="MARGEM">Margem</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium mb-1">Percentual</label>
-                <input id="percentual_categoria" type="number" step="0.01" min="0" class="w-full rounded border px-3 py-2" />
-            </div>
-
-            <div class="flex items-end">
-                <label class="inline-flex items-center gap-2">
-                    <input id="ativo_categoria" type="checkbox" checked />
-                    <span class="text-sm">Ativo</span>
-                </label>
-            </div>
-
-            <div class="flex items-end">
-                <button type="submit" class="rounded bg-blue-600 text-white px-4 py-2">
-                    Salvar regra da categoria
-                </button>
-            </div>
-        </form>
-
-        <div id="msg-regra-categoria" class="text-sm"></div>
-
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm border">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="border px-3 py-2 text-left">Categoria</th>
-                        <th class="border px-3 py-2 text-left">Modo</th>
-                        <th class="border px-3 py-2 text-left">Percentual</th>
-                        <th class="border px-3 py-2 text-left">Status</th>
-                        <th class="border px-3 py-2 text-left">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-regras-categoria">
-                    <tr>
-                        <td colspan="5" class="border px-3 py-4 text-center text-gray-500">
-                            Carregando...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="precificacao-info-box">
+          <strong>Ordem de decisão</strong>
+          <p>Regra local por palavras-chave/NCM → API externa → fallback para regra padrão.</p>
         </div>
+
+        <div class="precificacao-info-box">
+          <strong>Recomendação</strong>
+          <p>Defina primeiro a regra padrão e depois personalize só as categorias necessárias.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="precificacao-card precificacao-card-full">
+    <div class="precificacao-card-header">
+      <div>
+        <h2>Regras por categoria</h2>
+        <p>Quando existir regra ativa na categoria, ela sobrescreve a regra padrão da empresa.</p>
+      </div>
     </div>
 
-    <div class="rounded-lg border bg-white p-4 space-y-4">
-        <div>
-            <h2 class="text-lg font-medium">Reprecificação em lote</h2>
-            <p class="text-sm text-gray-500">
-                Simule antes de aplicar. Por padrão, afeta somente produtos ativos.
-            </p>
-        </div>
-
-        <form id="form-reprecificacao" class="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-                <label class="block text-sm font-medium mb-1">Categoria</label>
-                <select id="reprec_categoria_id" class="w-full rounded border px-3 py-2">
-                    <option value="">Todas</option>
-                </select>
-            </div>
-
-            <div class="flex items-end">
-                <label class="inline-flex items-center gap-2">
-                    <input id="somente_sem_preco" type="checkbox" />
-                    <span class="text-sm">Somente sem preço</span>
-                </label>
-            </div>
-
-            <div class="flex items-end">
-                <label class="inline-flex items-center gap-2">
-                    <input id="somente_ativos" type="checkbox" checked />
-                    <span class="text-sm">Somente ativos</span>
-                </label>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium mb-1">Limite</label>
-                <input id="limitar" type="number" step="1" min="1" max="1000" value="200" class="w-full rounded border px-3 py-2" />
-            </div>
-
-            <div class="flex items-end gap-2">
-                <button type="button" id="btn-simular" class="rounded bg-slate-700 text-white px-4 py-2">
-                    Simular
-                </button>
-                <button type="button" id="btn-aplicar" class="rounded bg-green-600 text-white px-4 py-2">
-                    Aplicar
-                </button>
-            </div>
-        </form>
-
-        <div id="msg-reprecificacao" class="text-sm"></div>
-        <div id="resumo-reprecificacao" class="text-sm text-gray-700"></div>
-
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm border">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="border px-3 py-2 text-left">SKU</th>
-                        <th class="border px-3 py-2 text-left">Produto</th>
-                        <th class="border px-3 py-2 text-left">Categoria</th>
-                        <th class="border px-3 py-2 text-left">Custo</th>
-                        <th class="border px-3 py-2 text-left">Preço atual</th>
-                        <th class="border px-3 py-2 text-left">Preço sugerido</th>
-                        <th class="border px-3 py-2 text-left">Regra</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-reprecificacao">
-                    <tr>
-                        <td colspan="7" class="border px-3 py-4 text-center text-gray-500">
-                            Nenhuma simulação executada.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+    <div id="categorias-loading" class="precificacao-loading">
+      Carregando categorias...
     </div>
+
+    <div id="categorias-lista" class="precificacao-categorias-lista" style="display: none;"></div>
+  </section>
 </section>
 
+<style>
+  .precificacao-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px;
+  }
+
+  .precificacao-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 28px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #fff;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  }
+
+  .precificacao-hero-text {
+    max-width: 860px;
+  }
+
+  .precificacao-kicker {
+    display: inline-block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .precificacao-hero h1 {
+    margin: 0 0 10px;
+    font-size: 30px;
+    line-height: 1.08;
+  }
+
+  .precificacao-hero p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .precificacao-hero-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 280px;
+  }
+
+  .precificacao-stat-card {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    padding: 16px 18px;
+    backdrop-filter: blur(6px);
+  }
+
+  .precificacao-stat-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.68);
+    margin-bottom: 6px;
+  }
+
+  .precificacao-stat-card strong {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .precificacao-alert {
+    border-radius: 16px;
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .precificacao-alert.success {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  .precificacao-alert.error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  .precificacao-grid {
+    display: grid;
+    grid-template-columns: minmax(360px, 1.3fr) minmax(300px, 1fr);
+    gap: 20px;
+  }
+
+  .precificacao-card {
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 22px;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+    padding: 22px;
+  }
+
+  .precificacao-card-full {
+    width: 100%;
+  }
+
+  .precificacao-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .precificacao-card-header h2 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    color: #0f172a;
+  }
+
+  .precificacao-card-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .precificacao-form-grid {
+    display: grid;
+    gap: 16px;
+    align-items: end;
+  }
+
+  .precificacao-form-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .precificacao-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .precificacao-field > span {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .precificacao-input {
+    width: 100%;
+    height: 46px;
+    border: 1px solid #d6dae3;
+    border-radius: 14px;
+    background: #fff;
+    padding: 0 14px;
+    font-size: 14px;
+    color: #0f172a;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .precificacao-input:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+  }
+
+  .precificacao-field-checkbox {
+    justify-content: center;
+  }
+
+  .precificacao-checkbox-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .precificacao-actions-row {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 2px;
+  }
+
+  .precificacao-btn {
+    border: 0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  .precificacao-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .precificacao-btn-primary {
+    background: #7c3aed;
+    color: #fff;
+  }
+
+  .precificacao-btn-secondary {
+    background: #eef2ff;
+    color: #4338ca;
+  }
+
+  .precificacao-info-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .precificacao-info-box {
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 16px;
+  }
+
+  .precificacao-info-box strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #0f172a;
+    font-size: 14px;
+  }
+
+  .precificacao-info-box p {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .precificacao-loading {
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .precificacao-categorias-lista {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+    gap: 16px;
+  }
+
+  .precificacao-categoria-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 18px;
+    background: #ffffff;
+  }
+
+  .precificacao-categoria-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .precificacao-categoria-header h3 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    color: #0f172a;
+  }
+
+  .precificacao-categoria-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .precificacao-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 96px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .precificacao-badge.ativo {
+    background: #ecfdf5;
+    color: #047857;
+  }
+
+  .precificacao-badge.inativo {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .precificacao-categoria-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .precificacao-categoria-form .precificacao-field-checkbox {
+    grid-column: 1 / -1;
+  }
+
+  .precificacao-categoria-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 1100px) {
+    .precificacao-grid,
+    .precificacao-categorias-lista {
+      grid-template-columns: 1fr;
+    }
+
+    .precificacao-hero {
+      flex-direction: column;
+    }
+
+    .precificacao-hero-stats {
+      min-width: 100%;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .precificacao-shell {
+      padding: 16px;
+    }
+
+    .precificacao-form-grid-3,
+    .precificacao-categoria-form {
+      grid-template-columns: 1fr;
+    }
+
+    .precificacao-hero {
+      padding: 20px;
+    }
+
+    .precificacao-card {
+      padding: 18px;
+    }
+  }
+</style>
+
 <script>
-  const el = {
-    formConfigPadrao: document.getElementById('form-config-padrao'),
-    modoPadrao: document.getElementById('modo_padrao'),
-    percentualPadrao: document.getElementById('percentual_padrao'),
-    ativoPadrao: document.getElementById('ativo_padrao'),
-    msgConfigPadrao: document.getElementById('msg-config-padrao'),
-
-    formRegraCategoria: document.getElementById('form-regra-categoria'),
-    categoriaId: document.getElementById('categoria_id'),
-    modoCategoria: document.getElementById('modo_categoria'),
-    percentualCategoria: document.getElementById('percentual_categoria'),
-    ativoCategoria: document.getElementById('ativo_categoria'),
-    msgRegraCategoria: document.getElementById('msg-regra-categoria'),
-    tbodyRegrasCategoria: document.getElementById('tbody-regras-categoria'),
-
-    reprecCategoriaId: document.getElementById('reprec_categoria_id'),
-    somenteSemPreco: document.getElementById('somente_sem_preco'),
-    somenteAtivos: document.getElementById('somente_ativos'),
-    limitar: document.getElementById('limitar'),
-    btnSimular: document.getElementById('btn-simular'),
-    btnAplicar: document.getElementById('btn-aplicar'),
-    msgReprecificacao: document.getElementById('msg-reprecificacao'),
-    resumoReprecificacao: document.getElementById('resumo-reprecificacao'),
-    tbodyReprecificacao: document.getElementById('tbody-reprecificacao'),
-  };
-
-  function getToken() {
-    return (
-      localStorage.getItem('petflow_token') ||
-      sessionStorage.getItem('petflow_token') ||
-      localStorage.getItem('token') ||
-      sessionStorage.getItem('token') ||
-      ''
-    );
-  }
-
-  async function apiFetch(url, options = {}) {
-    const token = getToken();
-    const headers = new Headers(options.headers || {});
-
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
-      headers.set('Content-Type', 'application/json');
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    if (response.status === 401) {
-      throw new Error('Sessão expirada. Faça login novamente.');
-    }
-
-    if (!response.ok) {
-      let detail = 'Erro ao processar a solicitação.';
-      try {
-        const data = await response.json();
-        if (typeof data?.detail === 'string') detail = data.detail;
-      } catch (_) {}
-      throw new Error(detail);
-    }
-
-    if (response.status === 204) return null;
-
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) return response.json();
-    return response.text();
-  }
-
-  function setMessage(elm, text, ok = true) {
-    elm.textContent = text || '';
-    elm.className = ok ? 'text-sm text-green-600' : 'text-sm text-red-600';
-  }
-
-  function clearMessage(elm) {
-    elm.textContent = '';
-    elm.className = 'text-sm';
-  }
-
-  function formatPercentual(value) {
-    const num = Number(value || 0);
-    return `${num.toFixed(2)}%`;
-  }
-
-  function formatMoney(value) {
-    const num = Number(value || 0);
-    return num.toFixed(2);
-  }
-
-  function renderRegras(regras) {
-    if (!regras.length) {
-      el.tbodyRegrasCategoria.innerHTML = `
-        <tr>
-          <td colspan="5" class="border px-3 py-4 text-center text-gray-500">
-            Nenhuma regra cadastrada.
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    el.tbodyRegrasCategoria.innerHTML = regras.map(regra => `
-      <tr>
-        <td class="border px-3 py-2">${regra.categoria_nome || regra.categoria_id}</td>
-        <td class="border px-3 py-2">${regra.modo}</td>
-        <td class="border px-3 py-2">${formatPercentual(regra.percentual)}</td>
-        <td class="border px-3 py-2">${regra.ativo ? 'Ativa' : 'Inativa'}</td>
-        <td class="border px-3 py-2">
-          <button
-            class="rounded bg-red-600 text-white px-3 py-1"
-            onclick="excluirRegraCategoria(${regra.categoria_id})"
-          >
-            Excluir
-          </button>
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  function renderResumoReprecificacao(data, aplicada = false) {
-    el.resumoReprecificacao.innerHTML = `
-      <div>Total analisado: <strong>${data.total_analisado}</strong></div>
-      <div>Total elegível: <strong>${data.total_elegiveis}</strong></div>
-      <div>Total atualizado: <strong>${data.total_atualizados}</strong>${aplicada ? ' (aplicado)' : ''}</div>
-    `;
-  }
-
-  function renderItensReprecificacao(itens) {
-    if (!itens.length) {
-      el.tbodyReprecificacao.innerHTML = `
-        <tr>
-          <td colspan="7" class="border px-3 py-4 text-center text-gray-500">
-            Nenhum produto elegível encontrado.
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    el.tbodyReprecificacao.innerHTML = itens.map(item => `
-      <tr>
-        <td class="border px-3 py-2">${item.sku}</td>
-        <td class="border px-3 py-2">${item.nome}</td>
-        <td class="border px-3 py-2">${item.categoria_nome || '-'}</td>
-        <td class="border px-3 py-2">${formatMoney(item.custo_medio_atual)}</td>
-        <td class="border px-3 py-2">${formatMoney(item.preco_venda_atual)}</td>
-        <td class="border px-3 py-2">${formatMoney(item.preco_sugerido)}</td>
-        <td class="border px-3 py-2">${item.regra_origem} / ${item.regra_modo} / ${formatPercentual(item.regra_percentual)}</td>
-      </tr>
-    `).join('');
-  }
-
-  async function carregarCategorias() {
-    const categorias = await apiFetch('/api/precificacao/categorias');
-    const options = (Array.isArray(categorias) ? categorias : []).map(categoria => `
-      <option value="${categoria.id}">${categoria.nome}</option>
-    `).join('');
-
-    el.categoriaId.innerHTML = '<option value="">Selecione</option>' + options;
-    el.reprecCategoriaId.innerHTML = '<option value="">Todas</option>' + options;
-  }
-
-  async function carregarConfiguracao() {
-    const data = await apiFetch('/api/precificacao/config');
-
-    if (data.config_padrao) {
-      el.modoPadrao.value = data.config_padrao.modo_padrao;
-      el.percentualPadrao.value = data.config_padrao.percentual_padrao;
-      el.ativoPadrao.checked = !!data.config_padrao.ativo;
-    } else {
-      el.modoPadrao.value = 'MARKUP';
-      el.percentualPadrao.value = '0.00';
-      el.ativoPadrao.checked = true;
-    }
-
-    renderRegras(data.regras_categoria || []);
-  }
-
-  async function salvarConfigPadrao(event) {
-    event.preventDefault();
-    clearMessage(el.msgConfigPadrao);
-
-    try {
-      await apiFetch('/api/precificacao/config/padrao', {
-        method: 'PUT',
-        body: JSON.stringify({
-          modo_padrao: el.modoPadrao.value,
-          percentual_padrao: el.percentualPadrao.value || 0,
-          ativo: el.ativoPadrao.checked,
-        }),
-      });
-
-      setMessage(el.msgConfigPadrao, 'Regra padrão salva com sucesso.');
-      await carregarConfiguracao();
-    } catch (error) {
-      setMessage(el.msgConfigPadrao, error.message, false);
-    }
-  }
-
-  async function salvarRegraCategoria(event) {
-    event.preventDefault();
-    clearMessage(el.msgRegraCategoria);
-
-    try {
-      if (!el.categoriaId.value) {
-        throw new Error('Selecione uma categoria.');
-      }
-
-      await apiFetch('/api/precificacao/categorias', {
-        method: 'PUT',
-        body: JSON.stringify({
-          categoria_id: Number(el.categoriaId.value),
-          modo: el.modoCategoria.value,
-          percentual: el.percentualCategoria.value || 0,
-          ativo: el.ativoCategoria.checked,
-        }),
-      });
-
-      setMessage(el.msgRegraCategoria, 'Regra da categoria salva com sucesso.');
-      el.formRegraCategoria.reset();
-      el.ativoCategoria.checked = true;
-      await carregarConfiguracao();
-    } catch (error) {
-      setMessage(el.msgRegraCategoria, error.message, false);
-    }
-  }
-
-  async function excluirRegraCategoria(categoriaId) {
-    clearMessage(el.msgRegraCategoria);
-
-    if (!confirm('Deseja excluir a regra desta categoria?')) return;
-
-    try {
-      await apiFetch(`/api/precificacao/categorias/${categoriaId}`, {
-        method: 'DELETE',
-      });
-
-      setMessage(el.msgRegraCategoria, 'Regra excluída com sucesso.');
-      await carregarConfiguracao();
-    } catch (error) {
-      setMessage(el.msgRegraCategoria, error.message, false);
-    }
-  }
-
-  window.excluirRegraCategoria = excluirRegraCategoria;
-
-  function getPayloadReprecificacao() {
-    return {
-      categoria_id: el.reprecCategoriaId.value ? Number(el.reprecCategoriaId.value) : null,
-      somente_sem_preco: el.somenteSemPreco.checked,
-      somente_ativos: el.somenteAtivos.checked,
-      limitar: Number(el.limitar.value || 200),
+  (function () {
+    const categoriasState = {
+      categorias: [],
+      regras: [],
     };
-  }
 
-  async function simularReprecificacao() {
-    clearMessage(el.msgReprecificacao);
-
-    try {
-      const data = await apiFetch('/api/precificacao/reprecificar/simular', {
-        method: 'POST',
-        body: JSON.stringify(getPayloadReprecificacao()),
-      });
-
-      renderResumoReprecificacao(data, false);
-      renderItensReprecificacao(data.itens || []);
-      setMessage(el.msgReprecificacao, 'Simulação concluída com sucesso.');
-    } catch (error) {
-      setMessage(el.msgReprecificacao, error.message, false);
+    function getPetflowToken() {
+      return (
+        localStorage.getItem("petflow_token") ||
+        sessionStorage.getItem("petflow_token") ||
+        ""
+      );
     }
-  }
 
-  async function aplicarReprecificacao() {
-    clearMessage(el.msgReprecificacao);
+    function getAuthHeaders(extra = {}) {
+      const token = getPetflowToken();
+      const headers = {
+        Accept: "application/json",
+        ...extra,
+      };
 
-    if (!confirm('Deseja aplicar a reprecificação em lote nos produtos elegíveis?')) return;
-
-    try {
-      const data = await apiFetch('/api/precificacao/reprecificar/aplicar', {
-        method: 'POST',
-        body: JSON.stringify(getPayloadReprecificacao()),
-      });
-
-      renderResumoReprecificacao(data, true);
-      renderItensReprecificacao(data.itens || []);
-      setMessage(el.msgReprecificacao, 'Reprecificação aplicada com sucesso.');
-    } catch (error) {
-      setMessage(el.msgReprecificacao, error.message, false);
-    }
-  }
-
-  el.formConfigPadrao.addEventListener('submit', salvarConfigPadrao);
-  el.formRegraCategoria.addEventListener('submit', salvarRegraCategoria);
-  el.btnSimular.addEventListener('click', simularReprecificacao);
-  el.btnAplicar.addEventListener('click', aplicarReprecificacao);
-
-  (async function initPrecificacao() {
-    try {
-      const token = getToken();
-      if (!token) {
-        throw new Error('Token não encontrado. Faça login novamente.');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
       }
 
-      await carregarCategorias();
-      await carregarConfiguracao();
-    } catch (error) {
-      setMessage(el.msgConfigPadrao, error.message, false);
-      setMessage(el.msgRegraCategoria, error.message, false);
-      setMessage(el.msgReprecificacao, error.message, false);
-
-      el.tbodyRegrasCategoria.innerHTML = `
-        <tr>
-          <td colspan="5" class="border px-3 py-4 text-center text-gray-500">
-            Não foi possível carregar as regras.
-          </td>
-        </tr>
-      `;
+      return headers;
     }
+
+    function showPrecificacaoAlert(message, type = "success") {
+      const alertBox = document.getElementById("precificacao-alert");
+      if (!alertBox) return;
+
+      alertBox.className = `precificacao-alert ${type}`;
+      alertBox.textContent = message;
+      alertBox.style.display = "block";
+
+      window.clearTimeout(showPrecificacaoAlert._timeoutId);
+      showPrecificacaoAlert._timeoutId = window.setTimeout(() => {
+        alertBox.style.display = "none";
+      }, 5000);
+    }
+
+    async function fetchJson(url, options = {}) {
+      const response = await fetch(url, options);
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch (_) {
+        data = null;
+      }
+
+      if (!response.ok) {
+        const detail = data?.detail || data?.message || "Erro ao processar a requisição.";
+        throw new Error(detail);
+      }
+
+      return data;
+    }
+
+    function preencherConfigPadrao(config) {
+      document.getElementById("modo_padrao").value = config?.modo_padrao || "MARKUP";
+      document.getElementById("percentual_padrao").value = config?.percentual_padrao ?? 0;
+      document.getElementById("ativo_padrao").checked = Boolean(config?.ativo);
+    }
+
+    function regraPorCategoriaId(categoriaId) {
+      return categoriasState.regras.find((regra) => regra.categoria_id === categoriaId) || null;
+    }
+
+    function bindCategoriaForms() {
+      document.querySelectorAll(".precificacao-categoria-form").forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const categoriaId = Number(form.dataset.categoriaId);
+          const formData = new FormData(form);
+
+          const payload = {
+            categoria_id: categoriaId,
+            modo: String(formData.get("modo") || "MARKUP").toUpperCase(),
+            percentual: Number(formData.get("percentual") || 0),
+            ativo: form.querySelector('input[name="ativo"]').checked,
+          };
+
+          try {
+            await fetchJson("/api/precificacao/categorias", {
+              method: "PUT",
+              headers: getAuthHeaders({
+                "Content-Type": "application/json",
+              }),
+              body: JSON.stringify(payload),
+            });
+
+            showPrecificacaoAlert("Regra da categoria salva com sucesso.");
+            await carregarTelaPrecificacao();
+          } catch (error) {
+            showPrecificacaoAlert(error.message || "Erro ao salvar regra da categoria.", "error");
+          }
+        });
+      });
+    }
+
+    function bindDeleteButtons() {
+      document.querySelectorAll(".btn-remover-regra-categoria").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const categoriaId = Number(button.dataset.categoriaId);
+          const categoria = categoriasState.categorias.find((item) => item.id === categoriaId);
+          const regra = regraPorCategoriaId(categoriaId);
+
+          if (!regra) {
+            showPrecificacaoAlert(`A categoria "${categoria?.nome || ""}" ainda não possui regra salva.`, "error");
+            return;
+          }
+
+          if (!window.confirm(`Remover a regra de precificação da categoria "${categoria?.nome || ""}"?`)) {
+            return;
+          }
+
+          try {
+            await fetchJson(`/api/precificacao/categorias/${categoriaId}`, {
+              method: "DELETE",
+              headers: getAuthHeaders(),
+            });
+
+            showPrecificacaoAlert("Regra da categoria removida com sucesso.");
+            await carregarTelaPrecificacao();
+          } catch (error) {
+            showPrecificacaoAlert(error.message || "Erro ao remover regra da categoria.", "error");
+          }
+        });
+      });
+    }
+
+    function renderCategorias() {
+      const container = document.getElementById("categorias-lista");
+      const loading = document.getElementById("categorias-loading");
+
+      if (!container || !loading) return;
+
+      loading.style.display = "none";
+      container.style.display = "grid";
+
+      container.innerHTML = categoriasState.categorias
+        .map((categoria) => {
+          const regra = regraPorCategoriaId(categoria.id);
+          const modo = regra?.modo || "MARKUP";
+          const percentual = regra?.percentual ?? 0;
+          const ativo = Boolean(regra?.ativo);
+          const badgeClass = ativo ? "ativo" : "inativo";
+          const badgeLabel = ativo ? "Regra ativa" : "Sem regra ativa";
+
+          return `
+            <div class="precificacao-categoria-card">
+              <div class="precificacao-categoria-header">
+                <div>
+                  <h3>${categoria.nome}</h3>
+                  <p>${categoria.descricao || "Categoria pronta para precificação automática."}</p>
+                </div>
+                <span class="precificacao-badge ${badgeClass}">${badgeLabel}</span>
+              </div>
+
+              <form class="precificacao-categoria-form" data-categoria-id="${categoria.id}">
+                <label class="precificacao-field">
+                  <span>Modo</span>
+                  <select name="modo" class="precificacao-input">
+                    <option value="MARKUP" ${modo === "MARKUP" ? "selected" : ""}>Markup</option>
+                    <option value="MARGEM" ${modo === "MARGEM" ? "selected" : ""}>Margem</option>
+                  </select>
+                </label>
+
+                <label class="precificacao-field">
+                  <span>Percentual</span>
+                  <input
+                    type="number"
+                    name="percentual"
+                    class="precificacao-input"
+                    min="0"
+                    step="0.01"
+                    value="${percentual}"
+                    placeholder="0,00"
+                  />
+                </label>
+
+                <label class="precificacao-field precificacao-field-checkbox">
+                  <span>Ativação</span>
+                  <label class="precificacao-checkbox-line">
+                    <input type="checkbox" name="ativo" ${ativo ? "checked" : ""} />
+                    <span>Regra ativa para esta categoria</span>
+                  </label>
+                </label>
+
+                <div class="precificacao-categoria-actions">
+                  <button type="submit" class="precificacao-btn precificacao-btn-primary">
+                    Salvar categoria
+                  </button>
+                  <button
+                    type="button"
+                    class="precificacao-btn precificacao-btn-secondary btn-remover-regra-categoria"
+                    data-categoria-id="${categoria.id}"
+                  >
+                    Remover regra
+                  </button>
+                </div>
+              </form>
+            </div>
+          `;
+        })
+        .join("");
+
+      bindCategoriaForms();
+      bindDeleteButtons();
+    }
+
+    async function carregarTelaPrecificacao() {
+      const loading = document.getElementById("categorias-loading");
+      const container = document.getElementById("categorias-lista");
+
+      if (!loading || !container) return;
+
+      loading.style.display = "block";
+      container.style.display = "none";
+
+      const [configData, categorias] = await Promise.all([
+        fetchJson("/api/precificacao/config", {
+          headers: getAuthHeaders(),
+        }),
+        fetchJson("/api/precificacao/categorias", {
+          headers: getAuthHeaders(),
+        }),
+      ]);
+
+      categoriasState.categorias = Array.isArray(categorias) ? categorias : [];
+      categoriasState.regras = Array.isArray(configData?.regras_categoria)
+        ? configData.regras_categoria
+        : [];
+
+      preencherConfigPadrao(configData?.config_padrao || null);
+      renderCategorias();
+    }
+
+    const formConfigPadrao = document.getElementById("form-config-padrao");
+    if (formConfigPadrao) {
+      formConfigPadrao.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const payload = {
+          modo_padrao: document.getElementById("modo_padrao").value,
+          percentual_padrao: Number(document.getElementById("percentual_padrao").value || 0),
+          ativo: document.getElementById("ativo_padrao").checked,
+        };
+
+        try {
+          await fetchJson("/api/precificacao/config/padrao", {
+            method: "PUT",
+            headers: getAuthHeaders({
+              "Content-Type": "application/json",
+            }),
+            body: JSON.stringify(payload),
+          });
+
+          showPrecificacaoAlert("Regra padrão salva com sucesso.");
+          await carregarTelaPrecificacao();
+        } catch (error) {
+          showPrecificacaoAlert(error.message || "Erro ao salvar regra padrão.", "error");
+        }
+      });
+    }
+
+    carregarTelaPrecificacao().catch((error) => {
+      const loading = document.getElementById("categorias-loading");
+      if (loading) {
+        loading.textContent =
+          error.message || "Não foi possível carregar as configurações de precificação.";
+      }
+      showPrecificacaoAlert(error.message || "Erro ao carregar a tela de precificação.", "error");
+    });
   })();
 </script>
 {% endblock %}
