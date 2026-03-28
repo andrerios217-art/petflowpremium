@@ -117,6 +117,111 @@
 
     <div id="categorias-lista" class="precificacao-categorias-lista" style="display: none;"></div>
   </section>
+
+  <section class="precificacao-card precificacao-card-full">
+    <div class="precificacao-card-header">
+      <div>
+        <h2>Reprecificação em lote</h2>
+        <p>
+          Simule e aplique a reprecificação dos produtos já cadastrados usando
+          as regras atuais por categoria e a regra padrão da empresa.
+        </p>
+      </div>
+    </div>
+
+    <form id="form-reprecificacao" class="precificacao-form-grid precificacao-form-grid-reprecificacao">
+      <label class="precificacao-field">
+        <span>Categoria</span>
+        <select id="reprecificacao_categoria_id" name="categoria_id" class="precificacao-input">
+          <option value="">Todas as categorias</option>
+        </select>
+      </label>
+
+      <label class="precificacao-field">
+        <span>Limite de análise</span>
+        <input
+          type="number"
+          id="reprecificacao_limitar"
+          name="limitar"
+          class="precificacao-input"
+          min="1"
+          max="1000"
+          step="1"
+          value="200"
+        />
+      </label>
+
+      <label class="precificacao-field precificacao-field-checkbox">
+        <span>Filtros</span>
+        <label class="precificacao-checkbox-line">
+          <input type="checkbox" id="reprecificacao_somente_ativos" name="somente_ativos" checked />
+          <span>Somente ativos</span>
+        </label>
+      </label>
+
+      <label class="precificacao-field precificacao-field-checkbox">
+        <span>&nbsp;</span>
+        <label class="precificacao-checkbox-line">
+          <input type="checkbox" id="reprecificacao_somente_sem_preco" name="somente_sem_preco" />
+          <span>Somente sem preço</span>
+        </label>
+      </label>
+
+      <div class="precificacao-actions-row precificacao-reprecificacao-actions">
+        <button type="submit" class="precificacao-btn precificacao-btn-secondary">
+          Simular reprecificação
+        </button>
+        <button
+          type="button"
+          id="btn-aplicar-reprecificacao"
+          class="precificacao-btn precificacao-btn-primary"
+        >
+          Aplicar reprecificação
+        </button>
+      </div>
+    </form>
+
+    <div id="reprecificacao-loading" class="precificacao-loading" style="display: none;">
+      Processando reprecificação...
+    </div>
+
+    <div id="reprecificacao-resultado" class="precificacao-reprecificacao-resultado" style="display: none;">
+      <div class="precificacao-reprecificacao-resumo">
+        <div class="precificacao-mini-stat">
+          <span class="precificacao-mini-stat-label">Total analisado</span>
+          <strong id="reprecificacao_total_analisado">0</strong>
+        </div>
+        <div class="precificacao-mini-stat">
+          <span class="precificacao-mini-stat-label">Elegíveis</span>
+          <strong id="reprecificacao_total_elegiveis">0</strong>
+        </div>
+        <div class="precificacao-mini-stat">
+          <span class="precificacao-mini-stat-label">Com alteração</span>
+          <strong id="reprecificacao_total_atualizados">0</strong>
+        </div>
+      </div>
+
+      <div id="reprecificacao-vazio" class="precificacao-empty" style="display: none;">
+        Nenhum produto elegível encontrado para os filtros informados.
+      </div>
+
+      <div id="reprecificacao-tabela-wrapper" class="precificacao-table-wrapper" style="display: none;">
+        <table class="precificacao-table">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Categoria</th>
+              <th>Custo médio</th>
+              <th>Preço atual</th>
+              <th>Preço sugerido</th>
+              <th>Regra</th>
+            </tr>
+          </thead>
+          <tbody id="reprecificacao-tabela-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 </section>
 
 <style>
@@ -265,6 +370,10 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .precificacao-form-grid-reprecificacao {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .precificacao-field {
     display: flex;
     flex-direction: column;
@@ -316,6 +425,11 @@
     margin-top: 2px;
   }
 
+  .precificacao-reprecificacao-actions {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   .precificacao-btn {
     border: 0;
     border-radius: 12px;
@@ -328,6 +442,12 @@
 
   .precificacao-btn:hover {
     transform: translateY(-1px);
+  }
+
+  .precificacao-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
   }
 
   .precificacao-btn-primary {
@@ -450,9 +570,113 @@
     margin-top: 4px;
   }
 
+  .precificacao-reprecificacao-resultado {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 18px;
+  }
+
+  .precificacao-reprecificacao-resumo {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .precificacao-mini-stat {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .precificacao-mini-stat-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+  }
+
+  .precificacao-mini-stat strong {
+    font-size: 22px;
+    color: #0f172a;
+  }
+
+  .precificacao-empty {
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .precificacao-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+  }
+
+  .precificacao-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 980px;
+    background: #fff;
+  }
+
+  .precificacao-table thead th {
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #f8fafc;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .precificacao-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #eef2f7;
+    font-size: 14px;
+    color: #0f172a;
+    vertical-align: top;
+  }
+
+  .precificacao-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .precificacao-table-produto {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .precificacao-table-produto strong {
+    color: #0f172a;
+  }
+
+  .precificacao-table-produto span,
+  .precificacao-table-muted {
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .precificacao-table-regra {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   @media (max-width: 1100px) {
     .precificacao-grid,
-    .precificacao-categorias-lista {
+    .precificacao-categorias-lista,
+    .precificacao-reprecificacao-resumo {
       grid-template-columns: 1fr;
     }
 
@@ -465,6 +689,10 @@
       flex-direction: row;
       flex-wrap: wrap;
     }
+
+    .precificacao-form-grid-reprecificacao {
+      grid-template-columns: 1fr 1fr;
+    }
   }
 
   @media (max-width: 720px) {
@@ -473,6 +701,7 @@
     }
 
     .precificacao-form-grid-3,
+    .precificacao-form-grid-reprecificacao,
     .precificacao-categoria-form {
       grid-template-columns: 1fr;
     }
@@ -548,6 +777,31 @@
       return data;
     }
 
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatNumber(value) {
+      const number = Number(value || 0);
+      return new Intl.NumberFormat("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(number);
+    }
+
+    function formatCurrency(value) {
+      const number = Number(value || 0);
+      return new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }).format(number);
+    }
+
     function preencherConfigPadrao(config) {
       document.getElementById("modo_padrao").value = config?.modo_padrao || "MARKUP";
       document.getElementById("percentual_padrao").value = config?.percentual_padrao ?? 0;
@@ -556,6 +810,30 @@
 
     function regraPorCategoriaId(categoriaId) {
       return categoriasState.regras.find((regra) => regra.categoria_id === categoriaId) || null;
+    }
+
+    function preencherFiltroCategorias() {
+      const select = document.getElementById("reprecificacao_categoria_id");
+      if (!select) return;
+
+      const categoriaSelecionadaAtual = String(select.value || "");
+      const optionsHtml = [
+        '<option value="">Todas as categorias</option>',
+        ...categoriasState.categorias.map(
+          (categoria) =>
+            `<option value="${categoria.id}">${escapeHtml(categoria.nome || "")}</option>`
+        ),
+      ].join("");
+
+      select.innerHTML = optionsHtml;
+
+      const aindaExiste = categoriaSelecionadaAtual
+        ? categoriasState.categorias.some(
+            (categoria) => String(categoria.id) === categoriaSelecionadaAtual
+          )
+        : true;
+
+      select.value = aindaExiste ? categoriaSelecionadaAtual : "";
     }
 
     function bindCategoriaForms() {
@@ -644,8 +922,8 @@
             <div class="precificacao-categoria-card">
               <div class="precificacao-categoria-header">
                 <div>
-                  <h3>${categoria.nome}</h3>
-                  <p>${categoria.descricao || "Categoria pronta para precificação automática."}</p>
+                  <h3>${escapeHtml(categoria.nome)}</h3>
+                  <p>${escapeHtml(categoria.descricao || "Categoria pronta para precificação automática.")}</p>
                 </div>
                 <span class="precificacao-badge ${badgeClass}">${badgeLabel}</span>
               </div>
@@ -702,6 +980,146 @@
       bindDeleteButtons();
     }
 
+    function coletarPayloadReprecificacao() {
+      const categoriaIdValue = document.getElementById("reprecificacao_categoria_id")?.value || "";
+      const limitarValue = Number(document.getElementById("reprecificacao_limitar")?.value || 200);
+
+      return {
+        categoria_id: categoriaIdValue ? Number(categoriaIdValue) : null,
+        somente_sem_preco: Boolean(document.getElementById("reprecificacao_somente_sem_preco")?.checked),
+        somente_ativos: Boolean(document.getElementById("reprecificacao_somente_ativos")?.checked),
+        limitar: Math.min(Math.max(limitarValue || 200, 1), 1000),
+      };
+    }
+
+    function setReprecificacaoLoading(isLoading) {
+      const loading = document.getElementById("reprecificacao-loading");
+      const simularButton = document.querySelector('#form-reprecificacao button[type="submit"]');
+      const aplicarButton = document.getElementById("btn-aplicar-reprecificacao");
+
+      if (loading) {
+        loading.style.display = isLoading ? "block" : "none";
+      }
+
+      if (simularButton) {
+        simularButton.disabled = isLoading;
+      }
+
+      if (aplicarButton) {
+        aplicarButton.disabled = isLoading;
+      }
+    }
+
+    function renderReprecificacaoResultado(data) {
+      const resultado = document.getElementById("reprecificacao-resultado");
+      const vazio = document.getElementById("reprecificacao-vazio");
+      const tabelaWrapper = document.getElementById("reprecificacao-tabela-wrapper");
+      const tabelaBody = document.getElementById("reprecificacao-tabela-body");
+
+      if (!resultado || !vazio || !tabelaWrapper || !tabelaBody) return;
+
+      const itens = Array.isArray(data?.itens) ? data.itens : [];
+      const totalAnalisado = Number(data?.total_analisado || 0);
+      const totalElegiveis = Number(data?.total_elegiveis || 0);
+      const totalAtualizados = Number(data?.total_atualizados || 0);
+
+      document.getElementById("reprecificacao_total_analisado").textContent = String(totalAnalisado);
+      document.getElementById("reprecificacao_total_elegiveis").textContent = String(totalElegiveis);
+      document.getElementById("reprecificacao_total_atualizados").textContent = String(totalAtualizados);
+
+      resultado.style.display = "flex";
+
+      if (!itens.length) {
+        vazio.style.display = "block";
+        tabelaWrapper.style.display = "none";
+        tabelaBody.innerHTML = "";
+        return;
+      }
+
+      vazio.style.display = "none";
+      tabelaWrapper.style.display = "block";
+      tabelaBody.innerHTML = itens
+        .map((item) => {
+          const sku = item?.sku ? `SKU: ${escapeHtml(item.sku)}` : "Sem SKU";
+          const categoriaNome = item?.categoria_nome || "Sem categoria";
+          const regraOrigem = item?.regra_origem || "-";
+          const regraModo = item?.regra_modo || "-";
+          const regraPercentual = formatNumber(item?.regra_percentual || 0);
+
+          return `
+            <tr>
+              <td>
+                <div class="precificacao-table-produto">
+                  <strong>${escapeHtml(item?.nome || "")}</strong>
+                  <span>${sku}</span>
+                </div>
+              </td>
+              <td>
+                <span class="precificacao-table-muted">${escapeHtml(categoriaNome)}</span>
+              </td>
+              <td>${formatCurrency(item?.custo_medio_atual || 0)}</td>
+              <td>${formatCurrency(item?.preco_venda_atual || 0)}</td>
+              <td>${formatCurrency(item?.preco_sugerido || 0)}</td>
+              <td>
+                <div class="precificacao-table-regra">
+                  <strong>${escapeHtml(regraOrigem)}</strong>
+                  <span>${escapeHtml(regraModo)} · ${regraPercentual}%</span>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    async function simularReprecificacao() {
+      const payload = coletarPayloadReprecificacao();
+
+      try {
+        setReprecificacaoLoading(true);
+        const data = await fetchJson("/api/precificacao/reprecificar/simular", {
+          method: "POST",
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify(payload),
+        });
+
+        renderReprecificacaoResultado(data);
+        showPrecificacaoAlert("Simulação de reprecificação concluída.");
+      } catch (error) {
+        showPrecificacaoAlert(error.message || "Erro ao simular reprecificação.", "error");
+      } finally {
+        setReprecificacaoLoading(false);
+      }
+    }
+
+    async function aplicarReprecificacao() {
+      const payload = coletarPayloadReprecificacao();
+
+      if (!window.confirm("Aplicar a reprecificação em lote com os filtros atuais?")) {
+        return;
+      }
+
+      try {
+        setReprecificacaoLoading(true);
+        const data = await fetchJson("/api/precificacao/reprecificar/aplicar", {
+          method: "POST",
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify(payload),
+        });
+
+        renderReprecificacaoResultado(data);
+        showPrecificacaoAlert("Reprecificação aplicada com sucesso.");
+      } catch (error) {
+        showPrecificacaoAlert(error.message || "Erro ao aplicar reprecificação.", "error");
+      } finally {
+        setReprecificacaoLoading(false);
+      }
+    }
+
     async function carregarTelaPrecificacao() {
       const loading = document.getElementById("categorias-loading");
       const container = document.getElementById("categorias-lista");
@@ -726,6 +1144,7 @@
         : [];
 
       preencherConfigPadrao(configData?.config_padrao || null);
+      preencherFiltroCategorias();
       renderCategorias();
     }
 
@@ -754,6 +1173,21 @@
         } catch (error) {
           showPrecificacaoAlert(error.message || "Erro ao salvar regra padrão.", "error");
         }
+      });
+    }
+
+    const formReprecificacao = document.getElementById("form-reprecificacao");
+    if (formReprecificacao) {
+      formReprecificacao.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await simularReprecificacao();
+      });
+    }
+
+    const btnAplicarReprecificacao = document.getElementById("btn-aplicar-reprecificacao");
+    if (btnAplicarReprecificacao) {
+      btnAplicarReprecificacao.addEventListener("click", async () => {
+        await aplicarReprecificacao();
       });
     }
 

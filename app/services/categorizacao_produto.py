@@ -57,9 +57,9 @@ REGRAS_PALAVRAS_CHAVE = {
         "alimento umido",
         "alimento úmido",
         "alimento seco",
-        "sache",
-        "sachê",
         "granulado alimentar",
+        "premium especial",
+        "super premium",
         "renal canine",
         "gastrointestinal",
         "urinary",
@@ -72,6 +72,7 @@ REGRAS_PALAVRAS_CHAVE = {
         "petiscos",
         "bifinho",
         "biscoito",
+        "biscoitinho",
         "snack",
         "snacks",
         "ossinho",
@@ -83,11 +84,16 @@ REGRAS_PALAVRAS_CHAVE = {
         "recompensa",
         "stick dental",
         "dental stick",
+        "cremoso",
+        "snack cremoso",
+        "mastigavel",
+        "mastigável",
     ],
     CATEGORIA_BRINQUEDOS: [
         "brinquedo",
         "brinquedos",
         "bola",
+        "bolinha",
         "mordedor",
         "corda",
         "pelucia",
@@ -102,6 +108,7 @@ REGRAS_PALAVRAS_CHAVE = {
         "varinha",
         "tunel",
         "túnel",
+        "mordida",
     ],
     CATEGORIA_MEDICAMENTOS: [
         "medicamento",
@@ -120,6 +127,8 @@ REGRAS_PALAVRAS_CHAVE = {
         "antisséptico",
         "suplemento",
         "vitamina",
+        "probiotico",
+        "probiótico",
         "otologico",
         "otológico",
         "colirio",
@@ -133,6 +142,7 @@ REGRAS_PALAVRAS_CHAVE = {
         "solucao oral",
         "solução oral",
         "xarope",
+        "tratamento",
     ],
     CATEGORIA_HIGIENE: [
         "higiene",
@@ -149,11 +159,16 @@ REGRAS_PALAVRAS_CHAVE = {
         "tapete higiênico",
         "areia higienica",
         "areia higiênica",
+        "granulado sanitario",
+        "granulado sanitário",
         "fralda",
         "banho a seco",
         "banho seco",
         "desodorizador corporal",
         "hidratante",
+        "absorvente",
+        "higienico",
+        "higiênico",
     ],
     CATEGORIA_LIMPEZA: [
         "limpeza",
@@ -163,6 +178,9 @@ REGRAS_PALAVRAS_CHAVE = {
         "removedor de odor",
         "removedor odor",
         "eliminador de odores",
+        "neutralizador de odores",
+        "neutralizador odor",
+        "bactericida",
         "limpa piso",
         "limpa canil",
         "limpa gatil",
@@ -175,11 +193,31 @@ REGRAS_PALAVRAS_CHAVE = {
 }
 
 REGRAS_NCM = {
-    "2309": CATEGORIA_RACAO,
-    "3307": CATEGORIA_HIGIENE,
-    "3402": CATEGORIA_LIMPEZA,
-    "3808": CATEGORIA_MEDICAMENTOS,
-    "9503": CATEGORIA_BRINQUEDOS,
+    "2309": {
+        CATEGORIA_RACAO: 2,
+        CATEGORIA_PETISCOS: 2,
+    },
+    "3003": {
+        CATEGORIA_MEDICAMENTOS: 4,
+    },
+    "3004": {
+        CATEGORIA_MEDICAMENTOS: 4,
+    },
+    "3307": {
+        CATEGORIA_HIGIENE: 4,
+    },
+    "3401": {
+        CATEGORIA_HIGIENE: 3,
+    },
+    "3402": {
+        CATEGORIA_LIMPEZA: 4,
+    },
+    "3808": {
+        CATEGORIA_MEDICAMENTOS: 4,
+    },
+    "9503": {
+        CATEGORIA_BRINQUEDOS: 4,
+    },
 }
 
 SCHEMA_CLASSIFICACAO_API = {
@@ -272,9 +310,12 @@ def _pontuar_por_ncm(ncm: str | None, pontuacoes: dict[str, int]) -> None:
         return
 
     prefixo = ncm_digitos[:4]
-    categoria = REGRAS_NCM.get(prefixo)
-    if categoria:
-        pontuacoes[categoria] += 4
+    pesos = REGRAS_NCM.get(prefixo)
+    if not pesos:
+        return
+
+    for categoria, peso in pesos.items():
+        pontuacoes[categoria] += peso
 
 
 def _resolver_melhor_categoria_local(
