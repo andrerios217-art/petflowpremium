@@ -1,10 +1,14 @@
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
 from app.models.funcionario import Funcionario
 from app.models.usuario import Usuario
 from app.schemas.funcionario import FuncionarioCreate
+
+
+def _normalizar_email(email: str | None) -> str:
+    return (email or "").strip().lower()
 
 
 def _tipo_usuario_por_funcao(funcao: str) -> str:
@@ -24,11 +28,14 @@ def _sync_usuario_from_funcionario(
     ativo: bool,
     acesso_pdv: bool,
 ):
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    email_normalizado = _normalizar_email(email)
+
+    usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email_normalizado).first()
 
     if usuario:
         usuario.empresa_id = empresa_id
         usuario.nome = nome
+        usuario.email = email_normalizado
         usuario.tipo = _tipo_usuario_por_funcao(funcao)
         usuario.ativo = ativo
         usuario.pode_pdv = acesso_pdv
@@ -41,7 +48,7 @@ def _sync_usuario_from_funcionario(
     usuario = Usuario(
         empresa_id=empresa_id,
         nome=nome,
-        email=email,
+        email=email_normalizado,
         senha_hash=senha_hash or hash_password("1234"),
         tipo=_tipo_usuario_por_funcao(funcao),
         ativo=ativo,
@@ -53,12 +60,13 @@ def _sync_usuario_from_funcionario(
 
 def create(db: Session, data: FuncionarioCreate) -> Funcionario:
     senha_hash = hash_password(data.senha)
+    email_normalizado = _normalizar_email(data.email)
 
     funcionario = Funcionario(
         empresa_id=data.empresa_id,
         nome=data.nome,
         cpf=data.cpf,
-        email=data.email,
+        email=email_normalizado,
         telefone=data.telefone,
         funcao=data.funcao,
         crmv=data.crmv if data.funcao == "Veterinário" else None,
@@ -84,7 +92,7 @@ def create(db: Session, data: FuncionarioCreate) -> Funcionario:
         db,
         empresa_id=data.empresa_id,
         nome=data.nome,
-        email=data.email,
+        email=email_normalizado,
         senha_hash=senha_hash,
         funcao=data.funcao,
         ativo=True,
@@ -101,7 +109,8 @@ def get_by_id(db: Session, funcionario_id: int):
 
 
 def get_by_email(db: Session, email: str):
-    return db.query(Funcionario).filter(Funcionario.email == email).first()
+    email = _normalizar_email(email)
+    return db.query(Funcionario).filter(func.lower(Funcionario.email) == email).first()
 
 
 def list_all(db: Session, q: str | None = None):
@@ -126,7 +135,7 @@ def list_all(db: Session, q: str | None = None):
 def update(db: Session, funcionario: Funcionario, data: dict):
     funcionario.nome = data.get("nome")
     funcionario.cpf = data.get("cpf", funcionario.cpf)
-    funcionario.email = data.get("email")
+    funcionario.email = _normalizar_email(data.get("email"))
     funcionario.telefone = data.get("telefone")
     funcionario.funcao = data.get("funcao")
     funcionario.crmv = (

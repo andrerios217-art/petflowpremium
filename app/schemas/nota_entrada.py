@@ -176,7 +176,7 @@ class NotaEntradaCriarProdutoItemIn(BaseModel):
     nome: Optional[str] = None
     unidade: Optional[str] = None
     codigo_barras: Optional[str] = None
-    preco_venda: Decimal = Decimal("0.00")
+    preco_venda: Optional[Decimal] = None
     custo_inicial: Optional[Decimal] = None
     salvar_vinculo_fornecedor: bool = True
 

@@ -1,4 +1,6 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+
 from app.core.security import hash_password
 from app.models.usuario import Usuario
 from app.schemas.usuario import UsuarioCreate
@@ -8,7 +10,7 @@ def create(db: Session, data: UsuarioCreate) -> Usuario:
     usuario = Usuario(
         empresa_id=data.empresa_id,
         nome=data.nome,
-        email=data.email,
+        email=(data.email or "").strip().lower(),
         senha_hash=hash_password(data.senha),
         tipo=data.tipo,
     )
@@ -19,7 +21,8 @@ def create(db: Session, data: UsuarioCreate) -> Usuario:
 
 
 def get_by_email(db: Session, email: str) -> Usuario | None:
-    return db.query(Usuario).filter(Usuario.email == email).first()
+    email = (email or "").strip().lower()
+    return db.query(Usuario).filter(func.lower(Usuario.email) == email).first()
 
 
 def list_all(db: Session):

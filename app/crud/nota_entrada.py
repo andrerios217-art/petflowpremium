@@ -17,6 +17,7 @@ from app.models.nota_entrada_item import NotaEntradaItem
 from app.models.produto import Produto
 from app.models.produto_codigo_barras import ProdutoCodigoBarras
 from app.models.produto_fornecedor_vinculo import ProdutoFornecedorVinculo
+from app.services.categorizacao_produto import classificar_categoria_produto
 from app.services.nfe_importacao import importar_nfe_do_xml
 from app.services.precificacao import calcular_preco_venda_sugerido
 
@@ -563,6 +564,29 @@ def _resolver_preco_venda_inicial(
     return _preco(preco_sugerido)
 
 
+def _resolver_categoria_inicial_produto_nf(
+    db: Session,
+    empresa_id: int,
+    nota: NotaEntrada,
+    item: NotaEntradaItem,
+    codigo_barras: str | None,
+) -> int | None:
+    resultado = classificar_categoria_produto(
+        db=db,
+        empresa_id=empresa_id,
+        descricao=item.descricao_nf,
+        codigo_fornecedor=item.codigo_fornecedor,
+        fornecedor_nome=nota.fornecedor_nome,
+        codigo_barras=codigo_barras,
+        ncm=item.ncm,
+        usar_api_externa=True,
+    )
+    if not resultado or not resultado.categoria_id:
+        return None
+
+    return resultado.categoria_id
+
+
 def _criar_produto_para_item_nota(
     db: Session,
     empresa_id: int,
@@ -623,7 +647,13 @@ def _criar_produto_para_item_nota(
     )
     unidade_final = _normalizar_unidade(unidade or item.unidade_comercial or item.unidade_tributavel)
     custo_final = _custo(custo_inicial if custo_inicial is not None else _get_custo_unitario_item(item))
-    categoria_id_final = None
+    categoria_id_final = _resolver_categoria_inicial_produto_nf(
+        db=db,
+        empresa_id=empresa_id,
+        nota=nota,
+        item=item,
+        codigo_barras=codigo_barras_final,
+    )
     preco_venda_final = _resolver_preco_venda_inicial(
         db=db,
         empresa_id=empresa_id,

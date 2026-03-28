@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_empresa_id_atual
-from app.crud import estoque as estoque_crud
 from app.crud import precificacao as precificacao_crud
 from app.schemas.estoque import ProdutoCategoriaOut
 from app.schemas.precificacao import (
@@ -14,6 +13,7 @@ from app.schemas.precificacao import (
     ReprecificacaoLoteIn,
     ReprecificacaoLoteOut,
 )
+from app.services.categorizacao_produto import garantir_categorias_base
 
 router = APIRouter(prefix="/api/precificacao", tags=["Precificação"])
 
@@ -23,6 +23,7 @@ def obter_configuracao_precificacao(
     empresa_id: int = Depends(get_empresa_id_atual),
     db: Session = Depends(get_db),
 ):
+    garantir_categorias_base(db, empresa_id)
     config = precificacao_crud.obter_config_padrao(db, empresa_id)
     regras = precificacao_crud.listar_regras_categoria(db, empresa_id)
     return {
@@ -37,6 +38,7 @@ def salvar_configuracao_padrao(
     empresa_id: int = Depends(get_empresa_id_atual),
     db: Session = Depends(get_db),
 ):
+    garantir_categorias_base(db, empresa_id)
     return precificacao_crud.salvar_config_padrao(db, empresa_id, payload)
 
 
@@ -45,7 +47,7 @@ def listar_categorias_precificacao(
     empresa_id: int = Depends(get_empresa_id_atual),
     db: Session = Depends(get_db),
 ):
-    return estoque_crud.listar_categorias(db, empresa_id)
+    return garantir_categorias_base(db, empresa_id)
 
 
 @router.put("/categorias", response_model=EmpresaCategoriaPrecificacaoOut)
@@ -54,6 +56,7 @@ def salvar_regra_categoria(
     empresa_id: int = Depends(get_empresa_id_atual),
     db: Session = Depends(get_db),
 ):
+    garantir_categorias_base(db, empresa_id)
     return precificacao_crud.salvar_regra_categoria(db, empresa_id, payload)
 
 
@@ -73,6 +76,7 @@ def simular_reprecificacao(
     empresa_id: int = Depends(get_empresa_id_atual),
     db: Session = Depends(get_db),
 ):
+    garantir_categorias_base(db, empresa_id)
     return precificacao_crud.simular_reprecificacao_lote(db, empresa_id, payload)
 
 
@@ -82,4 +86,5 @@ def aplicar_reprecificacao(
     empresa_id: int = Depends(get_empresa_id_atual),
     db: Session = Depends(get_db),
 ):
+    garantir_categorias_base(db, empresa_id)
     return precificacao_crud.aplicar_reprecificacao_lote(db, empresa_id, payload)

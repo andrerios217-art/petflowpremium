@@ -6,8 +6,11 @@ from app.crud.funcionario import get_by_email as get_funcionario_by_email
 
 
 def login(db: Session, email: str, senha: str):
+    email = (email or "").strip().lower()
+    senha = senha or ""
+
     usuario = get_usuario_by_email(db, email)
-    if usuario and verify_password(senha, usuario.senha_hash):
+    if usuario and getattr(usuario, "senha_hash", None) and verify_password(senha, usuario.senha_hash):
         token = create_access_token(str(usuario.id))
         return {
             "access_token": token,
@@ -16,7 +19,12 @@ def login(db: Session, email: str, senha: str):
         }
 
     funcionario = get_funcionario_by_email(db, email)
-    if funcionario and funcionario.ativo and verify_password(senha, funcionario.senha_hash):
+    if (
+        funcionario
+        and funcionario.ativo
+        and getattr(funcionario, "senha_hash", None)
+        and verify_password(senha, funcionario.senha_hash)
+    ):
         token = create_access_token(f"funcionario:{funcionario.id}")
         return {
             "access_token": token,
