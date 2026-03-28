@@ -587,6 +587,31 @@ def _resolver_categoria_inicial_produto_nf(
     return resultado.categoria_id
 
 
+def _deve_recalcular_preco_venda_na_confirmacao(
+    item: NotaEntradaItem,
+    produto: Produto,
+) -> bool:
+    if item.match_tipo == MATCH_CRIADO_NF:
+        return True
+
+    return _decimal(produto.preco_venda_atual) <= ZERO
+
+
+def _recalcular_preco_venda_confirmacao_nf(
+    db: Session,
+    empresa_id: int,
+    produto: Produto,
+    custo_base: Decimal,
+) -> Decimal:
+    preco_sugerido = calcular_preco_venda_sugerido(
+        db=db,
+        empresa_id=empresa_id,
+        custo=custo_base,
+        categoria_id=produto.categoria_id,
+    )
+    return _preco(preco_sugerido)
+
+
 def _criar_produto_para_item_nota(
     db: Session,
     empresa_id: int,
@@ -1056,6 +1081,14 @@ def confirmar_nota_entrada(
 
             saldo.quantidade_atual = saldo_depois
             produto.custo_medio_atual = novo_custo_medio
+
+            if _deve_recalcular_preco_venda_na_confirmacao(item, produto):
+                produto.preco_venda_atual = _recalcular_preco_venda_confirmacao_nf(
+                    db=db,
+                    empresa_id=empresa_id,
+                    produto=produto,
+                    custo_base=novo_custo_medio,
+                )
 
             movimento = EstoqueMovimento(
                 empresa_id=empresa_id,

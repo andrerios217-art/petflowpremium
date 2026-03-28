@@ -31,6 +31,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Pet Flow Premium", version="1.0.0")
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 templates = Jinja2Templates(directory="app/templates")
 
 app.include_router(auth.router)

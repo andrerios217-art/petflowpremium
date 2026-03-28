@@ -77,6 +77,13 @@
             <input id="produto-unidade" type="text" maxlength="20" placeholder="UN, KG, LT..." required />
           </div>
 
+          <div class="estoque-field">
+            <label for="produto-categoria-id">Categoria</label>
+            <select id="produto-categoria-id">
+              <option value="">Sem categoria</option>
+            </select>
+          </div>
+
           <div class="estoque-field estoque-field-span-3">
             <label for="produto-descricao">Descrição</label>
             <textarea id="produto-descricao" maxlength="255"></textarea>
@@ -428,6 +435,7 @@
     produtos: [],
     produtosGestao: [],
     depositos: [],
+    categorias: [],
     produtoEditandoId: null,
   };
 
@@ -597,6 +605,39 @@
         : String(item.nome || item.descricao || item.id);
       select.appendChild(option);
     });
+  }
+
+  function preencherSelectCategoriasProduto(valorSelecionado = "") {
+    preencherSelect(
+      "produto-categoria-id",
+      estadoEstoque.categorias,
+      "Sem categoria",
+      "id",
+      (categoria) => categoria.nome || `Categoria ${categoria.id}`
+    );
+
+    const select = document.getElementById("produto-categoria-id");
+    const valorFinal = valorSelecionado === null || valorSelecionado === undefined
+      ? ""
+      : String(valorSelecionado);
+
+    select.value = valorFinal;
+
+    if (select.value !== valorFinal) {
+      select.value = "";
+    }
+  }
+
+  function obterNomeCategoriaProduto(produto) {
+    if (!produto || !produto.categoria_id) {
+      return "Sem categoria";
+    }
+
+    const categoria = estadoEstoque.categorias.find(
+      (item) => Number(item.id) === Number(produto.categoria_id)
+    );
+
+    return categoria?.nome || `Categoria #${produto.categoria_id}`;
   }
 
   function obterNomeProduto(item) {
@@ -785,6 +826,8 @@
       .map((produto) => {
         const badgeClass = produto.ativo ? "ok" : "inativo";
         const badgeTexto = produto.ativo ? "Ativo" : "Inativo";
+        const categoriaNome = obterNomeCategoriaProduto(produto);
+        const detalheSecundarioBase = produto.codigo_barras_principal || produto.descricao || "-";
 
         return `
           <tr>
@@ -792,7 +835,8 @@
             <td>
               <div class="estoque-produto-nome-wrap">
                 <strong>${produto.nome || "-"}</strong>
-                <span>${produto.codigo_barras_principal || produto.descricao || "-"}</span>
+                <span>Categoria: ${categoriaNome}</span>
+                <span>${detalheSecundarioBase}</span>
               </div>
             </td>
             <td>${produto.unidade || "-"}</td>
@@ -886,6 +930,7 @@
   function obterPayloadProduto() {
     const nome = document.getElementById("produto-nome").value.trim();
     const unidade = document.getElementById("produto-unidade").value.trim();
+    const categoriaId = document.getElementById("produto-categoria-id").value;
 
     if (!nome) {
       throw new Error("Informe o nome do produto.");
@@ -896,6 +941,7 @@
     }
 
     return {
+      categoria_id: categoriaId === "" ? null : Number(categoriaId),
       nome,
       sku: valorTextoOuNull("produto-sku"),
       descricao: valorTextoOuNull("produto-descricao"),
@@ -942,6 +988,7 @@
     document.getElementById("produto-aliquota-pis").value = produto?.aliquota_pis ?? "";
     document.getElementById("produto-aliquota-cofins").value = produto?.aliquota_cofins ?? "";
     document.getElementById("produto-observacao").value = produto?.observacao || "";
+    preencherSelectCategoriasProduto(produto?.categoria_id ?? "");
   }
 
   function abrirPainelProdutoNovo() {
@@ -973,6 +1020,25 @@
   function fecharPainelProduto() {
     document.getElementById("produto-painel-inline").classList.add("is-hidden");
     estadoEstoque.produtoEditandoId = null;
+    preencherFormularioProduto(null);
+  }
+
+  async function carregarCategoriasProduto() {
+    try {
+      const response = await fetchAutenticado("/api/estoque/categorias");
+
+      if (!response.ok) {
+        throw new Error(await extrairMensagemErro(response, "Erro ao carregar categorias."));
+      }
+
+      const categorias = await response.json();
+      estadoEstoque.categorias = Array.isArray(categorias) ? categorias : [];
+      preencherSelectCategoriasProduto();
+    } catch (error) {
+      console.error(error);
+      estadoEstoque.categorias = [];
+      preencherSelect("produto-categoria-id", [], "Erro ao carregar categorias");
+    }
   }
 
   async function carregarProdutosEntrada() {
@@ -1081,7 +1147,7 @@
     const queryString = montarQueryString({ busca, somenteAbaixoMinimo });
 
     document.getElementById("titulo-tabela").textContent = "Posição resumida";
-    atualizarStatusTabela("Carregando...");
+    atualizarStatusTabela("Carregando.");
     esconderAlertaAuth();
 
     try {
@@ -1228,7 +1294,7 @@
     const botao = document.getElementById("btn-registrar-entrada");
     const textoOriginal = botao.textContent;
     botao.disabled = true;
-    botao.textContent = "Registrando...";
+    botao.textContent = "Registrando.";
 
     try {
       const response = await fetchAutenticado("/api/estoque/movimentos/entrada-manual", {
@@ -1510,6 +1576,7 @@
     configurarPainelProduto();
 
     await carregarDepositos();
+    await carregarCategoriasProduto();
     await carregarProdutosEntrada();
     await carregarProdutosGestao();
     await carregarRelatorioResumido();

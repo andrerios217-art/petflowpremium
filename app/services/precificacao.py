@@ -12,6 +12,7 @@ from app.models.empresa_precificacao_config import EmpresaPrecificacaoConfig
 ZERO = Decimal("0.00")
 CEM = Decimal("100.00")
 PRECO_2 = Decimal("0.01")
+
 MODO_MARKUP = "MARKUP"
 MODO_MARGEM = "MARGEM"
 
