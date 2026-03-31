@@ -15,7 +15,6 @@ class FinanceiroPagar(Base):
     __tablename__ = "financeiro_pagar"
 
     id = Column(Integer, primary_key=True, index=True)
-
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
 
     descricao = Column(String(255), nullable=False)
@@ -30,21 +29,28 @@ class FinanceiroPagar(Base):
 
     status = Column(String(20), nullable=False, default="PENDENTE", index=True)
 
-    created_at = Column(DateTime(timezone=True), default=_agora_utc)
-    updated_at = Column(DateTime(timezone=True), default=_agora_utc, onupdate=_agora_utc)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_agora_utc)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_agora_utc,
+        onupdate=_agora_utc,
+    )
 
     empresa = relationship("Empresa")
 
     @property
-    def esta_vencido(self):
-        if self.status == "PAGO":
+    def esta_vencido(self) -> bool:
+        if self.status in ("PAGO", "CANCELADO"):
             return False
         return self.vencimento < date.today()
 
     @property
-    def status_atual(self):
+    def status_atual(self) -> str:
         if self.status == "PAGO":
             return "PAGO"
+        if self.status == "CANCELADO":
+            return "CANCELADO"
         if self.vencimento < date.today():
             return "VENCIDO"
         return "PENDENTE"

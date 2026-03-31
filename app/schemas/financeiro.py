@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -28,23 +28,51 @@ class FinanceiroReceberOut(BaseModel):
     empresa_id: int
     cliente_id: int | None
     cliente_nome: str | None = None
-
     origem_tipo: str | None
     origem_id: int | None
-
     descricao: str
     observacao: str | None
-
     valor: float
     valor_pago: float
-
     vencimento: str | None
     data_pagamento: str | None
-
     status: str
     status_atual: str
     esta_vencido: bool
+    created_at: str | None = None
+    updated_at: str | None = None
 
+
+class FinanceiroPagarBase(BaseModel):
+    descricao: str = Field(..., min_length=2, max_length=255)
+    fornecedor: str | None = Field(default=None, max_length=255)
+    observacao: str | None = None
+    valor: Decimal = Field(..., gt=0)
+    vencimento: date
+
+
+class FinanceiroPagarCreate(FinanceiroPagarBase):
+    empresa_id: int
+
+
+class FinanceiroPagarBaixa(BaseModel):
+    data_pagamento: date | None = None
+    valor_pago: Decimal | None = Field(default=None, gt=0)
+
+
+class FinanceiroPagarOut(BaseModel):
+    id: int
+    empresa_id: int
+    descricao: str
+    fornecedor: str | None = None
+    observacao: str | None
+    valor: float
+    valor_pago: float
+    vencimento: str | None
+    data_pagamento: str | None
+    status: str
+    status_atual: str
+    esta_vencido: bool
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -62,3 +90,9 @@ class FinanceiroReceberListOut(BaseModel):
     empresa_id: int
     resumo: FinanceiroResumoOut
     contas: list[FinanceiroReceberOut]
+
+
+class FinanceiroPagarListOut(BaseModel):
+    empresa_id: int
+    resumo: FinanceiroResumoOut
+    contas: list[FinanceiroPagarOut]

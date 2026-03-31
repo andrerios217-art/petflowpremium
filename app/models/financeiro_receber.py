@@ -33,14 +33,19 @@ class FinanceiroReceber(Base):
     status = Column(String(20), nullable=False, default="PENDENTE", index=True)
 
     created_at = Column(DateTime(timezone=True), nullable=False, default=_agora_utc)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=_agora_utc, onupdate=_agora_utc)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_agora_utc,
+        onupdate=_agora_utc,
+    )
 
     empresa = relationship("Empresa")
     cliente = relationship("Cliente")
 
     @property
     def esta_vencido(self) -> bool:
-        if self.status == "PAGO":
+        if self.status in ("PAGO", "CANCELADO"):
             return False
         return self.vencimento < date.today()
 
@@ -48,6 +53,8 @@ class FinanceiroReceber(Base):
     def status_atual(self) -> str:
         if self.status == "PAGO":
             return "PAGO"
+        if self.status == "CANCELADO":
+            return "CANCELADO"
         if self.vencimento < date.today():
             return "VENCIDO"
         return "PENDENTE"

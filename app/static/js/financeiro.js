@@ -106,6 +106,9 @@ function preencherDashboardPremium(data) {
     setText("financeiro-dre-despesa", formatarMoeda(despesaMes));
     setText("financeiro-dre-lucro", formatarMoeda(lucroMes));
 
+    setText("financeiro-dre-receita-resumo", formatarMoeda(receitaMes));
+    setText("financeiro-dre-despesa-resumo", formatarMoeda(despesaMes));
+
     aplicarCorLucro("financeiro-lucro-hoje", lucroHoje);
     aplicarCorLucro("financeiro-lucro-mes", lucroMes);
     aplicarCorLucro("financeiro-dre-lucro", lucroMes);
@@ -249,6 +252,10 @@ function renderizarContas() {
             acoes = `<button class="btn btn-secondary" disabled>Conta Paga</button>`;
         }
 
+        if (statusAtual === "CANCELADO") {
+            acoes = `<button class="btn btn-secondary" disabled>Conta Cancelada</button>`;
+        }
+
         card.innerHTML = `
             <div class="financeiro-card-header">
                 <div class="financeiro-card-title-wrap">
@@ -258,6 +265,7 @@ function renderizarContas() {
 
                 <div class="financeiro-card-aside">
                     <span class="financeiro-status ${statusClass}">${escapeHtml(statusAtual)}</span>
+
                     <div class="financeiro-mini-total">
                         <span>Valor</span>
                         <strong>${formatarMoeda(conta.valor || 0)}</strong>
@@ -503,6 +511,10 @@ function obterClasseStatus(status) {
 
     if (status === "VENCIDO") {
         return "financeiro-status-vencido";
+    }
+
+    if (status === "CANCELADO") {
+        return "financeiro-status-cancelado";
     }
 
     return "financeiro-status-pendente";

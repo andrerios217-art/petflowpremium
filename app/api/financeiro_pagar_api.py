@@ -5,17 +5,26 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
-from app.models.financeiro_pagar import FinanceiroPagar
+from app.models.financeiro_receber import FinanceiroReceber
+from app.schemas.financeiro import (
+    FinanceiroReceberBaixa,
+    FinanceiroReceberCreate,
+    FinanceiroReceberListOut,
+    FinanceiroReceberOut,
+)
 
-router = APIRouter(prefix="/api/financeiro/pagar", tags=["Financeiro Pagar"])
+router = APIRouter(prefix="/api/financeiro", tags=["Financeiro"])
 
 
-def _serializar(conta: FinanceiroPagar):
+def _serializar(conta: FinanceiroReceber):
     return {
         "id": conta.id,
         "empresa_id": conta.empresa_id,
+        "cliente_id": conta.cliente_id,
+        "cliente_nome": conta.cliente.nome if conta.cliente else None,
+        "origem_tipo": conta.origem_tipo,
+        "origem_id": conta.origem_id,
         "descricao": conta.descricao,
-        "fornecedor": conta.fornecedor,
         "observacao": conta.observacao,
         "valor": float(conta.valor or 0),
         "valor_pago": float(conta.valor_pago or 0),
@@ -29,28 +38,50 @@ def _serializar(conta: FinanceiroPagar):
     }
 
 
-@router.get("/")
-def listar_contas_pagar(
+@router.post("/receber", response_model=FinanceiroReceberOut)
+def criar_conta_receber(
+    payload: FinanceiroReceberCreate,
+    db: Session = Depends(get_db),
+):
+    conta = FinanceiroReceber(
+        empresa_id=payload.empresa_id,
+        cliente_id=payload.cliente_id,
+        origem_tipo=payload.origem_tipo,
+        origem_id=payload.origem_id,
+        descricao=payload.descricao,
+        observacao=payload.observacao,
+        valor=Decimal(payload.valor),
+        valor_pago=Decimal("0.00"),
+        vencimento=payload.vencimento,
+        status="PENDENTE",
+    )
+
+    db.add(conta)
+    db.commit()
+    db.refresh(conta)
+
+    return _serializar(conta)
+
+
+@router.get("/receber", response_model=FinanceiroReceberListOut)
+def listar_contas_receber(
     empresa_id: int = Query(..., ge=1),
     db: Session = Depends(get_db),
 ):
     contas = (
-        db.query(FinanceiroPagar)
-        .filter(FinanceiroPagar.empresa_id == empresa_id)
-        .order_by(FinanceiroPagar.vencimento.asc(), FinanceiroPagar.id.desc())
+        db.query(FinanceiroReceber)
+        .filter(FinanceiroReceber.empresa_id == empresa_id)
+        .order_by(FinanceiroReceber.vencimento.asc(), FinanceiroReceber.id.desc())
         .all()
     )
 
     hoje = date.today()
-
     total_pendente = Decimal("0")
     total_pago = Decimal("0")
     total_vencido = Decimal("0")
-
-    quantidade_pendente = 0
-    quantidade_paga = 0
-    quantidade_vencida = 0
-
+    qtd_pendente = 0
+    qtd_pago = 0
+    qtd_vencido = 0
     resultado = []
 
     for conta in contas:
@@ -63,13 +94,13 @@ def listar_contas_pagar(
 
         if status == "PAGO":
             total_pago += Decimal(conta.valor_pago or 0)
-            quantidade_paga += 1
+            qtd_pago += 1
         elif status == "VENCIDO":
             total_vencido += valor
-            quantidade_vencida += 1
+            qtd_vencido += 1
         else:
             total_pendente += valor
-            quantidade_pendente += 1
+            qtd_pendente += 1
 
         resultado.append(_serializar(conta))
 
@@ -79,75 +110,21 @@ def listar_contas_pagar(
             "total_pendente": float(total_pendente),
             "total_pago": float(total_pago),
             "total_vencido": float(total_vencido),
-            "quantidade_pendente": quantidade_pendente,
-            "quantidade_paga": quantidade_paga,
-            "quantidade_vencida": quantidade_vencida,
+            "quantidade_pendente": qtd_pendente,
+            "quantidade_paga": qtd_pago,
+            "quantidade_vencida": qtd_vencido,
         },
         "contas": resultado,
     }
 
 
-@router.post("/")
-def criar_conta_pagar(
-    payload: dict,
-    db: Session = Depends(get_db),
-):
-    descricao = str(payload.get("descricao") or "").strip()
-    fornecedor = str(payload.get("fornecedor") or "").strip() or None
-    observacao = str(payload.get("observacao") or "").strip() or None
-    valor = payload.get("valor")
-    vencimento = payload.get("vencimento")
-    empresa_id = payload.get("empresa_id")
-
-    if not empresa_id:
-        raise HTTPException(status_code=400, detail="Empresa é obrigatória.")
-
-    if not descricao:
-        raise HTTPException(status_code=400, detail="Descrição é obrigatória.")
-
-    if valor in (None, ""):
-        raise HTTPException(status_code=400, detail="Valor é obrigatório.")
-
-    try:
-        valor_decimal = Decimal(str(valor))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Valor inválido.")
-
-    if valor_decimal <= 0:
-        raise HTTPException(status_code=400, detail="O valor deve ser maior que zero.")
-
-    if not vencimento:
-        raise HTTPException(status_code=400, detail="Vencimento é obrigatório.")
-
-    try:
-        vencimento_data = date.fromisoformat(vencimento)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Vencimento inválido. Use YYYY-MM-DD.")
-
-    conta = FinanceiroPagar(
-        empresa_id=int(empresa_id),
-        descricao=descricao,
-        fornecedor=fornecedor,
-        observacao=observacao,
-        valor=valor_decimal,
-        valor_pago=Decimal("0.00"),
-        vencimento=vencimento_data,
-        status="PENDENTE",
-    )
-
-    db.add(conta)
-    db.commit()
-    db.refresh(conta)
-
-    return _serializar(conta)
-
-
-@router.post("/{conta_id}/baixar")
-def baixar_conta_pagar(
+@router.post("/receber/{conta_id}/baixar")
+def baixar_conta_receber(
     conta_id: int,
+    payload: FinanceiroReceberBaixa,
     db: Session = Depends(get_db),
 ):
-    conta = db.query(FinanceiroPagar).filter(FinanceiroPagar.id == conta_id).first()
+    conta = db.query(FinanceiroReceber).filter(FinanceiroReceber.id == conta_id).first()
 
     if not conta:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
@@ -156,8 +133,8 @@ def baixar_conta_pagar(
         raise HTTPException(status_code=400, detail="Esta conta já está paga.")
 
     conta.status = "PAGO"
-    conta.data_pagamento = date.today()
-    conta.valor_pago = Decimal(conta.valor or 0)
+    conta.data_pagamento = payload.data_pagamento or date.today()
+    conta.valor_pago = Decimal(payload.valor_pago or conta.valor or 0)
 
     db.commit()
     db.refresh(conta)
