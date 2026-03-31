@@ -76,15 +76,12 @@ def listar_contas_receber(
     )
 
     hoje = date.today()
-
     total_pendente = Decimal("0")
     total_pago = Decimal("0")
     total_vencido = Decimal("0")
-
     qtd_pendente = 0
     qtd_pago = 0
     qtd_vencido = 0
-
     resultado = []
 
     for conta in contas:

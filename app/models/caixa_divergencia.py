@@ -25,6 +25,7 @@ class CaixaDivergencia(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+
     caixa_sessao_id = Column(
         Integer,
         ForeignKey("caixa_sessoes.id"),
@@ -57,8 +58,8 @@ class CaixaDivergencia(Base):
     )
 
     # Direção:
-    # - FALTA  -> valor informado menor que a referência
-    # - SOBRA  -> valor informado maior que a referência
+    # - FALTA -> valor informado menor que a referência
+    # - SOBRA -> valor informado maior que a referência
     # - NEUTRA -> diferença zero (em geral não devemos gravar, mas fica previsto)
     direcao = Column(String(10), nullable=False, index=True)
 
@@ -178,7 +179,6 @@ class CaixaDivergencia(Base):
             valor_referencia=valor_referencia,
             valor_informado=valor_informado,
         )
-
         if diferenca > Decimal("0.00"):
             return "SOBRA"
         if diferenca < Decimal("0.00"):

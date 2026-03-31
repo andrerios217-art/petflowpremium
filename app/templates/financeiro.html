@@ -7,7 +7,7 @@
     <div class="financeiro-header">
         <div>
             <h1>Financeiro</h1>
-            <p>Contas a receber e a pagar com visão operacional e análise financeira premium.</p>
+            <p>Contas a receber e a pagar com visão operacional e análise financeira.</p>
         </div>
 
         <div class="financeiro-header-actions">
@@ -18,94 +18,118 @@
         </div>
     </div>
 
-    <div class="financeiro-resumo-grid">
-        <div class="financeiro-resumo-card financeiro-resumo-card-highlight">
-            <span class="financeiro-resumo-label">Entradas Hoje</span>
-            <strong id="financeiro-entradas-hoje" class="financeiro-resumo-value">R$ 0,00</strong>
-            <small class="financeiro-resumo-helper">Total recebido hoje</small>
+    <div class="financeiro-dashboard-grid">
+        <div class="financeiro-dashboard-card financeiro-dashboard-card-highlight">
+            <span class="financeiro-dashboard-label">Entradas Hoje</span>
+            <strong id="financeiro-entradas-hoje" class="financeiro-dashboard-value">R$ 0,00</strong>
+            <small class="financeiro-dashboard-helper">Total recebido hoje</small>
         </div>
 
-        <div class="financeiro-resumo-card">
-            <span class="financeiro-resumo-label">Saídas Hoje</span>
-            <strong id="financeiro-saidas-hoje" class="financeiro-resumo-value">R$ 0,00</strong>
-            <small class="financeiro-resumo-helper">Total pago hoje</small>
+        <div class="financeiro-dashboard-card">
+            <span class="financeiro-dashboard-label">Saídas Hoje</span>
+            <strong id="financeiro-saidas-hoje" class="financeiro-dashboard-value">R$ 0,00</strong>
+            <small class="financeiro-dashboard-helper">Total pago hoje</small>
         </div>
 
-        <div class="financeiro-resumo-card">
-            <span class="financeiro-resumo-label">Lucro Hoje</span>
-            <strong id="financeiro-lucro-hoje" class="financeiro-resumo-value">R$ 0,00</strong>
-            <small class="financeiro-resumo-helper">Entradas - saídas do dia</small>
-        </div>
-
-        <div class="financeiro-resumo-card financeiro-resumo-card-month">
-            <span class="financeiro-resumo-label">Lucro do Mês</span>
-            <strong id="financeiro-lucro-mes" class="financeiro-resumo-value">R$ 0,00</strong>
-            <small class="financeiro-resumo-helper">Resultado acumulado no mês atual</small>
-        </div>
-    </div>
-
-    <div class="financeiro-analise-grid">
-        <div class="financeiro-dre-card">
-            <div class="financeiro-section-header">
-                <h2>DRE Simplificado</h2>
-                <span class="financeiro-section-badge">Premium</span>
-            </div>
-
-            <div class="financeiro-dre-list">
-                <div class="financeiro-dre-item">
-                    <span>Receita</span>
-                    <strong id="financeiro-dre-receita">R$ 0,00</strong>
-                </div>
-
-                <div class="financeiro-dre-item">
-                    <span>Despesa</span>
-                    <strong id="financeiro-dre-despesa">R$ 0,00</strong>
-                </div>
-
-                <div class="financeiro-dre-item financeiro-dre-item-result">
-                    <span>Lucro / Prejuízo</span>
-                    <strong id="financeiro-dre-lucro">R$ 0,00</strong>
-                </div>
-            </div>
-        </div>
-
-        <div class="financeiro-chart-card">
-            <div class="financeiro-section-header">
-                <h2>Fluxo dos Últimos 7 Dias</h2>
-                <span class="financeiro-section-badge">Dashboard</span>
-            </div>
-
-            <div class="financeiro-chart-legend">
-                <span class="legend-item legend-entrada">Entradas</span>
-                <span class="legend-item legend-saida">Saídas</span>
-            </div>
-
-            <div class="financeiro-chart-wrap">
-                <div id="financeiro-chart-empty" class="financeiro-chart-empty" style="display: none;">
-                    Nenhum movimento registrado nos últimos 7 dias.
-                </div>
-                <div id="financeiro-chart-bars" class="financeiro-chart-bars"></div>
-            </div>
+        <div class="financeiro-dashboard-card financeiro-dashboard-card-warning">
+            <span class="financeiro-dashboard-label">Lucro Hoje</span>
+            <strong id="financeiro-lucro-hoje" class="financeiro-dashboard-value">R$ 0,00</strong>
+            <small class="financeiro-dashboard-helper">Entradas - saídas do dia</small>
         </div>
     </div>
 
     <div class="financeiro-kpis">
         <div class="financeiro-kpi">
-            <span class="financeiro-kpi-label">Receber em Aberto</span>
-            <strong id="financeiro-total-pendente" class="financeiro-kpi-value">R$ 0,00</strong>
-            <small id="financeiro-qtd-pendente" class="financeiro-kpi-helper">0 conta(s)</small>
+            <span class="financeiro-kpi-label">Lucro do Mês</span>
+            <strong id="financeiro-lucro-mes" class="financeiro-kpi-value">R$ 0,00</strong>
+            <small class="financeiro-kpi-helper">Resultado acumulado no mês atual</small>
         </div>
 
         <div class="financeiro-kpi financeiro-kpi-success">
-            <span class="financeiro-kpi-label">Pago / Recebido</span>
-            <strong id="financeiro-total-pago" class="financeiro-kpi-value">R$ 0,00</strong>
-            <small id="financeiro-qtd-pago" class="financeiro-kpi-helper">0 conta(s)</small>
+            <span class="financeiro-kpi-label">Receita do Mês</span>
+            <strong id="financeiro-dre-receita" class="financeiro-kpi-value">R$ 0,00</strong>
+            <small class="financeiro-kpi-helper">Total recebido no mês</small>
         </div>
 
         <div class="financeiro-kpi financeiro-kpi-warning">
-            <span class="financeiro-kpi-label">Vencido</span>
-            <strong id="financeiro-total-vencido" class="financeiro-kpi-value">R$ 0,00</strong>
-            <small id="financeiro-qtd-vencido" class="financeiro-kpi-helper">0 conta(s)</small>
+            <span class="financeiro-kpi-label">Despesa do Mês</span>
+            <strong id="financeiro-dre-despesa" class="financeiro-kpi-value">R$ 0,00</strong>
+            <small class="financeiro-kpi-helper">Total pago no mês</small>
+        </div>
+    </div>
+
+    <div class="financeiro-section">
+        <div class="financeiro-section-header">
+            <h2>DRE Simplificado</h2>
+            <span class="financeiro-section-badge">Resumo</span>
+        </div>
+
+        <div class="financeiro-card">
+            <div class="financeiro-card-body">
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Receita</span>
+                    <span id="financeiro-dre-receita-resumo" class="financeiro-info-value">R$ 0,00</span>
+                </div>
+
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Despesa</span>
+                    <span id="financeiro-dre-despesa-resumo" class="financeiro-info-value">R$ 0,00</span>
+                </div>
+
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Lucro / Prejuízo</span>
+                    <span id="financeiro-dre-lucro" class="financeiro-info-value">R$ 0,00</span>
+                </div>
+
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Receber em Aberto</span>
+                    <span id="financeiro-total-pendente" class="financeiro-info-value">R$ 0,00</span>
+                </div>
+
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Pago / Recebido</span>
+                    <span id="financeiro-total-pago" class="financeiro-info-value">R$ 0,00</span>
+                </div>
+
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Vencido</span>
+                    <span id="financeiro-total-vencido" class="financeiro-info-value">R$ 0,00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="financeiro-chart-card">
+        <div class="financeiro-section-header">
+            <h2>Fluxo dos Últimos 7 Dias</h2>
+            <span class="financeiro-section-badge">Dashboard</span>
+        </div>
+
+        <div class="financeiro-chart-wrap">
+            <div id="financeiro-chart-empty" class="financeiro-chart-empty" style="display: none;">
+                Nenhum movimento registrado nos últimos 7 dias.
+            </div>
+            <div id="financeiro-chart-bars" class="financeiro-chart-bars"></div>
+        </div>
+    </div>
+
+    <div class="financeiro-kpis">
+        <div class="financeiro-kpi">
+            <span class="financeiro-kpi-label">Qtd. Pendentes</span>
+            <strong id="financeiro-qtd-pendente" class="financeiro-kpi-value">0 conta(s)</strong>
+            <small class="financeiro-kpi-helper">Títulos em aberto</small>
+        </div>
+
+        <div class="financeiro-kpi financeiro-kpi-success">
+            <span class="financeiro-kpi-label">Qtd. Pagas</span>
+            <strong id="financeiro-qtd-pago" class="financeiro-kpi-value">0 conta(s)</strong>
+            <small class="financeiro-kpi-helper">Títulos baixados</small>
+        </div>
+
+        <div class="financeiro-kpi financeiro-kpi-warning">
+            <span class="financeiro-kpi-label">Qtd. Vencidas</span>
+            <strong id="financeiro-qtd-vencido" class="financeiro-kpi-value">0 conta(s)</strong>
+            <small class="financeiro-kpi-helper">Títulos atrasados</small>
         </div>
     </div>
 
@@ -166,4 +190,36 @@
 </div>
 
 <script src="/static/js/financeiro.js"></script>
+<script>
+    function espelharDreResumo() {
+        const receita = document.getElementById("financeiro-dre-receita");
+        const despesa = document.getElementById("financeiro-dre-despesa");
+        const receitaResumo = document.getElementById("financeiro-dre-receita-resumo");
+        const despesaResumo = document.getElementById("financeiro-dre-despesa-resumo");
+
+        if (receita && receitaResumo) {
+            receitaResumo.textContent = receita.textContent;
+        }
+
+        if (despesa && despesaResumo) {
+            despesaResumo.textContent = despesa.textContent;
+        }
+    }
+
+    const observer = new MutationObserver(espelharDreResumo);
+    window.addEventListener("DOMContentLoaded", () => {
+        const receita = document.getElementById("financeiro-dre-receita");
+        const despesa = document.getElementById("financeiro-dre-despesa");
+
+        if (receita) {
+            observer.observe(receita, { childList: true, subtree: true, characterData: true });
+        }
+
+        if (despesa) {
+            observer.observe(despesa, { childList: true, subtree: true, characterData: true });
+        }
+
+        espelharDreResumo();
+    });
+</script>
 {% endblock %}

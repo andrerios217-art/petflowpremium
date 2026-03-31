@@ -658,6 +658,41 @@
     hideEl(els.caixaAberturaDivergenciaBox);
   }
 
+  function aberturaCaixaExigeJustificativa(message) {
+    const normalized = String(message || "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase();
+
+    return (
+      normalized.includes("motivo da diferenca na abertura") ||
+      normalized.includes("senha do gerente") ||
+      normalized.includes("gerente")
+    );
+  }
+
+  function handleErroAberturaCaixa(error) {
+    const message = error?.message || "Não foi possível abrir o caixa.";
+
+    if (aberturaCaixaExigeJustificativa(message)) {
+      showEl(els.caixaAberturaDivergenciaBox);
+
+      if (
+        String(message).toLowerCase().includes("motivo da diferença na abertura") &&
+        els.caixaMotivoDiferencaAbertura
+      ) {
+        els.caixaMotivoDiferencaAbertura.focus();
+      } else if (
+        String(message).toLowerCase().includes("gerente") &&
+        els.caixaGerenteAberturaBusca
+      ) {
+        els.caixaGerenteAberturaBusca.focus();
+      }
+    }
+
+    showAlert(message, "danger");
+  }
+
   function resetModalSangria() {
     clearSelection(
       els.caixaSangriaOperadorLista,
@@ -1589,7 +1624,7 @@
       try {
         await submitAberturaCaixa();
       } catch (error) {
-        showAlert(error.message, "danger");
+        handleErroAberturaCaixa(error);
       }
     });
 

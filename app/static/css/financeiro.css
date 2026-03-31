@@ -140,12 +140,42 @@
     gap: 10px;
 }
 
+.financeiro-chart-bar-wrap-dual {
+    min-height: 220px;
+    justify-content: flex-end;
+}
+
+.financeiro-chart-value-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+}
+
 .financeiro-chart-value {
     color: #5f6f86;
     font-size: 0.8rem;
     font-weight: 700;
     text-align: center;
     line-height: 1.35;
+}
+
+.financeiro-chart-value-entrada {
+    color: #1d4ed8;
+}
+
+.financeiro-chart-value-saida {
+    color: #dc2626;
+}
+
+.financeiro-chart-bars-dual {
+    width: 100%;
+    min-height: 180px;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    gap: 8px;
 }
 
 .financeiro-chart-bar {
@@ -155,6 +185,16 @@
     background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
     box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
     min-height: 18px;
+}
+
+.financeiro-chart-bar-entrada {
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+}
+
+.financeiro-chart-bar-saida {
+    background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 12px 24px rgba(220, 38, 38, 0.18);
 }
 
 .financeiro-chart-label {
@@ -388,6 +428,11 @@
     color: #dc2626;
 }
 
+.financeiro-status-cancelado {
+    background: rgba(100, 116, 139, 0.14);
+    color: #475569;
+}
+
 .financeiro-mini-total {
     min-width: 150px;
     padding: 11px 14px;
@@ -460,6 +505,14 @@
     color: #23324a;
 }
 
+.valor-positivo {
+    color: #166534 !important;
+}
+
+.valor-negativo {
+    color: #dc2626 !important;
+}
+
 @media (max-width: 1100px) {
     .financeiro-dashboard-grid,
     .financeiro-kpis {
@@ -486,6 +539,10 @@
 
     .financeiro-chart-value {
         font-size: 0.72rem;
+    }
+
+    .financeiro-chart-bars-dual {
+        gap: 6px;
     }
 }
 
@@ -550,5 +607,9 @@
 
     .financeiro-chart-bar {
         max-width: 40px;
+    }
+
+    .financeiro-chart-bars-dual {
+        min-width: 34px;
     }
 }

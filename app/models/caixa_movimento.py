@@ -25,6 +25,7 @@ class CaixaMovimento(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+
     caixa_sessao_id = Column(
         Integer,
         ForeignKey("caixa_sessoes.id"),

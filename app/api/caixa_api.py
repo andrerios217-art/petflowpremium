@@ -124,6 +124,7 @@ def registrar_sangria_api(
     db: Session = Depends(get_db),
 ):
     caixa_sessao, _movimento = registrar_sangria(db, payload)
+
     return {
         "ok": True,
         "mensagem": "Sangria registrada com sucesso.",
@@ -138,6 +139,7 @@ def registrar_suprimento_api(
     db: Session = Depends(get_db),
 ):
     caixa_sessao, _movimento = registrar_suprimento(db, payload)
+
     return {
         "ok": True,
         "mensagem": "Suprimento registrado com sucesso.",
