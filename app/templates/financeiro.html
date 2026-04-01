@@ -18,6 +18,55 @@
         </div>
     </div>
 
+    <div class="financeiro-section">
+        <div class="financeiro-section-header">
+            <h2>Acompanhamento por Mês</h2>
+            <span class="financeiro-section-badge">Competência</span>
+        </div>
+
+        <div class="financeiro-card">
+            <div class="financeiro-card-body">
+                <div class="financeiro-form-grid">
+                    <div class="financeiro-form-field">
+                        <label for="financeiro-mes">Mês</label>
+                        <select id="financeiro-mes">
+                            <option value="1">Janeiro</option>
+                            <option value="2">Fevereiro</option>
+                            <option value="3">Março</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Maio</option>
+                            <option value="6">Junho</option>
+                            <option value="7">Julho</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Setembro</option>
+                            <option value="10">Outubro</option>
+                            <option value="11">Novembro</option>
+                            <option value="12">Dezembro</option>
+                        </select>
+                    </div>
+
+                    <div class="financeiro-form-field">
+                        <label for="financeiro-ano">Ano</label>
+                        <input type="number" id="financeiro-ano" min="2000" max="2100" step="1" placeholder="2026">
+                    </div>
+
+                    <div class="financeiro-form-field financeiro-form-field-wide">
+                        <label>&nbsp;</label>
+                        <div class="financeiro-header-actions">
+                            <button id="btn-aplicar-competencia-financeiro" class="btn btn-primary" type="button">Buscar Mês</button>
+                            <button id="btn-mes-atual-financeiro" class="btn btn-secondary" type="button">Mês Atual</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="financeiro-info" style="margin-top: 12px;">
+                    <span class="financeiro-info-label">Período em acompanhamento</span>
+                    <span id="financeiro-competencia-atual" class="financeiro-info-value">Mês atual</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="financeiro-dashboard-grid">
         <div class="financeiro-dashboard-card financeiro-dashboard-card-highlight">
             <span class="financeiro-dashboard-label">Entradas Hoje</span>
@@ -210,6 +259,8 @@
     window.addEventListener("DOMContentLoaded", () => {
         const receita = document.getElementById("financeiro-dre-receita");
         const despesa = document.getElementById("financeiro-dre-despesa");
+        const selectMes = document.getElementById("financeiro-mes");
+        const inputAno = document.getElementById("financeiro-ano");
 
         if (receita) {
             observer.observe(receita, { childList: true, subtree: true, characterData: true });
@@ -217,6 +268,15 @@
 
         if (despesa) {
             observer.observe(despesa, { childList: true, subtree: true, characterData: true });
+        }
+
+        const hoje = new Date();
+        if (selectMes) {
+            selectMes.value = String(hoje.getMonth() + 1);
+        }
+
+        if (inputAno) {
+            inputAno.value = hoje.getFullYear();
         }
 
         espelharDreResumo();
