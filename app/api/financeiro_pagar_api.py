@@ -5,23 +5,22 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
-from app.models.financeiro_receber import FinanceiroReceber
+from app.models.financeiro_pagar import FinanceiroPagar
 from app.schemas.financeiro import (
-    FinanceiroReceberBaixa,
-    FinanceiroReceberCreate,
-    FinanceiroReceberListOut,
-    FinanceiroReceberOut,
+    FinanceiroPagarBaixa,
+    FinanceiroPagarCreate,
+    FinanceiroPagarListOut,
+    FinanceiroPagarOut,
 )
 
-router = APIRouter(prefix="/api/financeiro", tags=["Financeiro"])
+router = APIRouter(prefix="/api/financeiro/pagar", tags=["Financeiro - Pagar"])
 
 
-def _serializar(conta: FinanceiroReceber):
+def _serializar(conta: FinanceiroPagar):
     return {
         "id": conta.id,
         "empresa_id": conta.empresa_id,
-        "cliente_id": conta.cliente_id,
-        "cliente_nome": conta.cliente.nome if conta.cliente else None,
+        "fornecedor": conta.fornecedor,
         "origem_tipo": conta.origem_tipo,
         "origem_id": conta.origem_id,
         "descricao": conta.descricao,
@@ -38,14 +37,14 @@ def _serializar(conta: FinanceiroReceber):
     }
 
 
-@router.post("/receber", response_model=FinanceiroReceberOut)
-def criar_conta_receber(
-    payload: FinanceiroReceberCreate,
+@router.post("/", response_model=FinanceiroPagarOut)
+def criar_conta_pagar(
+    payload: FinanceiroPagarCreate,
     db: Session = Depends(get_db),
 ):
-    conta = FinanceiroReceber(
+    conta = FinanceiroPagar(
         empresa_id=payload.empresa_id,
-        cliente_id=payload.cliente_id,
+        fornecedor=payload.fornecedor,
         origem_tipo=payload.origem_tipo,
         origem_id=payload.origem_id,
         descricao=payload.descricao,
@@ -63,19 +62,18 @@ def criar_conta_receber(
     return _serializar(conta)
 
 
-@router.get("/receber", response_model=FinanceiroReceberListOut)
-def listar_contas_receber(
+@router.get("/", response_model=FinanceiroPagarListOut)
+def listar_contas_pagar(
     empresa_id: int = Query(..., ge=1),
     db: Session = Depends(get_db),
 ):
     contas = (
-        db.query(FinanceiroReceber)
-        .filter(FinanceiroReceber.empresa_id == empresa_id)
-        .order_by(FinanceiroReceber.vencimento.asc(), FinanceiroReceber.id.desc())
+        db.query(FinanceiroPagar)
+        .filter(FinanceiroPagar.empresa_id == empresa_id)
+        .order_by(FinanceiroPagar.vencimento.asc(), FinanceiroPagar.id.desc())
         .all()
     )
 
-    hoje = date.today()
     total_pendente = Decimal("0")
     total_pago = Decimal("0")
     total_vencido = Decimal("0")
@@ -85,11 +83,7 @@ def listar_contas_receber(
     resultado = []
 
     for conta in contas:
-        status = conta.status
-
-        if status != "PAGO" and conta.vencimento < hoje:
-            status = "VENCIDO"
-
+        status = conta.status_atual
         valor = Decimal(conta.valor or 0)
 
         if status == "PAGO":
@@ -98,6 +92,8 @@ def listar_contas_receber(
         elif status == "VENCIDO":
             total_vencido += valor
             qtd_vencido += 1
+        elif status == "CANCELADO":
+            pass
         else:
             total_pendente += valor
             qtd_pendente += 1
@@ -118,19 +114,22 @@ def listar_contas_receber(
     }
 
 
-@router.post("/receber/{conta_id}/baixar")
-def baixar_conta_receber(
+@router.post("/{conta_id}/baixar")
+def baixar_conta_pagar(
     conta_id: int,
-    payload: FinanceiroReceberBaixa,
+    payload: FinanceiroPagarBaixa,
     db: Session = Depends(get_db),
 ):
-    conta = db.query(FinanceiroReceber).filter(FinanceiroReceber.id == conta_id).first()
+    conta = db.query(FinanceiroPagar).filter(FinanceiroPagar.id == conta_id).first()
 
     if not conta:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
 
     if conta.status == "PAGO":
         raise HTTPException(status_code=400, detail="Esta conta já está paga.")
+
+    if conta.status == "CANCELADO":
+        raise HTTPException(status_code=400, detail="Não é possível baixar uma conta cancelada.")
 
     conta.status = "PAGO"
     conta.data_pagamento = payload.data_pagamento or date.today()

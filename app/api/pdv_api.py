@@ -1,8 +1,9 @@
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import get_db
 from app.crud.pdv import (
@@ -108,6 +109,7 @@ def _serializar_pagamento(pagamento: PdvPagamento) -> dict:
         "created_at": pagamento.created_at,
         "updated_at": pagamento.updated_at,
     }
+
 
 def _serializar_venda(venda: PdvVenda):
     return {
@@ -243,6 +245,51 @@ def _serializar_producao_pronta(producao: Producao):
     }
 
 
+def _inicio_do_dia(data_ref: date) -> datetime:
+    return datetime.combine(data_ref, time.min).replace(tzinfo=timezone.utc)
+
+
+def _fim_exclusivo_do_dia(data_ref: date) -> datetime:
+    return _inicio_do_dia(data_ref + timedelta(days=1))
+
+
+def _serializar_venda_faturamento(venda: PdvVenda):
+    return {
+        "id": venda.id,
+        "numero_venda": venda.numero_venda,
+        "status": venda.status,
+        "origem": venda.origem,
+        "cliente_id": venda.cliente_id,
+        "nome_cliente_snapshot": venda.nome_cliente_snapshot,
+        "valor_total": _to_float(venda.valor_total),
+        "subtotal": _to_float(venda.subtotal),
+        "desconto_valor": _to_float(venda.desconto_valor),
+        "acrescimo_valor": _to_float(venda.acrescimo_valor),
+        "fechada_em": venda.fechada_em.isoformat() if venda.fechada_em else None,
+        "cliente": _serializar_cliente(venda.cliente),
+    }
+
+
+def _serializar_venda_relatorio(venda: PdvVenda):
+    return {
+        "id": venda.id,
+        "numero_venda": venda.numero_venda,
+        "status": venda.status,
+        "origem": venda.origem,
+        "modo_cliente": venda.modo_cliente,
+        "cliente_id": venda.cliente_id,
+        "nome_cliente_snapshot": venda.nome_cliente_snapshot,
+        "subtotal": _to_float(venda.subtotal),
+        "desconto_valor": _to_float(venda.desconto_valor),
+        "acrescimo_valor": _to_float(venda.acrescimo_valor),
+        "valor_total": _to_float(venda.valor_total),
+        "fechada_em": venda.fechada_em.isoformat() if venda.fechada_em else None,
+        "cliente": _serializar_cliente(venda.cliente),
+        "itens": [_serializar_item(item) for item in (venda.itens or [])],
+        "pagamentos": [_serializar_pagamento(pagamento) for pagamento in (venda.pagamentos or [])],
+    }
+
+
 @router.get("/operadores")
 def listar_operadores_pdv(
     empresa_id: int = Query(..., ge=1),
@@ -364,6 +411,192 @@ def listar_vendas_pdv(
         }
         for venda in vendas
     ]
+
+
+@router.get("/relatorios/faturamento-periodo")
+def faturamento_por_periodo_pdv(
+    empresa_id: int = Query(..., ge=1),
+    data_inicio: date = Query(...),
+    data_fim: date = Query(...),
+    db: Session = Depends(get_db),
+):
+    if data_fim < data_inicio:
+        return {
+            "empresa_id": empresa_id,
+            "data_inicio": data_inicio.isoformat(),
+            "data_fim": data_fim.isoformat(),
+            "resumo": {
+                "quantidade_vendas": 0,
+                "total_faturado": 0.0,
+                "ticket_medio": 0.0,
+            },
+            "por_dia": [],
+            "vendas": [],
+            "erro": "data_fim não pode ser menor que data_inicio.",
+        }
+
+    inicio_dt = _inicio_do_dia(data_inicio)
+    fim_exclusivo_dt = _fim_exclusivo_do_dia(data_fim)
+
+    vendas = (
+        db.query(PdvVenda)
+        .filter(
+            PdvVenda.empresa_id == empresa_id,
+            PdvVenda.status == "FECHADA",
+            PdvVenda.fechada_em.isnot(None),
+            PdvVenda.fechada_em >= inicio_dt,
+            PdvVenda.fechada_em < fim_exclusivo_dt,
+        )
+        .order_by(PdvVenda.fechada_em.asc(), PdvVenda.id.asc())
+        .all()
+    )
+
+    total_faturado = Decimal("0.00")
+    quantidade_vendas = 0
+    totais_por_dia: dict[str, dict] = {}
+
+    for venda in vendas:
+        valor_total = Decimal(str(getattr(venda, "valor_total", 0) or 0))
+        total_faturado += valor_total
+        quantidade_vendas += 1
+
+        chave_dia = venda.fechada_em.date().isoformat()
+        if chave_dia not in totais_por_dia:
+            totais_por_dia[chave_dia] = {
+                "data": chave_dia,
+                "quantidade_vendas": 0,
+                "total_faturado": Decimal("0.00"),
+            }
+
+        totais_por_dia[chave_dia]["quantidade_vendas"] += 1
+        totais_por_dia[chave_dia]["total_faturado"] += valor_total
+
+    ticket_medio = (
+        (total_faturado / quantidade_vendas) if quantidade_vendas else Decimal("0.00")
+    )
+
+    por_dia = [
+        {
+            "data": item["data"],
+            "quantidade_vendas": item["quantidade_vendas"],
+            "total_faturado": _to_float(item["total_faturado"]),
+        }
+        for item in totais_por_dia.values()
+    ]
+
+    return {
+        "empresa_id": empresa_id,
+        "data_inicio": data_inicio.isoformat(),
+        "data_fim": data_fim.isoformat(),
+        "resumo": {
+            "quantidade_vendas": quantidade_vendas,
+            "total_faturado": _to_float(total_faturado),
+            "ticket_medio": _to_float(ticket_medio),
+        },
+        "por_dia": por_dia,
+        "vendas": [_serializar_venda_faturamento(venda) for venda in vendas],
+    }
+
+
+@router.get("/relatorios/vendas")
+def relatorio_vendas_pdv(
+    empresa_id: int = Query(..., ge=1),
+    data_inicio: date = Query(...),
+    data_fim: date = Query(...),
+    db: Session = Depends(get_db),
+):
+    if data_fim < data_inicio:
+        return {
+            "empresa_id": empresa_id,
+            "data_inicio": data_inicio.isoformat(),
+            "data_fim": data_fim.isoformat(),
+            "resumo": {
+                "quantidade_vendas": 0,
+                "total_faturado": 0.0,
+                "ticket_medio": 0.0,
+                "total_descontos": 0.0,
+                "total_acrescimos": 0.0,
+            },
+            "por_origem": [],
+            "vendas": [],
+            "erro": "data_fim não pode ser menor que data_inicio.",
+        }
+
+    inicio_dt = _inicio_do_dia(data_inicio)
+    fim_exclusivo_dt = _fim_exclusivo_do_dia(data_fim)
+
+    vendas = (
+        db.query(PdvVenda)
+        .options(
+            joinedload(PdvVenda.cliente),
+            joinedload(PdvVenda.itens),
+            joinedload(PdvVenda.pagamentos),
+        )
+        .filter(
+            PdvVenda.empresa_id == empresa_id,
+            PdvVenda.status == "FECHADA",
+            PdvVenda.fechada_em.isnot(None),
+            PdvVenda.fechada_em >= inicio_dt,
+            PdvVenda.fechada_em < fim_exclusivo_dt,
+        )
+        .order_by(PdvVenda.fechada_em.desc(), PdvVenda.id.desc())
+        .all()
+    )
+
+    total_faturado = Decimal("0.00")
+    total_descontos = Decimal("0.00")
+    total_acrescimos = Decimal("0.00")
+    quantidade_vendas = 0
+    agrupado_por_origem: dict[str, dict] = {}
+
+    for venda in vendas:
+        valor_total = Decimal(str(getattr(venda, "valor_total", 0) or 0))
+        desconto_valor = Decimal(str(getattr(venda, "desconto_valor", 0) or 0))
+        acrescimo_valor = Decimal(str(getattr(venda, "acrescimo_valor", 0) or 0))
+        origem = str(getattr(venda, "origem", None) or "NAO_INFORMADA")
+
+        total_faturado += valor_total
+        total_descontos += desconto_valor
+        total_acrescimos += acrescimo_valor
+        quantidade_vendas += 1
+
+        if origem not in agrupado_por_origem:
+            agrupado_por_origem[origem] = {
+                "origem": origem,
+                "quantidade_vendas": 0,
+                "total_faturado": Decimal("0.00"),
+            }
+
+        agrupado_por_origem[origem]["quantidade_vendas"] += 1
+        agrupado_por_origem[origem]["total_faturado"] += valor_total
+
+    ticket_medio = (
+        (total_faturado / quantidade_vendas) if quantidade_vendas else Decimal("0.00")
+    )
+
+    por_origem = [
+        {
+            "origem": item["origem"],
+            "quantidade_vendas": item["quantidade_vendas"],
+            "total_faturado": _to_float(item["total_faturado"]),
+        }
+        for item in agrupado_por_origem.values()
+    ]
+
+    return {
+        "empresa_id": empresa_id,
+        "data_inicio": data_inicio.isoformat(),
+        "data_fim": data_fim.isoformat(),
+        "resumo": {
+            "quantidade_vendas": quantidade_vendas,
+            "total_faturado": _to_float(total_faturado),
+            "ticket_medio": _to_float(ticket_medio),
+            "total_descontos": _to_float(total_descontos),
+            "total_acrescimos": _to_float(total_acrescimos),
+        },
+        "por_origem": por_origem,
+        "vendas": [_serializar_venda_relatorio(venda) for venda in vendas],
+    }
 
 
 @router.get("/vendas/{venda_id}", response_model=PdvVendaOut)
