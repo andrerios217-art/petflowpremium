@@ -1,0 +1,32 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/relatorios_comissao.css">
+
+<div class="relatorios-page">
+  <div class="relatorios-header">
+    <div>
+      <h1>Auditoria de Comissão</h1>
+      <p>Validação mensal dos pontos capturados automaticamente</p>
+    </div>
+
+    <div class="relatorios-filtros">
+      <input type="month" id="filtro-competencia">
+      <button id="btn-carregar" class="btn btn-primary">Carregar</button>
+    </div>
+  </div>
+
+  <div class="relatorios-toolbar">
+    <div class="relatorios-toolbar-info">
+      <span class="relatorios-toolbar-badge">Premium</span>
+      <span class="relatorios-toolbar-text">
+        Funcionários com comissão fechada terão acesso ao demonstrativo detalhado por competência
+      </span>
+    </div>
+  </div>
+
+  <div id="relatorios-container" class="relatorios-container"></div>
+</div>
+
+<script src="/static/js/relatorios_comissao.js"></script>
+{% endblock %}

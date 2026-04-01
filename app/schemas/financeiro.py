@@ -44,8 +44,10 @@ class FinanceiroReceberOut(BaseModel):
 
 
 class FinanceiroPagarBase(BaseModel):
-    descricao: str = Field(..., min_length=2, max_length=255)
     fornecedor: str | None = Field(default=None, max_length=255)
+    origem_tipo: str | None = None
+    origem_id: int | None = None
+    descricao: str = Field(..., min_length=2, max_length=255)
     observacao: str | None = None
     valor: Decimal = Field(..., gt=0)
     vencimento: date
@@ -63,8 +65,10 @@ class FinanceiroPagarBaixa(BaseModel):
 class FinanceiroPagarOut(BaseModel):
     id: int
     empresa_id: int
-    descricao: str
     fornecedor: str | None = None
+    origem_tipo: str | None
+    origem_id: int | None
+    descricao: str
     observacao: str | None
     valor: float
     valor_pago: float

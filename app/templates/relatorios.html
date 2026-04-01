@@ -6,13 +6,8 @@
 <div class="relatorios-page">
   <div class="relatorios-header">
     <div>
-      <h1>Auditoria de Comissão</h1>
-      <p>Validação mensal dos pontos capturados automaticamente</p>
-    </div>
-
-    <div class="relatorios-filtros">
-      <input type="month" id="filtro-competencia">
-      <button id="btn-carregar" class="btn btn-primary">Carregar</button>
+      <h1>Relatórios</h1>
+      <p>Central de auditoria, faturamento e análises operacionais</p>
     </div>
   </div>
 
@@ -20,13 +15,184 @@
     <div class="relatorios-toolbar-info">
       <span class="relatorios-toolbar-badge">Premium</span>
       <span class="relatorios-toolbar-text">
-        Funcionários com comissão fechada terão acesso ao demonstrativo detalhado por competência
+        Comissão já está operacional. Faturamento por período e relatório de vendas estão ativos nesta etapa.
       </span>
     </div>
   </div>
 
-  <div id="relatorios-container" class="relatorios-container"></div>
+  <div class="financeiro-section">
+    <div class="financeiro-section-header">
+      <h2>Auditoria de Comissão</h2>
+      <span class="financeiro-section-badge">Disponível</span>
+    </div>
+
+    <div class="financeiro-card">
+      <div class="financeiro-card-body">
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Objetivo</span>
+          <span class="financeiro-info-value">Validar lançamentos mensais e fechar comissão por competência</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Acesso</span>
+          <span class="financeiro-info-value">
+            <a href="/relatorios/comissao" class="btn btn-primary">Abrir Auditoria de Comissão</a>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="financeiro-section">
+    <div class="financeiro-section-header">
+      <h2>Faturamento por Período</h2>
+      <span class="financeiro-section-badge">Ativo</span>
+    </div>
+
+    <div class="financeiro-card">
+      <div class="financeiro-card-body">
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Período Inicial</span>
+          <span class="financeiro-info-value">
+            <input type="date" id="faturamento-data-inicio">
+          </span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Período Final</span>
+          <span class="financeiro-info-value">
+            <input type="date" id="faturamento-data-fim">
+          </span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Ação</span>
+          <span class="financeiro-info-value">
+            <button id="btn-carregar-faturamento" class="btn btn-primary" type="button">
+              Carregar Faturamento
+            </button>
+          </span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Fonte</span>
+          <span class="financeiro-info-value">Vendas fechadas do PDV por intervalo</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="financeiro-card">
+      <div class="financeiro-card-body">
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Qtd. de Vendas</span>
+          <span id="faturamento-quantidade-vendas" class="financeiro-info-value">0</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Total Faturado</span>
+          <span id="faturamento-total-faturado" class="financeiro-info-value">R$ 0,00</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Ticket Médio</span>
+          <span id="faturamento-ticket-medio" class="financeiro-info-value">R$ 0,00</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Status</span>
+          <span id="faturamento-status" class="financeiro-info-value">Aguardando carregamento</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="faturamento-resultado" class="relatorios-container">
+      <div class="relatorio-empty">
+        <h3>Faturamento ainda não carregado</h3>
+        <p>Selecione um período e carregue os dados para visualizar o resumo e as vendas fechadas.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="financeiro-section">
+    <div class="financeiro-section-header">
+      <h2>Relatório de Vendas</h2>
+      <span class="financeiro-section-badge">Ativo</span>
+    </div>
+
+    <div class="financeiro-card">
+      <div class="financeiro-card-body">
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Período Inicial</span>
+          <span class="financeiro-info-value">
+            <input type="date" id="relatorio-vendas-data-inicio">
+          </span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Período Final</span>
+          <span class="financeiro-info-value">
+            <input type="date" id="relatorio-vendas-data-fim">
+          </span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Ação</span>
+          <span class="financeiro-info-value">
+            <button id="btn-carregar-relatorio-vendas" class="btn btn-primary" type="button">
+              Carregar Relatório de Vendas
+            </button>
+          </span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Fonte</span>
+          <span class="financeiro-info-value">Vendas fechadas do PDV com itens, pagamentos e consolidação por origem</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="financeiro-card">
+      <div class="financeiro-card-body">
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Qtd. de Vendas</span>
+          <span id="relatorio-vendas-quantidade-vendas" class="financeiro-info-value">0</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Total Faturado</span>
+          <span id="relatorio-vendas-total-faturado" class="financeiro-info-value">R$ 0,00</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Ticket Médio</span>
+          <span id="relatorio-vendas-ticket-medio" class="financeiro-info-value">R$ 0,00</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Total de Descontos</span>
+          <span id="relatorio-vendas-total-descontos" class="financeiro-info-value">R$ 0,00</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Total de Acréscimos</span>
+          <span id="relatorio-vendas-total-acrescimos" class="financeiro-info-value">R$ 0,00</span>
+        </div>
+
+        <div class="financeiro-info">
+          <span class="financeiro-info-label">Status</span>
+          <span id="relatorio-vendas-status" class="financeiro-info-value">Aguardando carregamento</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="relatorio-vendas-resultado" class="relatorios-container">
+      <div class="relatorio-empty">
+        <h3>Relatório de vendas ainda não carregado</h3>
+        <p>Selecione um período e carregue os dados para visualizar a consolidação das vendas realizadas.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
-<script src="/static/js/relatorios_comissao.js"></script>
+<script src="/static/js/relatorios.js"></script>
 {% endblock %}

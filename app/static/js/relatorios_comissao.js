@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const ano = hoje.getFullYear();
     const mes = String(hoje.getMonth() + 1).padStart(2, "0");
 
-    if (campoCompetencia) {
+    if (campoCompetencia && !campoCompetencia.value) {
         campoCompetencia.value = `${ano}-${mes}`;
     }
 
@@ -22,22 +22,32 @@ document.addEventListener("DOMContentLoaded", () => {
 async function carregar() {
     const competencia = getCompetencia();
     const container = document.getElementById("relatorios-container");
+    const botaoCarregar = document.getElementById("btn-carregar");
+
+    if (!container) return;
 
     if (!competencia) {
-        if (container) {
-            container.innerHTML = `
-                <div class="relatorio-empty">
-                    <h3>Competência não informada</h3>
-                    <p>Selecione o mês da competência para carregar os lançamentos.</p>
-                </div>
-            `;
-        }
+        container.innerHTML = `
+            <div class="relatorio-empty">
+                <h3>Competência não informada</h3>
+                <p>Selecione o mês da competência para carregar os lançamentos.</p>
+            </div>
+        `;
         return;
     }
 
     try {
+        setLoadingState(true);
+
         const url = `/api/comissao/lancamentos?empresa_id=${EMPRESA_ID}&competencia=${encodeURIComponent(competencia)}`;
         console.log("[COMISSAO] Carregando:", url);
+
+        container.innerHTML = `
+            <div class="relatorio-empty">
+                <h3>Carregando</h3>
+                <p>Buscando lançamentos da competência selecionada...</p>
+            </div>
+        `;
 
         const data = await fetchJsonSafe(url);
         console.log("[COMISSAO] Resposta da API:", data);
@@ -47,16 +57,18 @@ async function carregar() {
     } catch (error) {
         console.error("[COMISSAO] Erro ao carregar:", error);
 
-        if (container) {
-            container.innerHTML = `
-                <div class="relatorio-empty">
-                    <h3>Erro ao carregar relatórios</h3>
-                    <p>${escapeHtml(error.message || "Não foi possível buscar os lançamentos de comissão.")}</p>
-                </div>
-            `;
-        }
+        container.innerHTML = `
+            <div class="relatorio-empty">
+                <h3>Erro ao carregar relatórios</h3>
+                <p>${escapeHtml(error.message || "Não foi possível buscar os lançamentos de comissão.")}</p>
+            </div>
+        `;
 
         notifyToast(error.message || "Erro ao carregar relatórios", "error");
+    } finally {
+        if (botaoCarregar) {
+            setLoadingState(false);
+        }
     }
 }
 
@@ -76,52 +88,68 @@ function render() {
         return;
     }
 
-    dados.forEach((f) => {
+    dados.forEach((funcionario) => {
         const card = document.createElement("div");
         card.className = "relatorio-card";
 
-        const statusAtual = String(f.status || "").toUpperCase();
+        const statusAtual = String(funcionario.status || "").toUpperCase();
 
-        const badgeStatus = f.fechado
+        const badgeStatus = funcionario.fechado
             ? `<span class="relatorio-badge relatorio-badge-fechado">Fechado</span>`
-            : `<span class="relatorio-badge relatorio-badge-status">${escapeHtml(f.status || "CAPTURADO")}</span>`;
+            : `<span class="relatorio-badge relatorio-badge-status">${escapeHtml(funcionario.status || "CAPTURADO")}</span>`;
 
         let botoes = "";
 
-        if (f.fechado) {
+        if (funcionario.fechado) {
             botoes = `
-                <button onclick="verDemonstrativo(${Number(f.fechamento_id || 0)})" class="btn btn-primary">
+                <button onclick="verDemonstrativo(${Number(funcionario.fechamento_id || 0)})" class="btn btn-primary">
                     Ver Demonstrativo
                 </button>
             `;
         } else if (statusAtual === "APROVADO") {
             botoes = `
                 <button class="btn btn-success" disabled>Aprovado</button>
-                <button onclick="fecharComissao(${f.funcionario_id})" class="btn btn-primary">Fechar Comissão</button>
+                <button onclick="fecharComissao(${Number(funcionario.funcionario_id)})" class="btn btn-primary">Fechar Comissão</button>
             `;
         } else {
             botoes = `
-                <button onclick="aprovar(${f.funcionario_id})" class="btn btn-success">Aprovar</button>
-                <button onclick="rejeitar(${f.funcionario_id})" class="btn btn-danger">Rejeitar</button>
+                <button onclick="aprovar(${Number(funcionario.funcionario_id)})" class="btn btn-success">Aprovar</button>
+                <button onclick="rejeitar(${Number(funcionario.funcionario_id)})" class="btn btn-danger">Rejeitar</button>
             `;
         }
 
-        const valorPrincipal = f.fechado
-            ? formatarMoeda(f.valor_fechado || 0)
-            : formatarMoeda(f.valor_estimado || 0);
+        const valorPrincipal = funcionario.fechado
+            ? formatarMoeda(funcionario.valor_fechado || 0)
+            : formatarMoeda(funcionario.valor_estimado || 0);
 
-        const pontosPrincipal = f.fechado
-            ? Number(f.pontos_fechados ?? f.pontos_total ?? 0)
-            : Number(f.pontos_total || 0);
+        const pontosPrincipal = funcionario.fechado
+            ? Number(funcionario.pontos_fechados ?? funcionario.pontos_total ?? 0)
+            : Number(funcionario.pontos_total || 0);
+
+        const lancamentosHtml = Array.isArray(funcionario.lancamentos) && funcionario.lancamentos.length
+            ? funcionario.lancamentos.map((lancamento) => `
+                <div class="relatorio-item">
+                    <div class="relatorio-item-left">
+                        <span class="relatorio-etapa">${escapeHtml(lancamento.etapa || "-")}</span>
+                        <small>${escapeHtml(lancamento.status || "-")}</small>
+                    </div>
+                    <strong>${Number(lancamento.pontos || 0)} pts</strong>
+                </div>
+            `).join("")
+            : `
+                <div class="relatorio-empty">
+                    <p>Sem lançamentos detalhados para este funcionário.</p>
+                </div>
+            `;
 
         card.innerHTML = `
             <div class="relatorio-header-card">
                 <div>
                     <div class="relatorio-title-row">
-                        <h2>${escapeHtml(f.funcionario_nome || "Funcionário")}</h2>
+                        <h2>${escapeHtml(funcionario.funcionario_nome || "Funcionário")}</h2>
                         ${badgeStatus}
                     </div>
-                    <span class="relatorio-subtitle">Competência: ${escapeHtml(formatarCompetencia(f.competencia || "-"))}</span>
+                    <span class="relatorio-subtitle">Competência: ${escapeHtml(formatarCompetencia(funcionario.competencia || "-"))}</span>
                 </div>
 
                 <div class="relatorio-total">
@@ -131,15 +159,7 @@ function render() {
             </div>
 
             <div class="relatorio-body">
-                ${(f.lancamentos || []).map((l) => `
-                    <div class="relatorio-item">
-                        <div class="relatorio-item-left">
-                            <span class="relatorio-etapa">${escapeHtml(l.etapa || "-")}</span>
-                            <small>${escapeHtml(l.status || "-")}</small>
-                        </div>
-                        <strong>${Number(l.pontos || 0)} pts</strong>
-                    </div>
-                `).join("")}
+                ${lancamentosHtml}
             </div>
 
             <div class="relatorio-actions">
@@ -254,6 +274,15 @@ async function fetchJsonSafe(url, options = {}) {
 function getCompetencia() {
     const campo = document.getElementById("filtro-competencia");
     return campo ? campo.value : "";
+}
+
+function setLoadingState(isLoading) {
+    const botaoCarregar = document.getElementById("btn-carregar");
+
+    if (!botaoCarregar) return;
+
+    botaoCarregar.disabled = isLoading;
+    botaoCarregar.textContent = isLoading ? "Carregando..." : "Carregar";
 }
 
 function formatarMoeda(valor) {

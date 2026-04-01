@@ -186,6 +186,11 @@ def relatorios_page(request: Request):
     return templates.TemplateResponse(request, "relatorios.html", {"request": request})
 
 
+@app.get("/relatorios/comissao", response_class=HTMLResponse)
+def relatorios_comissao_page(request: Request):
+    return templates.TemplateResponse(request, "relatorios_comissao.html", {"request": request})
+
+
 @app.get("/relatorios/comissao/demonstrativo/{fechamento_id}", response_class=HTMLResponse)
 def demonstrativo_comissao_page(request: Request, fechamento_id: int):
     return templates.TemplateResponse(

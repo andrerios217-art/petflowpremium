@@ -17,8 +17,11 @@ class FinanceiroPagar(Base):
     id = Column(Integer, primary_key=True, index=True)
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
 
-    descricao = Column(String(255), nullable=False)
     fornecedor = Column(String(255), nullable=True)
+    origem_tipo = Column(String(50), nullable=True)
+    origem_id = Column(Integer, nullable=True)
+
+    descricao = Column(String(255), nullable=False)
     observacao = Column(Text, nullable=True)
 
     valor = Column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
