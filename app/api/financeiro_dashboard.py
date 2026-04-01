@@ -15,13 +15,29 @@ def _to_float(valor) -> float:
     return float(valor or 0)
 
 
+def _ultimo_dia_mes(ano: int, mes: int) -> date:
+    if mes == 12:
+        return date(ano + 1, 1, 1) - timedelta(days=1)
+    return date(ano, mes + 1, 1) - timedelta(days=1)
+
+
 @router.get("/")
 def dashboard_financeiro(
     empresa_id: int = Query(..., ge=1),
+    mes: int | None = Query(None, ge=1, le=12),
+    ano: int | None = Query(None, ge=2000, le=2100),
     db: Session = Depends(get_db),
 ):
     hoje = date.today()
-    inicio_mes = hoje.replace(day=1)
+
+    competencia_mes = mes or hoje.month
+    competencia_ano = ano or hoje.year
+
+    inicio_mes = date(competencia_ano, competencia_mes, 1)
+    fim_mes = _ultimo_dia_mes(competencia_ano, competencia_mes)
+
+    usar_hoje_real = competencia_mes == hoje.month and competencia_ano == hoje.year
+    data_final_periodo = hoje if usar_hoje_real else fim_mes
 
     # =========================
     # ENTRADAS HOJE
@@ -57,7 +73,7 @@ def dashboard_financeiro(
         .filter(
             FinanceiroReceber.empresa_id == empresa_id,
             FinanceiroReceber.data_pagamento >= inicio_mes,
-            FinanceiroReceber.data_pagamento <= hoje,
+            FinanceiroReceber.data_pagamento <= data_final_periodo,
             FinanceiroReceber.status == "PAGO",
         )
         .scalar()
@@ -68,7 +84,7 @@ def dashboard_financeiro(
         .filter(
             FinanceiroPagar.empresa_id == empresa_id,
             FinanceiroPagar.data_pagamento >= inicio_mes,
-            FinanceiroPagar.data_pagamento <= hoje,
+            FinanceiroPagar.data_pagamento <= data_final_periodo,
             FinanceiroPagar.status == "PAGO",
         )
         .scalar()
@@ -94,6 +110,8 @@ def dashboard_financeiro(
         db.query(func.coalesce(func.sum(FinanceiroReceber.valor), 0))
         .filter(
             FinanceiroReceber.empresa_id == empresa_id,
+            FinanceiroReceber.vencimento >= inicio_mes,
+            FinanceiroReceber.vencimento <= fim_mes,
             FinanceiroReceber.status == "PENDENTE",
         )
         .scalar()
@@ -103,6 +121,8 @@ def dashboard_financeiro(
         db.query(func.coalesce(func.sum(FinanceiroReceber.valor), 0))
         .filter(
             FinanceiroReceber.empresa_id == empresa_id,
+            FinanceiroReceber.vencimento >= inicio_mes,
+            FinanceiroReceber.vencimento <= fim_mes,
             FinanceiroReceber.vencimento < hoje,
             FinanceiroReceber.status == "PENDENTE",
         )
@@ -116,6 +136,8 @@ def dashboard_financeiro(
         db.query(func.coalesce(func.sum(FinanceiroPagar.valor), 0))
         .filter(
             FinanceiroPagar.empresa_id == empresa_id,
+            FinanceiroPagar.vencimento >= inicio_mes,
+            FinanceiroPagar.vencimento <= fim_mes,
             FinanceiroPagar.status == "PENDENTE",
         )
         .scalar()
@@ -125,6 +147,8 @@ def dashboard_financeiro(
         db.query(func.coalesce(func.sum(FinanceiroPagar.valor), 0))
         .filter(
             FinanceiroPagar.empresa_id == empresa_id,
+            FinanceiroPagar.vencimento >= inicio_mes,
+            FinanceiroPagar.vencimento <= fim_mes,
             FinanceiroPagar.vencimento < hoje,
             FinanceiroPagar.status == "PENDENTE",
         )
@@ -140,8 +164,13 @@ def dashboard_financeiro(
     # =========================
     grafico_7_dias = []
 
+    if usar_hoje_real:
+        base_final_grafico = hoje
+    else:
+        base_final_grafico = fim_mes
+
     for i in range(6, -1, -1):
-        dia = hoje - timedelta(days=i)
+        dia = base_final_grafico - timedelta(days=i)
 
         entrada_dia = (
             db.query(func.coalesce(func.sum(FinanceiroReceber.valor_pago), 0))
@@ -173,17 +202,14 @@ def dashboard_financeiro(
                 "entrada": entrada_dia,
                 "saida": saida_dia,
                 "lucro": lucro_dia,
-                # compatibilidade com o gráfico legado
                 "valor": entrada_dia,
             }
         )
 
     return {
-        # legado
         "caixa_hoje": _to_float(caixa_hoje),
         "pendente_hoje": _to_float(pendente_hoje),
         "vencido": _to_float(vencido),
-        # premium
         "entradas_hoje": _to_float(entradas_hoje),
         "saidas_hoje": _to_float(saidas_hoje),
         "lucro_hoje": _to_float(lucro_hoje),

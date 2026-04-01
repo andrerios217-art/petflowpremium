@@ -2,6 +2,7 @@ const FINANCEIRO_EMPRESA_ID = 1;
 
 let financeiroContas = [];
 let financeiroModo = "receber"; // receber | pagar
+let financeiroCompetencia = obterCompetenciaAtual();
 
 document.addEventListener("DOMContentLoaded", () => {
     const btnNovaConta = document.getElementById("btn-nova-conta");
@@ -11,6 +12,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const btnTabReceber = document.getElementById("btn-tab-receber");
     const btnTabPagar = document.getElementById("btn-tab-pagar");
+
+    const btnAplicarCompetencia = document.getElementById("btn-aplicar-competencia-financeiro");
+    const btnMesAtual = document.getElementById("btn-mes-atual-financeiro");
 
     if (btnNovaConta) {
         btnNovaConta.onclick = abrirFormularioConta;
@@ -48,7 +52,28 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
+    if (btnAplicarCompetencia) {
+        btnAplicarCompetencia.onclick = () => {
+            if (!atualizarCompetenciaDosCampos()) {
+                return;
+            }
+
+            carregarFinanceiro();
+        };
+    }
+
+    if (btnMesAtual) {
+        btnMesAtual.onclick = () => {
+            financeiroCompetencia = obterCompetenciaAtual();
+            preencherCamposCompetencia();
+            atualizarLabelCompetencia();
+            carregarFinanceiro();
+        };
+    }
+
     definirVencimentoPadrao();
+    preencherCamposCompetencia();
+    atualizarLabelCompetencia();
     atualizarAbasFinanceiro();
     atualizarRotulosFormulario();
     carregarFinanceiro();
@@ -56,14 +81,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function carregarFinanceiro() {
     try {
+        const query = montarQueryFinanceiro();
+
         const endpointContas =
             financeiroModo === "receber"
-                ? `/api/financeiro/receber?empresa_id=${FINANCEIRO_EMPRESA_ID}`
-                : `/api/financeiro/pagar/?empresa_id=${FINANCEIRO_EMPRESA_ID}`;
+                ? `/api/financeiro/receber?${query}`
+                : `/api/financeiro/pagar/?${query}`;
 
         const [contasData, dashboardData] = await Promise.all([
             fetchJsonSafe(endpointContas),
-            fetchJsonSafe(`/api/financeiro/dashboard/?empresa_id=${FINANCEIRO_EMPRESA_ID}`)
+            fetchJsonSafe(`/api/financeiro/dashboard/?${query}`)
         ]);
 
         financeiroContas = Array.isArray(contasData.contas) ? contasData.contas : [];
@@ -71,6 +98,7 @@ async function carregarFinanceiro() {
         preencherResumo(contasData.resumo || {});
         preencherDashboardPremium(dashboardData || {});
         renderizarGrafico7Dias(dashboardData.grafico_7_dias || []);
+        atualizarLabelCompetencia();
         renderizarContas();
     } catch (error) {
         console.error("[FINANCEIRO] Erro ao carregar:", error);
@@ -518,6 +546,72 @@ function obterClasseStatus(status) {
     }
 
     return "financeiro-status-pendente";
+}
+
+function obterCompetenciaAtual() {
+    const hoje = new Date();
+    return {
+        mes: hoje.getMonth() + 1,
+        ano: hoje.getFullYear()
+    };
+}
+
+function preencherCamposCompetencia() {
+    setValue("financeiro-mes", String(financeiroCompetencia.mes));
+    setValue("financeiro-ano", String(financeiroCompetencia.ano));
+}
+
+function atualizarCompetenciaDosCampos() {
+    const mes = Number(getValue("financeiro-mes"));
+    const ano = Number(getValue("financeiro-ano"));
+
+    if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
+        notifyToast("Informe um mês válido.", "error");
+        return false;
+    }
+
+    if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) {
+        notifyToast("Informe um ano válido.", "error");
+        return false;
+    }
+
+    financeiroCompetencia = { mes, ano };
+    atualizarLabelCompetencia();
+    return true;
+}
+
+function montarQueryFinanceiro() {
+    const params = new URLSearchParams();
+    params.set("empresa_id", String(FINANCEIRO_EMPRESA_ID));
+    params.set("mes", String(financeiroCompetencia.mes));
+    params.set("ano", String(financeiroCompetencia.ano));
+    return params.toString();
+}
+
+function atualizarLabelCompetencia() {
+    const el = document.getElementById("financeiro-competencia-atual");
+    if (!el) return;
+
+    el.textContent = `${obterNomeMes(financeiroCompetencia.mes)}/${financeiroCompetencia.ano}`;
+}
+
+function obterNomeMes(mes) {
+    const nomes = {
+        1: "Janeiro",
+        2: "Fevereiro",
+        3: "Março",
+        4: "Abril",
+        5: "Maio",
+        6: "Junho",
+        7: "Julho",
+        8: "Agosto",
+        9: "Setembro",
+        10: "Outubro",
+        11: "Novembro",
+        12: "Dezembro"
+    };
+
+    return nomes[Number(mes)] || "Mês";
 }
 
 async function fetchJsonSafe(url, options = {}) {

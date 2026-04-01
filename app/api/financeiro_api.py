@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import extract
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
@@ -66,11 +67,20 @@ def criar_conta_receber(
 @router.get("/receber", response_model=FinanceiroReceberListOut)
 def listar_contas_receber(
     empresa_id: int = Query(..., ge=1),
+    mes: int | None = Query(None, ge=1, le=12),
+    ano: int | None = Query(None, ge=2000, le=2100),
     db: Session = Depends(get_db),
 ):
+    query = db.query(FinanceiroReceber).filter(FinanceiroReceber.empresa_id == empresa_id)
+
+    if ano is not None:
+        query = query.filter(extract("year", FinanceiroReceber.vencimento) == ano)
+
+    if mes is not None:
+        query = query.filter(extract("month", FinanceiroReceber.vencimento) == mes)
+
     contas = (
-        db.query(FinanceiroReceber)
-        .filter(FinanceiroReceber.empresa_id == empresa_id)
+        query
         .order_by(FinanceiroReceber.vencimento.asc(), FinanceiroReceber.id.desc())
         .all()
     )
