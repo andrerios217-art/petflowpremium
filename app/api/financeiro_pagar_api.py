@@ -26,6 +26,9 @@ def _serializar(conta: FinanceiroPagar):
         "origem_id": conta.origem_id,
         "descricao": conta.descricao,
         "observacao": conta.observacao,
+        "grupo_dre": conta.grupo_dre,
+        "categoria_dre": conta.categoria_dre,
+        "subcategoria_dre": conta.subcategoria_dre,
         "valor": float(conta.valor or 0),
         "valor_pago": float(conta.valor_pago or 0),
         "vencimento": conta.vencimento.isoformat() if conta.vencimento else None,
@@ -50,6 +53,9 @@ def criar_conta_pagar(
         origem_id=payload.origem_id,
         descricao=payload.descricao,
         observacao=payload.observacao,
+        grupo_dre=payload.grupo_dre,
+        categoria_dre=payload.categoria_dre,
+        subcategoria_dre=payload.subcategoria_dre,
         valor=Decimal(payload.valor),
         valor_pago=Decimal("0.00"),
         vencimento=payload.vencimento,
@@ -68,6 +74,9 @@ def listar_contas_pagar(
     empresa_id: int = Query(..., ge=1),
     mes: int | None = Query(None, ge=1, le=12),
     ano: int | None = Query(None, ge=2000, le=2100),
+    grupo_dre: str | None = Query(None),
+    categoria_dre: str | None = Query(None),
+    subcategoria_dre: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
     query = db.query(FinanceiroPagar).filter(FinanceiroPagar.empresa_id == empresa_id)
@@ -77,6 +86,15 @@ def listar_contas_pagar(
 
     if mes is not None:
         query = query.filter(extract("month", FinanceiroPagar.vencimento) == mes)
+
+    if grupo_dre:
+        query = query.filter(FinanceiroPagar.grupo_dre == grupo_dre)
+
+    if categoria_dre:
+        query = query.filter(FinanceiroPagar.categoria_dre == categoria_dre)
+
+    if subcategoria_dre:
+        query = query.filter(FinanceiroPagar.subcategoria_dre == subcategoria_dre)
 
     contas = (
         query
