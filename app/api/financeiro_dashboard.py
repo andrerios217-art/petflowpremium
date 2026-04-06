@@ -155,6 +155,98 @@ def dashboard_financeiro(
         .scalar()
     )
 
+    # =========================
+    # DRE GERENCIAL - DESPESAS
+    # =========================
+    despesas_por_grupo_rows = (
+        db.query(
+            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").label("grupo_dre"),
+            func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
+        )
+        .filter(
+            FinanceiroPagar.empresa_id == empresa_id,
+            FinanceiroPagar.data_pagamento >= inicio_mes,
+            FinanceiroPagar.data_pagamento <= data_final_periodo,
+            FinanceiroPagar.status == "PAGO",
+        )
+        .group_by(FinanceiroPagar.grupo_dre)
+        .order_by(func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).desc())
+        .all()
+    )
+
+    despesas_por_categoria_rows = (
+        db.query(
+            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").label("grupo_dre"),
+            func.coalesce(FinanceiroPagar.categoria_dre, "Sem categoria").label("categoria_dre"),
+            func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
+        )
+        .filter(
+            FinanceiroPagar.empresa_id == empresa_id,
+            FinanceiroPagar.data_pagamento >= inicio_mes,
+            FinanceiroPagar.data_pagamento <= data_final_periodo,
+            FinanceiroPagar.status == "PAGO",
+        )
+        .group_by(FinanceiroPagar.grupo_dre, FinanceiroPagar.categoria_dre)
+        .order_by(
+            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").asc(),
+            func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).desc(),
+        )
+        .all()
+    )
+
+    despesas_por_subcategoria_rows = (
+        db.query(
+            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").label("grupo_dre"),
+            func.coalesce(FinanceiroPagar.categoria_dre, "Sem categoria").label("categoria_dre"),
+            func.coalesce(FinanceiroPagar.subcategoria_dre, "Sem subcategoria").label("subcategoria_dre"),
+            func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
+        )
+        .filter(
+            FinanceiroPagar.empresa_id == empresa_id,
+            FinanceiroPagar.data_pagamento >= inicio_mes,
+            FinanceiroPagar.data_pagamento <= data_final_periodo,
+            FinanceiroPagar.status == "PAGO",
+        )
+        .group_by(
+            FinanceiroPagar.grupo_dre,
+            FinanceiroPagar.categoria_dre,
+            FinanceiroPagar.subcategoria_dre,
+        )
+        .order_by(
+            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").asc(),
+            func.coalesce(FinanceiroPagar.categoria_dre, "Sem categoria").asc(),
+            func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).desc(),
+        )
+        .all()
+    )
+
+    despesas_por_grupo = [
+        {
+            "grupo_dre": row.grupo_dre,
+            "total": _to_float(row.total),
+        }
+        for row in despesas_por_grupo_rows
+    ]
+
+    despesas_por_categoria = [
+        {
+            "grupo_dre": row.grupo_dre,
+            "categoria_dre": row.categoria_dre,
+            "total": _to_float(row.total),
+        }
+        for row in despesas_por_categoria_rows
+    ]
+
+    despesas_por_subcategoria = [
+        {
+            "grupo_dre": row.grupo_dre,
+            "categoria_dre": row.categoria_dre,
+            "subcategoria_dre": row.subcategoria_dre,
+            "total": _to_float(row.total),
+        }
+        for row in despesas_por_subcategoria_rows
+    ]
+
     # Mantém compatibilidade com o dashboard antigo
     caixa_hoje = entradas_hoje
     vencido = receber_vencido
@@ -220,5 +312,8 @@ def dashboard_financeiro(
         "pagar_aberto": _to_float(pagar_aberto),
         "receber_vencido": _to_float(receber_vencido),
         "pagar_vencido": _to_float(pagar_vencido),
+        "dre_despesas_por_grupo": despesas_por_grupo,
+        "dre_despesas_por_categoria": despesas_por_categoria,
+        "dre_despesas_por_subcategoria": despesas_por_subcategoria,
         "grafico_7_dias": grafico_7_dias,
     }

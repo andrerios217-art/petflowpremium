@@ -98,6 +98,7 @@ async function carregarFinanceiro() {
         preencherResumo(contasData.resumo || {});
         preencherDashboardPremium(dashboardData || {});
         renderizarGrafico7Dias(dashboardData.grafico_7_dias || []);
+        renderizarDreDetalhado(dashboardData || {});
         atualizarLabelCompetencia();
         renderizarContas();
     } catch (error) {
@@ -113,6 +114,8 @@ async function carregarFinanceiro() {
                 </div>
             `;
         }
+
+        renderizarDreDetalhado({});
     }
 }
 
@@ -215,6 +218,86 @@ function renderizarGrafico7Dias(dados) {
     });
 }
 
+function renderizarDreDetalhado(data) {
+    const containerGrupos = document.getElementById("financeiro-dre-grupos");
+    const containerCategorias = document.getElementById("financeiro-dre-categorias");
+    const containerSubcategorias = document.getElementById("financeiro-dre-subcategorias");
+
+    if (!containerGrupos || !containerCategorias || !containerSubcategorias) {
+        return;
+    }
+
+    const grupos = Array.isArray(data.dre_despesas_por_grupo) ? data.dre_despesas_por_grupo : [];
+    const categorias = Array.isArray(data.dre_despesas_por_categoria) ? data.dre_despesas_por_categoria : [];
+    const subcategorias = Array.isArray(data.dre_despesas_por_subcategoria) ? data.dre_despesas_por_subcategoria : [];
+
+    renderizarListaDre(
+        containerGrupos,
+        grupos,
+        (item) => `
+            <div class="financeiro-info">
+                <span class="financeiro-info-label">${escapeHtml(item.grupo_dre || "Sem grupo")}</span>
+                <span class="financeiro-info-value">${formatarMoeda(item.total || 0)}</span>
+            </div>
+        `,
+        "Nenhuma despesa classificada por grupo no período."
+    );
+
+    renderizarListaDre(
+        containerCategorias,
+        categorias,
+        (item) => `
+            <div class="financeiro-info">
+                <span class="financeiro-info-label">
+                    ${escapeHtml(item.grupo_dre || "Sem grupo")} › ${escapeHtml(item.categoria_dre || "Sem categoria")}
+                </span>
+                <span class="financeiro-info-value">${formatarMoeda(item.total || 0)}</span>
+            </div>
+        `,
+        "Nenhuma despesa classificada por categoria no período."
+    );
+
+    renderizarListaDre(
+        containerSubcategorias,
+        subcategorias,
+        (item) => `
+            <div class="financeiro-info">
+                <span class="financeiro-info-label">
+                    ${escapeHtml(item.grupo_dre || "Sem grupo")} ›
+                    ${escapeHtml(item.categoria_dre || "Sem categoria")} ›
+                    ${escapeHtml(item.subcategoria_dre || "Sem subcategoria")}
+                </span>
+                <span class="financeiro-info-value">${formatarMoeda(item.total || 0)}</span>
+            </div>
+        `,
+        "Nenhuma despesa classificada por subcategoria no período."
+    );
+}
+
+function renderizarListaDre(container, itens, renderItem, mensagemVazia) {
+    container.innerHTML = "";
+
+    if (!Array.isArray(itens) || !itens.length) {
+        container.innerHTML = `
+            <div class="financeiro-empty">
+                <p>${escapeHtml(mensagemVazia)}</p>
+            </div>
+        `;
+        return;
+    }
+
+    itens.forEach((item) => {
+        const bloco = document.createElement("div");
+        bloco.className = "financeiro-card";
+        bloco.innerHTML = `
+            <div class="financeiro-card-body">
+                ${renderItem(item)}
+            </div>
+        `;
+        container.appendChild(bloco);
+    });
+}
+
 function preencherResumo(resumo) {
     setText("financeiro-total-pendente", formatarMoeda(resumo.total_pendente || 0));
     setText("financeiro-total-pago", formatarMoeda(resumo.total_pago || 0));
@@ -284,6 +367,26 @@ function renderizarContas() {
             acoes = `<button class="btn btn-secondary" disabled>Conta Cancelada</button>`;
         }
 
+        const blocoDre =
+            financeiroModo === "pagar"
+                ? `
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Grupo DRE</span>
+                    <span class="financeiro-info-value">${escapeHtml(conta.grupo_dre || "Não informado")}</span>
+                </div>
+
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Categoria DRE</span>
+                    <span class="financeiro-info-value">${escapeHtml(conta.categoria_dre || "Não informado")}</span>
+                </div>
+
+                <div class="financeiro-info">
+                    <span class="financeiro-info-label">Subcategoria DRE</span>
+                    <span class="financeiro-info-value">${escapeHtml(conta.subcategoria_dre || "Não informado")}</span>
+                </div>
+                `
+                : "";
+
         card.innerHTML = `
             <div class="financeiro-card-header">
                 <div class="financeiro-card-title-wrap">
@@ -317,6 +420,8 @@ function renderizarContas() {
                     <span class="financeiro-info-value">${escapeHtml(conta.data_pagamento ? formatarData(conta.data_pagamento) : "Sem baixa")}</span>
                 </div>
 
+                ${blocoDre}
+
                 <div class="financeiro-info">
                     <span class="financeiro-info-label">Observação</span>
                     <span class="financeiro-info-value">${escapeHtml(conta.observacao || "Sem observação")}</span>
@@ -340,6 +445,9 @@ async function salvarConta() {
 
     const clienteIdRaw = getValue("financeiro-cliente-id");
     const fornecedor = getValue("financeiro-fornecedor");
+    const grupoDre = getValue("financeiro-grupo-dre");
+    const categoriaDre = getValue("financeiro-categoria-dre");
+    const subcategoriaDre = getValue("financeiro-subcategoria-dre");
 
     if (!descricao || descricao.trim().length < 2) {
         notifyToast("Informe uma descrição válida.", "error");
@@ -378,6 +486,9 @@ async function salvarConta() {
                 descricao: descricao.trim(),
                 fornecedor: fornecedor ? fornecedor.trim() : null,
                 observacao: observacao ? observacao.trim() : null,
+                grupo_dre: grupoDre ? grupoDre.trim() : null,
+                categoria_dre: categoriaDre ? categoriaDre.trim() : null,
+                subcategoria_dre: subcategoriaDre ? subcategoriaDre.trim() : null,
                 valor: Number(valor),
                 vencimento: vencimento
             };
@@ -458,6 +569,9 @@ function limparFormularioConta() {
     setValue("financeiro-descricao", "");
     setValue("financeiro-valor", "");
     setValue("financeiro-observacao", "");
+    setValue("financeiro-grupo-dre", "");
+    setValue("financeiro-categoria-dre", "");
+    setValue("financeiro-subcategoria-dre", "");
     definirVencimentoPadrao();
 }
 
@@ -493,6 +607,7 @@ function atualizarRotulosFormulario() {
     const labelCliente = document.getElementById("financeiro-label-cliente-id");
     const fieldCliente = document.getElementById("financeiro-field-cliente-id");
     const fieldFornecedor = document.getElementById("financeiro-field-fornecedor");
+    const fieldDre = document.getElementById("financeiro-dre-fields");
     const btnSalvar = document.getElementById("btn-salvar-conta");
 
     if (tituloSecao) {
@@ -524,6 +639,10 @@ function atualizarRotulosFormulario() {
 
     if (fieldFornecedor) {
         fieldFornecedor.style.display = financeiroModo === "pagar" ? "flex" : "none";
+    }
+
+    if (fieldDre) {
+        fieldDre.style.display = financeiroModo === "pagar" ? "contents" : "none";
     }
 
     if (btnSalvar) {

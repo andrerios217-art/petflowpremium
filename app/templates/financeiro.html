@@ -148,6 +148,42 @@
         </div>
     </div>
 
+    <div class="financeiro-section">
+        <div class="financeiro-section-header">
+            <h2>DRE Detalhado</h2>
+            <span class="financeiro-section-badge">Gerencial</span>
+        </div>
+
+        <div class="financeiro-dashboard-grid">
+            <div class="financeiro-card">
+                <div class="financeiro-card-body">
+                    <div class="financeiro-section-header" style="margin-bottom: 12px;">
+                        <h3 style="margin: 0;">Por Grupo</h3>
+                    </div>
+                    <div id="financeiro-dre-grupos" class="financeiro-cards"></div>
+                </div>
+            </div>
+
+            <div class="financeiro-card">
+                <div class="financeiro-card-body">
+                    <div class="financeiro-section-header" style="margin-bottom: 12px;">
+                        <h3 style="margin: 0;">Por Categoria</h3>
+                    </div>
+                    <div id="financeiro-dre-categorias" class="financeiro-cards"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="financeiro-card" style="margin-top: 16px;">
+            <div class="financeiro-card-body">
+                <div class="financeiro-section-header" style="margin-bottom: 12px;">
+                    <h3 style="margin: 0;">Por Subcategoria</h3>
+                </div>
+                <div id="financeiro-dre-subcategorias" class="financeiro-cards"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="financeiro-chart-card">
         <div class="financeiro-section-header">
             <h2>Fluxo dos Últimos 7 Dias</h2>
@@ -213,6 +249,23 @@
                 <div class="financeiro-form-field">
                     <label for="financeiro-vencimento">Vencimento</label>
                     <input type="date" id="financeiro-vencimento">
+                </div>
+
+                <div id="financeiro-dre-fields" style="display: none; contents: unset;">
+                    <div class="financeiro-form-field">
+                        <label for="financeiro-grupo-dre">Grupo DRE</label>
+                        <input type="text" id="financeiro-grupo-dre" placeholder="Ex.: Despesas Operacionais">
+                    </div>
+
+                    <div class="financeiro-form-field">
+                        <label for="financeiro-categoria-dre">Categoria DRE</label>
+                        <input type="text" id="financeiro-categoria-dre" placeholder="Ex.: Despesas Administrativas">
+                    </div>
+
+                    <div class="financeiro-form-field financeiro-form-field-wide">
+                        <label for="financeiro-subcategoria-dre">Subcategoria DRE</label>
+                        <input type="text" id="financeiro-subcategoria-dre" placeholder="Ex.: Aluguel, Energia, Internet">
+                    </div>
                 </div>
 
                 <div class="financeiro-form-field financeiro-form-field-full">

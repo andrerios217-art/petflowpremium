@@ -495,11 +495,16 @@
 .financeiro-info-label {
     color: #23324a;
     font-weight: 700;
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .financeiro-info-value {
     color: #6f7e93;
     text-align: right;
+    flex-shrink: 0;
 }
 
 .financeiro-card-actions {
@@ -616,6 +621,7 @@
 
     .financeiro-info-value {
         text-align: left;
+        flex-shrink: 1;
     }
 
     .financeiro-chart-bars {
