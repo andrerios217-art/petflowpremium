@@ -756,9 +756,8 @@ async function baixarConta(contaId) {
 
 function abrirFormularioConta() {
     const overlay = document.getElementById("financeiro-modal-overlay");
-    const card = document.getElementById("financeiro-modal-card");
 
-    if (!overlay || !card) {
+    if (!overlay) {
         console.error("Modal não encontrado.");
         return;
     }
@@ -772,31 +771,7 @@ function abrirFormularioConta() {
     atualizarRotulosFormulario();
     atualizarWizardFinanceiro();
 
-    overlay.removeAttribute("style");
-    card.removeAttribute("style");
-
-    overlay.style.display = "block";
-    overlay.style.position = "fixed";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
-    overlay.style.width = "100vw";
-    overlay.style.height = "100vh";
-    overlay.style.background = "rgba(15, 23, 42, 0.45)";
-    overlay.style.zIndex = "999999";
-
-    card.style.position = "fixed";
-    card.style.top = "50%";
-    card.style.left = "50%";
-    card.style.transform = "translate(-50%, -50%)";
-    card.style.width = "min(920px, calc(100vw - 32px))";
-    card.style.maxHeight = "calc(100vh - 32px)";
-    card.style.overflow = "auto";
-    card.style.background = "#fff";
-    card.style.borderRadius = "20px";
-    card.style.boxShadow = "0 24px 80px rgba(15, 23, 42, 0.28)";
-    card.style.zIndex = "1000000";
-    card.style.display = "block";
-
+    overlay.style.display = "flex";
     document.body.classList.add("financeiro-modal-open");
 
     if (financeiroModo === "pagar") {
@@ -806,14 +781,9 @@ function abrirFormularioConta() {
 
 function fecharFormularioConta() {
     const overlay = document.getElementById("financeiro-modal-overlay");
-    const card = document.getElementById("financeiro-modal-card");
 
     if (overlay) {
         overlay.style.display = "none";
-    }
-
-    if (card) {
-        card.removeAttribute("style");
     }
 
     document.body.classList.remove("financeiro-modal-open");
@@ -1215,22 +1185,27 @@ function formatarMoeda(valor) {
 function formatarData(valor) {
     if (!valor) return "-";
 
-    const data = new Date(`${valor}T00:00:00`);
-    if (Number.isNaN(data.getTime())) return valor;
+    const texto = String(valor);
 
-    return data.toLocaleDateString("pt-BR");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+        const [ano, mes, dia] = texto.split("-");
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    return texto;
 }
 
 function formatarDataCurta(valor) {
     if (!valor) return "-";
 
-    const data = new Date(`${valor}T00:00:00`);
-    if (Number.isNaN(data.getTime())) return valor;
+    const texto = String(valor);
 
-    return data.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit"
-    });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+        const [, mes, dia] = texto.split("-");
+        return `${dia}/${mes}`;
+    }
+
+    return texto;
 }
 
 function escapeHtml(valor) {
