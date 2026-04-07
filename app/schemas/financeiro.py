@@ -43,15 +43,49 @@ class FinanceiroReceberOut(BaseModel):
     updated_at: str | None = None
 
 
+class FinanceiroPlanoDREBase(BaseModel):
+    grupo: str = Field(..., min_length=2, max_length=100)
+    categoria: str = Field(..., min_length=2, max_length=100)
+    subcategoria: str = Field(..., min_length=2, max_length=100)
+    ordem: int = Field(default=0, ge=0)
+    ativo: bool = True
+
+
+class FinanceiroPlanoDRECreate(FinanceiroPlanoDREBase):
+    empresa_id: int
+
+
+class FinanceiroPlanoDREUpdate(BaseModel):
+    grupo: str | None = Field(default=None, min_length=2, max_length=100)
+    categoria: str | None = Field(default=None, min_length=2, max_length=100)
+    subcategoria: str | None = Field(default=None, min_length=2, max_length=100)
+    ordem: int | None = Field(default=None, ge=0)
+    ativo: bool | None = None
+
+
+class FinanceiroPlanoDREOut(BaseModel):
+    id: int
+    empresa_id: int
+    grupo: str
+    categoria: str
+    subcategoria: str
+    ordem: int
+    ativo: bool
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class FinanceiroPlanoDREListOut(BaseModel):
+    itens: list[FinanceiroPlanoDREOut]
+
+
 class FinanceiroPagarBase(BaseModel):
     fornecedor: str | None = Field(default=None, max_length=255)
     origem_tipo: str | None = None
     origem_id: int | None = None
     descricao: str = Field(..., min_length=2, max_length=255)
     observacao: str | None = None
-    grupo_dre: str | None = Field(default=None, max_length=100)
-    categoria_dre: str | None = Field(default=None, max_length=100)
-    subcategoria_dre: str | None = Field(default=None, max_length=100)
+    classificacao_dre_id: int | None = Field(default=None, ge=1)
     valor: Decimal = Field(..., gt=0)
     vencimento: date
 
@@ -73,6 +107,7 @@ class FinanceiroPagarOut(BaseModel):
     origem_id: int | None
     descricao: str
     observacao: str | None
+    classificacao_dre_id: int | None = None
     grupo_dre: str | None = None
     categoria_dre: str | None = None
     subcategoria_dre: str | None = None

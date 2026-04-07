@@ -3,10 +3,11 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import extract
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import get_db
 from app.models.financeiro_pagar import FinanceiroPagar
+from app.models.financeiro_plano_dre import FinanceiroPlanoDRE
 from app.schemas.financeiro import (
     FinanceiroPagarBaixa,
     FinanceiroPagarCreate,
@@ -26,6 +27,7 @@ def _serializar(conta: FinanceiroPagar):
         "origem_id": conta.origem_id,
         "descricao": conta.descricao,
         "observacao": conta.observacao,
+        "classificacao_dre_id": conta.classificacao_dre_id,
         "grupo_dre": conta.grupo_dre,
         "categoria_dre": conta.categoria_dre,
         "subcategoria_dre": conta.subcategoria_dre,
@@ -41,11 +43,49 @@ def _serializar(conta: FinanceiroPagar):
     }
 
 
+def _buscar_classificacao_valida(
+    db: Session,
+    empresa_id: int,
+    classificacao_dre_id: int | None,
+) -> FinanceiroPlanoDRE | None:
+    if not classificacao_dre_id:
+        return None
+
+    classificacao = (
+        db.query(FinanceiroPlanoDRE)
+        .filter(
+            FinanceiroPlanoDRE.id == classificacao_dre_id,
+            FinanceiroPlanoDRE.empresa_id == empresa_id,
+        )
+        .first()
+    )
+
+    if not classificacao:
+        raise HTTPException(
+            status_code=404,
+            detail="Classificação DRE não encontrada para esta empresa.",
+        )
+
+    if not classificacao.ativo:
+        raise HTTPException(
+            status_code=400,
+            detail="Classificação DRE inativa.",
+        )
+
+    return classificacao
+
+
 @router.post("/", response_model=FinanceiroPagarOut)
 def criar_conta_pagar(
     payload: FinanceiroPagarCreate,
     db: Session = Depends(get_db),
 ):
+    _buscar_classificacao_valida(
+        db=db,
+        empresa_id=payload.empresa_id,
+        classificacao_dre_id=payload.classificacao_dre_id,
+    )
+
     conta = FinanceiroPagar(
         empresa_id=payload.empresa_id,
         fornecedor=payload.fornecedor,
@@ -53,9 +93,7 @@ def criar_conta_pagar(
         origem_id=payload.origem_id,
         descricao=payload.descricao,
         observacao=payload.observacao,
-        grupo_dre=payload.grupo_dre,
-        categoria_dre=payload.categoria_dre,
-        subcategoria_dre=payload.subcategoria_dre,
+        classificacao_dre_id=payload.classificacao_dre_id,
         valor=Decimal(payload.valor),
         valor_pago=Decimal("0.00"),
         vencimento=payload.vencimento,
@@ -66,6 +104,13 @@ def criar_conta_pagar(
     db.commit()
     db.refresh(conta)
 
+    conta = (
+        db.query(FinanceiroPagar)
+        .options(joinedload(FinanceiroPagar.classificacao_dre))
+        .filter(FinanceiroPagar.id == conta.id)
+        .first()
+    )
+
     return _serializar(conta)
 
 
@@ -74,12 +119,32 @@ def listar_contas_pagar(
     empresa_id: int = Query(..., ge=1),
     mes: int | None = Query(None, ge=1, le=12),
     ano: int | None = Query(None, ge=2000, le=2100),
+    classificacao_dre_id: int | None = Query(None, ge=1),
     grupo_dre: str | None = Query(None),
     categoria_dre: str | None = Query(None),
     subcategoria_dre: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    query = db.query(FinanceiroPagar).filter(FinanceiroPagar.empresa_id == empresa_id)
+    query = (
+        db.query(FinanceiroPagar)
+        .options(joinedload(FinanceiroPagar.classificacao_dre))
+        .filter(FinanceiroPagar.empresa_id == empresa_id)
+    )
+
+    precisa_join_classificacao = any(
+        [
+            classificacao_dre_id is not None,
+            bool(grupo_dre),
+            bool(categoria_dre),
+            bool(subcategoria_dre),
+        ]
+    )
+
+    if precisa_join_classificacao:
+        query = query.outerjoin(
+            FinanceiroPlanoDRE,
+            FinanceiroPlanoDRE.id == FinanceiroPagar.classificacao_dre_id,
+        )
 
     if ano is not None:
         query = query.filter(extract("year", FinanceiroPagar.vencimento) == ano)
@@ -87,14 +152,17 @@ def listar_contas_pagar(
     if mes is not None:
         query = query.filter(extract("month", FinanceiroPagar.vencimento) == mes)
 
+    if classificacao_dre_id is not None:
+        query = query.filter(FinanceiroPagar.classificacao_dre_id == classificacao_dre_id)
+
     if grupo_dre:
-        query = query.filter(FinanceiroPagar.grupo_dre == grupo_dre)
+        query = query.filter(FinanceiroPlanoDRE.grupo == grupo_dre)
 
     if categoria_dre:
-        query = query.filter(FinanceiroPagar.categoria_dre == categoria_dre)
+        query = query.filter(FinanceiroPlanoDRE.categoria == categoria_dre)
 
     if subcategoria_dre:
-        query = query.filter(FinanceiroPagar.subcategoria_dre == subcategoria_dre)
+        query = query.filter(FinanceiroPlanoDRE.subcategoria == subcategoria_dre)
 
     contas = (
         query
@@ -105,9 +173,11 @@ def listar_contas_pagar(
     total_pendente = Decimal("0")
     total_pago = Decimal("0")
     total_vencido = Decimal("0")
+
     qtd_pendente = 0
     qtd_pago = 0
     qtd_vencido = 0
+
     resultado = []
 
     for conta in contas:

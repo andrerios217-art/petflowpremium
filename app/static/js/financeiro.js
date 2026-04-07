@@ -3,6 +3,8 @@ const FINANCEIRO_EMPRESA_ID = 1;
 let financeiroContas = [];
 let financeiroModo = "receber"; // receber | pagar
 let financeiroCompetencia = obterCompetenciaAtual();
+let financeiroPlanoDre = [];
+let financeiroWizardStep = 1;
 
 document.addEventListener("DOMContentLoaded", () => {
     const btnNovaConta = document.getElementById("btn-nova-conta");
@@ -15,6 +17,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const btnAplicarCompetencia = document.getElementById("btn-aplicar-competencia-financeiro");
     const btnMesAtual = document.getElementById("btn-mes-atual-financeiro");
+
+    const btnFecharModal = document.getElementById("btn-fechar-modal-financeiro");
+    const btnVoltarStep = document.getElementById("btn-voltar-step-financeiro");
+    const btnAvancarStep = document.getElementById("btn-avancar-step-financeiro");
+    const modalOverlay = document.getElementById("financeiro-modal-overlay");
+
+    const selectGrupoDre = document.getElementById("financeiro-grupo-dre");
+    const selectCategoriaDre = document.getElementById("financeiro-categoria-dre");
 
     if (btnNovaConta) {
         btnNovaConta.onclick = abrirFormularioConta;
@@ -43,11 +53,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (btnTabPagar) {
-        btnTabPagar.onclick = () => {
+        btnTabPagar.onclick = async () => {
             financeiroModo = "pagar";
             atualizarAbasFinanceiro();
             atualizarRotulosFormulario();
             fecharFormularioConta();
+            await carregarPlanoDre();
             carregarFinanceiro();
         };
     }
@@ -71,11 +82,75 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
+    if (btnFecharModal) {
+        btnFecharModal.onclick = fecharFormularioConta;
+    }
+
+    if (btnVoltarStep) {
+        btnVoltarStep.onclick = voltarStepFinanceiro;
+    }
+
+    if (btnAvancarStep) {
+        btnAvancarStep.onclick = avancarStepFinanceiro;
+    }
+
+    if (modalOverlay) {
+        modalOverlay.addEventListener("click", (event) => {
+            const target = event.target;
+            if (target && target.dataset && target.dataset.closeFinanceiroModal === "true") {
+                fecharFormularioConta();
+            }
+        });
+    }
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            const overlay = document.getElementById("financeiro-modal-overlay");
+            if (overlay && overlay.style.display !== "none") {
+                fecharFormularioConta();
+            }
+        }
+    });
+
+    if (selectGrupoDre) {
+        selectGrupoDre.onchange = () => {
+            preencherCategoriasDre();
+            preencherSubcategoriasDre();
+            atualizarResumoWizardFinanceiro();
+        };
+    }
+
+    if (selectCategoriaDre) {
+        selectCategoriaDre.onchange = () => {
+            preencherSubcategoriasDre();
+            atualizarResumoWizardFinanceiro();
+        };
+    }
+
+    const camposResumo = [
+        "financeiro-cliente-id",
+        "financeiro-fornecedor",
+        "financeiro-descricao",
+        "financeiro-valor",
+        "financeiro-vencimento",
+        "financeiro-observacao",
+        "financeiro-subcategoria-dre"
+    ];
+
+    camposResumo.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("input", atualizarResumoWizardFinanceiro);
+            el.addEventListener("change", atualizarResumoWizardFinanceiro);
+        }
+    });
+
     definirVencimentoPadrao();
     preencherCamposCompetencia();
     atualizarLabelCompetencia();
     atualizarAbasFinanceiro();
     atualizarRotulosFormulario();
+    atualizarWizardFinanceiro();
     carregarFinanceiro();
 });
 
@@ -116,6 +191,131 @@ async function carregarFinanceiro() {
         }
 
         renderizarDreDetalhado({});
+    }
+}
+
+async function carregarPlanoDre() {
+    try {
+        const data = await fetchJsonSafe(
+            `/api/financeiro/dre/?empresa_id=${FINANCEIRO_EMPRESA_ID}&ativo=true`
+        );
+
+        financeiroPlanoDre = Array.isArray(data.itens) ? data.itens : [];
+        preencherGruposDre();
+        preencherCategoriasDre();
+        preencherSubcategoriasDre();
+    } catch (error) {
+        console.error("[FINANCEIRO] Erro ao carregar plano DRE:", error);
+        financeiroPlanoDre = [];
+        preencherGruposDre();
+        preencherCategoriasDre();
+        preencherSubcategoriasDre();
+        notifyToast(error.message || "Erro ao carregar plano DRE.", "error");
+    }
+}
+
+function preencherGruposDre() {
+    const select = document.getElementById("financeiro-grupo-dre");
+    if (!select) return;
+
+    const valorAtual = select.value;
+    const grupos = [...new Set(
+        financeiroPlanoDre
+            .map((item) => (item.grupo || "").trim())
+            .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    select.innerHTML = `<option value="">Selecione o grupo</option>`;
+
+    grupos.forEach((grupo) => {
+        const option = document.createElement("option");
+        option.value = grupo;
+        option.textContent = grupo;
+        select.appendChild(option);
+    });
+
+    if (grupos.includes(valorAtual)) {
+        select.value = valorAtual;
+    } else {
+        select.value = "";
+    }
+}
+
+function preencherCategoriasDre() {
+    const selectGrupo = document.getElementById("financeiro-grupo-dre");
+    const selectCategoria = document.getElementById("financeiro-categoria-dre");
+    if (!selectGrupo || !selectCategoria) return;
+
+    const grupoSelecionado = (selectGrupo.value || "").trim();
+    const valorAtual = selectCategoria.value;
+
+    const categorias = [...new Set(
+        financeiroPlanoDre
+            .filter((item) => !grupoSelecionado || String(item.grupo || "").trim() === grupoSelecionado)
+            .map((item) => (item.categoria || "").trim())
+            .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    selectCategoria.innerHTML = `<option value="">Selecione a categoria</option>`;
+
+    categorias.forEach((categoria) => {
+        const option = document.createElement("option");
+        option.value = categoria;
+        option.textContent = categoria;
+        selectCategoria.appendChild(option);
+    });
+
+    selectCategoria.disabled = categorias.length === 0;
+
+    if (categorias.includes(valorAtual)) {
+        selectCategoria.value = valorAtual;
+    } else {
+        selectCategoria.value = "";
+    }
+}
+
+function preencherSubcategoriasDre() {
+    const selectGrupo = document.getElementById("financeiro-grupo-dre");
+    const selectCategoria = document.getElementById("financeiro-categoria-dre");
+    const selectSubcategoria = document.getElementById("financeiro-subcategoria-dre");
+
+    if (!selectGrupo || !selectCategoria || !selectSubcategoria) return;
+
+    const grupoSelecionado = (selectGrupo.value || "").trim();
+    const categoriaSelecionada = (selectCategoria.value || "").trim();
+    const valorAtual = selectSubcategoria.value;
+
+    const subcategorias = financeiroPlanoDre
+        .filter((item) => !grupoSelecionado || String(item.grupo || "").trim() === grupoSelecionado)
+        .filter((item) => !categoriaSelecionada || String(item.categoria || "").trim() === categoriaSelecionada)
+        .sort((a, b) => {
+            const ordemA = Number(a.ordem || 0);
+            const ordemB = Number(b.ordem || 0);
+
+            if (ordemA !== ordemB) {
+                return ordemA - ordemB;
+            }
+
+            return String(a.subcategoria || "").localeCompare(String(b.subcategoria || ""), "pt-BR");
+        });
+
+    selectSubcategoria.innerHTML = `<option value="">Selecione a subcategoria</option>`;
+
+    subcategorias.forEach((item) => {
+        const option = document.createElement("option");
+        option.value = String(item.id);
+        option.textContent = item.subcategoria || "Sem subcategoria";
+        option.dataset.grupo = item.grupo || "";
+        option.dataset.categoria = item.categoria || "";
+        selectSubcategoria.appendChild(option);
+    });
+
+    selectSubcategoria.disabled = subcategorias.length === 0;
+
+    if (subcategorias.some((item) => String(item.id) === String(valorAtual))) {
+        selectSubcategoria.value = String(valorAtual);
+    } else {
+        selectSubcategoria.value = "";
     }
 }
 
@@ -445,22 +645,29 @@ async function salvarConta() {
 
     const clienteIdRaw = getValue("financeiro-cliente-id");
     const fornecedor = getValue("financeiro-fornecedor");
-    const grupoDre = getValue("financeiro-grupo-dre");
-    const categoriaDre = getValue("financeiro-categoria-dre");
-    const subcategoriaDre = getValue("financeiro-subcategoria-dre");
+    const classificacaoDreId = getValue("financeiro-subcategoria-dre");
 
     if (!descricao || descricao.trim().length < 2) {
         notifyToast("Informe uma descrição válida.", "error");
+        irParaStepFinanceiro(1);
         return;
     }
 
     if (!valor || Number(valor) <= 0) {
         notifyToast("Informe um valor maior que zero.", "error");
+        irParaStepFinanceiro(1);
         return;
     }
 
     if (!vencimento) {
         notifyToast("Informe a data de vencimento.", "error");
+        irParaStepFinanceiro(1);
+        return;
+    }
+
+    if (financeiroModo === "pagar" && !classificacaoDreId) {
+        notifyToast("Selecione grupo, categoria e subcategoria do DRE.", "error");
+        irParaStepFinanceiro(2);
         return;
     }
 
@@ -486,9 +693,7 @@ async function salvarConta() {
                 descricao: descricao.trim(),
                 fornecedor: fornecedor ? fornecedor.trim() : null,
                 observacao: observacao ? observacao.trim() : null,
-                grupo_dre: grupoDre ? grupoDre.trim() : null,
-                categoria_dre: categoriaDre ? categoriaDre.trim() : null,
-                subcategoria_dre: subcategoriaDre ? subcategoriaDre.trim() : null,
+                classificacao_dre_id: Number(classificacaoDreId),
                 valor: Number(valor),
                 vencimento: vencimento
             };
@@ -550,17 +755,35 @@ async function baixarConta(contaId) {
 }
 
 function abrirFormularioConta() {
-    const card = document.getElementById("financeiro-form-card");
-    if (card) {
-        card.style.display = "block";
+    const overlay = document.getElementById("financeiro-modal-overlay");
+
+    if (!overlay) {
+        notifyToast("O wizard/modal não foi encontrado no HTML atual.", "error");
+        return;
+    }
+
+    limparFormularioConta();
+    financeiroWizardStep = 1;
+    atualizarRotulosFormulario();
+    atualizarWizardFinanceiro();
+
+    overlay.style.display = "flex";
+    document.body.classList.add("financeiro-modal-open");
+
+    if (financeiroModo === "pagar") {
+        carregarPlanoDre();
     }
 }
 
 function fecharFormularioConta() {
-    const card = document.getElementById("financeiro-form-card");
-    if (card) {
-        card.style.display = "none";
+    const overlay = document.getElementById("financeiro-modal-overlay");
+    if (overlay) {
+        overlay.style.display = "none";
     }
+
+    document.body.classList.remove("financeiro-modal-open");
+    financeiroWizardStep = 1;
+    atualizarWizardFinanceiro();
 }
 
 function limparFormularioConta() {
@@ -573,6 +796,9 @@ function limparFormularioConta() {
     setValue("financeiro-categoria-dre", "");
     setValue("financeiro-subcategoria-dre", "");
     definirVencimentoPadrao();
+    preencherCategoriasDre();
+    preencherSubcategoriasDre();
+    atualizarResumoWizardFinanceiro();
 }
 
 function definirVencimentoPadrao() {
@@ -600,24 +826,28 @@ function atualizarAbasFinanceiro() {
 }
 
 function atualizarRotulosFormulario() {
-    const tituloSecao = document.getElementById("financeiro-titulo-form");
-    const badgeSecao = document.getElementById("financeiro-badge-form");
+    const tituloModal = document.getElementById("financeiro-modal-title");
+    const subtituloModal = document.getElementById("financeiro-modal-subtitle");
     const tituloLista = document.getElementById("financeiro-titulo-lista");
     const badgeLista = document.getElementById("financeiro-badge-lista");
     const labelCliente = document.getElementById("financeiro-label-cliente-id");
     const fieldCliente = document.getElementById("financeiro-field-cliente-id");
     const fieldFornecedor = document.getElementById("financeiro-field-fornecedor");
     const fieldDre = document.getElementById("financeiro-dre-fields");
+    const dreEmpty = document.getElementById("financeiro-step-2-empty");
     const btnSalvar = document.getElementById("btn-salvar-conta");
+    const reviewTipo = document.getElementById("financeiro-review-tipo");
 
-    if (tituloSecao) {
-        tituloSecao.textContent =
+    if (tituloModal) {
+        tituloModal.textContent =
             financeiroModo === "receber" ? "Nova Conta a Receber" : "Nova Conta a Pagar";
     }
 
-    if (badgeSecao) {
-        badgeSecao.textContent =
-            financeiroModo === "receber" ? "Recebimento" : "Pagamento";
+    if (subtituloModal) {
+        subtituloModal.textContent =
+            financeiroModo === "receber"
+                ? "Preencha os dados e conclua o lançamento do recebimento."
+                : "Preencha os dados e classifique a despesa antes de salvar.";
     }
 
     if (tituloLista) {
@@ -642,13 +872,203 @@ function atualizarRotulosFormulario() {
     }
 
     if (fieldDre) {
-        fieldDre.style.display = financeiroModo === "pagar" ? "contents" : "none";
+        fieldDre.style.display = financeiroModo === "pagar" ? "grid" : "none";
+    }
+
+    if (dreEmpty) {
+        dreEmpty.style.display = financeiroModo === "receber" ? "block" : "none";
     }
 
     if (btnSalvar) {
         btnSalvar.textContent =
             financeiroModo === "receber" ? "Salvar Conta a Receber" : "Salvar Conta a Pagar";
     }
+
+    if (reviewTipo) {
+        reviewTipo.textContent =
+            financeiroModo === "receber" ? "Conta a Receber" : "Conta a Pagar";
+    }
+
+    atualizarResumoWizardFinanceiro();
+    atualizarWizardFinanceiro();
+}
+
+function avancarStepFinanceiro() {
+    if (!validarStepAtualFinanceiro()) {
+        return;
+    }
+
+    if (financeiroModo === "receber" && financeiroWizardStep === 1) {
+        financeiroWizardStep = 3;
+    } else {
+        financeiroWizardStep += 1;
+    }
+
+    if (financeiroWizardStep > 3) {
+        financeiroWizardStep = 3;
+    }
+
+    atualizarResumoWizardFinanceiro();
+    atualizarWizardFinanceiro();
+}
+
+function voltarStepFinanceiro() {
+    if (financeiroModo === "receber" && financeiroWizardStep === 3) {
+        financeiroWizardStep = 1;
+    } else {
+        financeiroWizardStep -= 1;
+    }
+
+    if (financeiroWizardStep < 1) {
+        financeiroWizardStep = 1;
+    }
+
+    atualizarWizardFinanceiro();
+}
+
+function irParaStepFinanceiro(step) {
+    financeiroWizardStep = step;
+    atualizarResumoWizardFinanceiro();
+    atualizarWizardFinanceiro();
+}
+
+function validarStepAtualFinanceiro() {
+    if (financeiroWizardStep === 1) {
+        const descricao = getValue("financeiro-descricao");
+        const valor = getValue("financeiro-valor");
+        const vencimento = getValue("financeiro-vencimento");
+
+        if (!descricao || descricao.trim().length < 2) {
+            notifyToast("Informe uma descrição válida.", "error");
+            return false;
+        }
+
+        if (!valor || Number(valor) <= 0) {
+            notifyToast("Informe um valor maior que zero.", "error");
+            return false;
+        }
+
+        if (!vencimento) {
+            notifyToast("Informe a data de vencimento.", "error");
+            return false;
+        }
+
+        return true;
+    }
+
+    if (financeiroWizardStep === 2 && financeiroModo === "pagar") {
+        const classificacaoDreId = getValue("financeiro-subcategoria-dre");
+
+        if (!classificacaoDreId) {
+            notifyToast("Selecione grupo, categoria e subcategoria do DRE.", "error");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function atualizarWizardFinanceiro() {
+    const step1 = document.getElementById("financeiro-step-1");
+    const step2 = document.getElementById("financeiro-step-2");
+    const step3 = document.getElementById("financeiro-step-3");
+
+    const indicador1 = document.getElementById("financeiro-step-indicador-1");
+    const indicador2 = document.getElementById("financeiro-step-indicador-2");
+    const indicador3 = document.getElementById("financeiro-step-indicador-3");
+
+    const btnVoltar = document.getElementById("btn-voltar-step-financeiro");
+    const btnAvancar = document.getElementById("btn-avancar-step-financeiro");
+    const btnSalvar = document.getElementById("btn-salvar-conta");
+
+    [step1, step2, step3].forEach((el) => {
+        if (el) {
+            el.classList.remove("is-active");
+        }
+    });
+
+    [indicador1, indicador2, indicador3].forEach((el) => {
+        if (el) {
+            el.classList.remove("is-active", "is-done");
+        }
+    });
+
+    if (step1 && financeiroWizardStep === 1) step1.classList.add("is-active");
+    if (step2 && financeiroWizardStep === 2) step2.classList.add("is-active");
+    if (step3 && financeiroWizardStep === 3) step3.classList.add("is-active");
+
+    if (indicador1) {
+        if (financeiroWizardStep === 1) indicador1.classList.add("is-active");
+        if (financeiroWizardStep > 1) indicador1.classList.add("is-done");
+    }
+
+    if (indicador2) {
+        const step2Exists = financeiroModo === "pagar";
+        if (!step2Exists) {
+            indicador2.classList.add("is-done");
+        } else if (financeiroWizardStep === 2) {
+            indicador2.classList.add("is-active");
+        } else if (financeiroWizardStep > 2) {
+            indicador2.classList.add("is-done");
+        }
+    }
+
+    if (indicador3 && financeiroWizardStep === 3) {
+        indicador3.classList.add("is-active");
+    }
+
+    if (btnVoltar) {
+        btnVoltar.style.display = financeiroWizardStep > 1 ? "inline-flex" : "none";
+    }
+
+    if (btnAvancar) {
+        btnAvancar.style.display = financeiroWizardStep < 3 ? "inline-flex" : "none";
+        btnAvancar.textContent =
+            financeiroWizardStep === 2 || (financeiroModo === "receber" && financeiroWizardStep === 1)
+                ? "Revisar"
+                : "Avançar";
+    }
+
+    if (btnSalvar) {
+        btnSalvar.style.display = financeiroWizardStep === 3 ? "inline-flex" : "none";
+    }
+}
+
+function atualizarResumoWizardFinanceiro() {
+    const descricao = getValue("financeiro-descricao");
+    const valor = getValue("financeiro-valor");
+    const vencimento = getValue("financeiro-vencimento");
+    const observacao = getValue("financeiro-observacao");
+    const clienteId = getValue("financeiro-cliente-id");
+    const fornecedor = getValue("financeiro-fornecedor");
+
+    const grupo = getValue("financeiro-grupo-dre");
+    const categoria = getValue("financeiro-categoria-dre");
+    const selectSubcategoria = document.getElementById("financeiro-subcategoria-dre");
+    const subcategoriaTexto =
+        selectSubcategoria && selectSubcategoria.selectedIndex >= 0
+            ? (selectSubcategoria.options[selectSubcategoria.selectedIndex]?.text || "")
+            : "";
+
+    setText(
+        "financeiro-review-pessoa",
+        financeiroModo === "receber"
+            ? (clienteId ? `Cliente ID ${clienteId}` : "Não informado")
+            : (fornecedor || "Não informado")
+    );
+
+    setText("financeiro-review-descricao", descricao || "-");
+    setText("financeiro-review-valor", formatarMoeda(valor || 0));
+    setText("financeiro-review-vencimento", vencimento ? formatarData(vencimento) : "-");
+    setText("financeiro-review-grupo", grupo || (financeiroModo === "receber" ? "Não se aplica" : "-"));
+    setText("financeiro-review-categoria", categoria || (financeiroModo === "receber" ? "Não se aplica" : "-"));
+    setText(
+        "financeiro-review-subcategoria",
+        subcategoriaTexto && subcategoriaTexto !== "Selecione a subcategoria"
+            ? subcategoriaTexto
+            : (financeiroModo === "receber" ? "Não se aplica" : "-")
+    );
+    setText("financeiro-review-observacao", observacao || "Sem observação");
 }
 
 function obterClasseStatus(status) {
