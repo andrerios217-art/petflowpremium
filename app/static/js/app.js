@@ -192,9 +192,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 3000);
     }
 
-    if (typeof window.showToast !== "function") {
-        window.showToast = showToast;
-    }
+   if (typeof window.showToast !== "function") {
+    window.showToast = showToast;
+}
+
+if (typeof window.notifyToast !== "function") {
+    window.notifyToast = showToast;
+}
 
     garantirTemaClaro();
     observarMutacoesTema();

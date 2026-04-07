@@ -939,3 +939,48 @@ body.financeiro-modal-open {
         width: 100%;
     }
 }
+/* HOTFIX MODAL FINANCEIRO */
+.financeiro-modal-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 24px !important;
+    background: rgba(15, 23, 42, 0.45) !important;
+    z-index: 999999 !important;
+}
+
+.financeiro-modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
+
+.financeiro-modal-backdrop {
+    position: absolute !important;
+    inset: 0 !important;
+    background: transparent !important;
+}
+
+.financeiro-modal-card {
+    position: relative !important;
+    z-index: 1000000 !important;
+    width: min(920px, calc(100vw - 32px)) !important;
+    max-height: calc(100vh - 32px) !important;
+    overflow: auto !important;
+    border-radius: 20px !important;
+    background: #ffffff !important;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28) !important;
+    display: block !important;
+}
+
+.financeiro-step-pane {
+    display: none !important;
+}
+
+.financeiro-step-pane.is-active {
+    display: block !important;
+}
+
+body.financeiro-modal-open {
+    overflow: hidden !important;
+}
