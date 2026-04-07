@@ -756,10 +756,15 @@ async function baixarConta(contaId) {
 
 function abrirFormularioConta() {
     const overlay = document.getElementById("financeiro-modal-overlay");
+    const card = document.getElementById("financeiro-modal-card");
 
-    if (!overlay) {
-        notifyToast("O wizard/modal não foi encontrado no HTML atual.", "error");
+    if (!overlay || !card) {
+        console.error("Modal não encontrado.");
         return;
+    }
+
+    if (overlay.parentElement !== document.body) {
+        document.body.appendChild(overlay);
     }
 
     limparFormularioConta();
@@ -767,7 +772,31 @@ function abrirFormularioConta() {
     atualizarRotulosFormulario();
     atualizarWizardFinanceiro();
 
-    overlay.style.display = "flex";
+    overlay.removeAttribute("style");
+    card.removeAttribute("style");
+
+    overlay.style.display = "block";
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100vw";
+    overlay.style.height = "100vh";
+    overlay.style.background = "rgba(15, 23, 42, 0.45)";
+    overlay.style.zIndex = "999999";
+
+    card.style.position = "fixed";
+    card.style.top = "50%";
+    card.style.left = "50%";
+    card.style.transform = "translate(-50%, -50%)";
+    card.style.width = "min(920px, calc(100vw - 32px))";
+    card.style.maxHeight = "calc(100vh - 32px)";
+    card.style.overflow = "auto";
+    card.style.background = "#fff";
+    card.style.borderRadius = "20px";
+    card.style.boxShadow = "0 24px 80px rgba(15, 23, 42, 0.28)";
+    card.style.zIndex = "1000000";
+    card.style.display = "block";
+
     document.body.classList.add("financeiro-modal-open");
 
     if (financeiroModo === "pagar") {
@@ -777,8 +806,14 @@ function abrirFormularioConta() {
 
 function fecharFormularioConta() {
     const overlay = document.getElementById("financeiro-modal-overlay");
+    const card = document.getElementById("financeiro-modal-card");
+
     if (overlay) {
         overlay.style.display = "none";
+    }
+
+    if (card) {
+        card.removeAttribute("style");
     }
 
     document.body.classList.remove("financeiro-modal-open");
@@ -998,14 +1033,16 @@ function atualizarWizardFinanceiro() {
     if (step3 && financeiroWizardStep === 3) step3.classList.add("is-active");
 
     if (indicador1) {
-        if (financeiroWizardStep === 1) indicador1.classList.add("is-active");
-        if (financeiroWizardStep > 1) indicador1.classList.add("is-done");
+        indicador1.classList.add("is-active");
+        if (financeiroWizardStep > 1) {
+            indicador1.classList.remove("is-active");
+            indicador1.classList.add("is-done");
+        }
     }
 
     if (indicador2) {
-        const step2Exists = financeiroModo === "pagar";
-        if (!step2Exists) {
-            indicador2.classList.add("is-done");
+        if (financeiroModo === "receber") {
+            indicador2.classList.remove("is-active", "is-done");
         } else if (financeiroWizardStep === 2) {
             indicador2.classList.add("is-active");
         } else if (financeiroWizardStep > 2) {
@@ -1024,8 +1061,8 @@ function atualizarWizardFinanceiro() {
     if (btnAvancar) {
         btnAvancar.style.display = financeiroWizardStep < 3 ? "inline-flex" : "none";
         btnAvancar.textContent =
-            financeiroWizardStep === 2 || (financeiroModo === "receber" && financeiroWizardStep === 1)
-                ? "Revisar"
+            financeiroModo === "receber" && financeiroWizardStep === 1
+                ? "Ir para Revisão"
                 : "Avançar";
     }
 
@@ -1035,40 +1072,100 @@ function atualizarWizardFinanceiro() {
 }
 
 function atualizarResumoWizardFinanceiro() {
-    const descricao = getValue("financeiro-descricao");
-    const valor = getValue("financeiro-valor");
-    const vencimento = getValue("financeiro-vencimento");
-    const observacao = getValue("financeiro-observacao");
-    const clienteId = getValue("financeiro-cliente-id");
-    const fornecedor = getValue("financeiro-fornecedor");
-
-    const grupo = getValue("financeiro-grupo-dre");
-    const categoria = getValue("financeiro-categoria-dre");
-    const selectSubcategoria = document.getElementById("financeiro-subcategoria-dre");
-    const subcategoriaTexto =
-        selectSubcategoria && selectSubcategoria.selectedIndex >= 0
-            ? (selectSubcategoria.options[selectSubcategoria.selectedIndex]?.text || "")
-            : "";
-
-    setText(
-        "financeiro-review-pessoa",
+    const pessoa =
         financeiroModo === "receber"
-            ? (clienteId ? `Cliente ID ${clienteId}` : "Não informado")
-            : (fornecedor || "Não informado")
-    );
+            ? (getValue("financeiro-cliente-id") || "Não informado")
+            : (getValue("financeiro-fornecedor") || "Não informado");
 
-    setText("financeiro-review-descricao", descricao || "-");
-    setText("financeiro-review-valor", formatarMoeda(valor || 0));
+    const descricao = getValue("financeiro-descricao") || "-";
+    const valor = Number(getValue("financeiro-valor") || 0);
+    const vencimento = getValue("financeiro-vencimento");
+    const observacao = getValue("financeiro-observacao") || "Sem observação";
+
+    const selectGrupo = document.getElementById("financeiro-grupo-dre");
+    const selectCategoria = document.getElementById("financeiro-categoria-dre");
+    const selectSubcategoria = document.getElementById("financeiro-subcategoria-dre");
+
+    const grupo = selectGrupo?.selectedOptions?.[0]?.textContent || "-";
+    const categoria = selectCategoria?.selectedOptions?.[0]?.textContent || "-";
+    const subcategoria = selectSubcategoria?.selectedOptions?.[0]?.textContent || "-";
+
+    setText("financeiro-review-pessoa", String(pessoa));
+    setText("financeiro-review-descricao", descricao);
+    setText("financeiro-review-valor", formatarMoeda(valor));
     setText("financeiro-review-vencimento", vencimento ? formatarData(vencimento) : "-");
-    setText("financeiro-review-grupo", grupo || (financeiroModo === "receber" ? "Não se aplica" : "-"));
-    setText("financeiro-review-categoria", categoria || (financeiroModo === "receber" ? "Não se aplica" : "-"));
-    setText(
-        "financeiro-review-subcategoria",
-        subcategoriaTexto && subcategoriaTexto !== "Selecione a subcategoria"
-            ? subcategoriaTexto
-            : (financeiroModo === "receber" ? "Não se aplica" : "-")
-    );
-    setText("financeiro-review-observacao", observacao || "Sem observação");
+    setText("financeiro-review-grupo", financeiroModo === "pagar" ? grupo : "Não se aplica");
+    setText("financeiro-review-categoria", financeiroModo === "pagar" ? categoria : "Não se aplica");
+    setText("financeiro-review-subcategoria", financeiroModo === "pagar" ? subcategoria : "Não se aplica");
+    setText("financeiro-review-observacao", observacao);
+}
+
+function preencherCamposCompetencia() {
+    const selectMes = document.getElementById("financeiro-mes");
+    const inputAno = document.getElementById("financeiro-ano");
+
+    if (selectMes) {
+        selectMes.value = String(financeiroCompetencia.mes);
+    }
+
+    if (inputAno) {
+        inputAno.value = String(financeiroCompetencia.ano);
+    }
+}
+
+function atualizarCompetenciaDosCampos() {
+    const selectMes = document.getElementById("financeiro-mes");
+    const inputAno = document.getElementById("financeiro-ano");
+
+    const mes = Number(selectMes?.value || 0);
+    const ano = Number(inputAno?.value || 0);
+
+    if (!mes || mes < 1 || mes > 12) {
+        notifyToast("Selecione um mês válido.", "error");
+        return false;
+    }
+
+    if (!ano || ano < 2000 || ano > 2100) {
+        notifyToast("Informe um ano válido.", "error");
+        return false;
+    }
+
+    financeiroCompetencia = { mes, ano };
+    atualizarLabelCompetencia();
+    return true;
+}
+
+function atualizarLabelCompetencia() {
+    const el = document.getElementById("financeiro-competencia-atual");
+    if (!el) return;
+
+    const mesNome = obterNomeMes(financeiroCompetencia.mes);
+    el.textContent = `${mesNome} / ${financeiroCompetencia.ano}`;
+}
+
+function montarQueryFinanceiro() {
+    const params = new URLSearchParams();
+    params.set("empresa_id", String(FINANCEIRO_EMPRESA_ID));
+    params.set("mes", String(financeiroCompetencia.mes));
+    params.set("ano", String(financeiroCompetencia.ano));
+    return params.toString();
+}
+
+function obterCompetenciaAtual() {
+    const hoje = new Date();
+    return {
+        mes: hoje.getMonth() + 1,
+        ano: hoje.getFullYear()
+    };
+}
+
+function obterNomeMes(mes) {
+    const meses = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
+
+    return meses[Number(mes) - 1] || "Mês";
 }
 
 function obterClasseStatus(status) {
@@ -1085,72 +1182,6 @@ function obterClasseStatus(status) {
     }
 
     return "financeiro-status-pendente";
-}
-
-function obterCompetenciaAtual() {
-    const hoje = new Date();
-    return {
-        mes: hoje.getMonth() + 1,
-        ano: hoje.getFullYear()
-    };
-}
-
-function preencherCamposCompetencia() {
-    setValue("financeiro-mes", String(financeiroCompetencia.mes));
-    setValue("financeiro-ano", String(financeiroCompetencia.ano));
-}
-
-function atualizarCompetenciaDosCampos() {
-    const mes = Number(getValue("financeiro-mes"));
-    const ano = Number(getValue("financeiro-ano"));
-
-    if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
-        notifyToast("Informe um mês válido.", "error");
-        return false;
-    }
-
-    if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) {
-        notifyToast("Informe um ano válido.", "error");
-        return false;
-    }
-
-    financeiroCompetencia = { mes, ano };
-    atualizarLabelCompetencia();
-    return true;
-}
-
-function montarQueryFinanceiro() {
-    const params = new URLSearchParams();
-    params.set("empresa_id", String(FINANCEIRO_EMPRESA_ID));
-    params.set("mes", String(financeiroCompetencia.mes));
-    params.set("ano", String(financeiroCompetencia.ano));
-    return params.toString();
-}
-
-function atualizarLabelCompetencia() {
-    const el = document.getElementById("financeiro-competencia-atual");
-    if (!el) return;
-
-    el.textContent = `${obterNomeMes(financeiroCompetencia.mes)}/${financeiroCompetencia.ano}`;
-}
-
-function obterNomeMes(mes) {
-    const nomes = {
-        1: "Janeiro",
-        2: "Fevereiro",
-        3: "Março",
-        4: "Abril",
-        5: "Maio",
-        6: "Junho",
-        7: "Julho",
-        8: "Agosto",
-        9: "Setembro",
-        10: "Outubro",
-        11: "Novembro",
-        12: "Dezembro"
-    };
-
-    return nomes[Number(mes)] || "Mês";
 }
 
 async function fetchJsonSafe(url, options = {}) {
@@ -1184,27 +1215,22 @@ function formatarMoeda(valor) {
 function formatarData(valor) {
     if (!valor) return "-";
 
-    const texto = String(valor);
+    const data = new Date(`${valor}T00:00:00`);
+    if (Number.isNaN(data.getTime())) return valor;
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
-        const [ano, mes, dia] = texto.split("-");
-        return `${dia}/${mes}/${ano}`;
-    }
-
-    return texto;
+    return data.toLocaleDateString("pt-BR");
 }
 
 function formatarDataCurta(valor) {
     if (!valor) return "-";
 
-    const texto = String(valor);
+    const data = new Date(`${valor}T00:00:00`);
+    if (Number.isNaN(data.getTime())) return valor;
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
-        const [, mes, dia] = texto.split("-");
-        return `${dia}/${mes}`;
-    }
-
-    return texto;
+    return data.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit"
+    });
 }
 
 function escapeHtml(valor) {
@@ -1214,6 +1240,13 @@ function escapeHtml(valor) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.textContent = value;
+    }
 }
 
 function notifyToast(message, type = "success") {
@@ -1230,7 +1263,6 @@ function notifyToast(message, type = "success") {
     }
 
     console.log(`[${type}] ${message}`);
-    alert(message);
 }
 
 function getValue(id) {
@@ -1245,9 +1277,7 @@ function setValue(id, value) {
     }
 }
 
-function setText(id, value) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.textContent = value;
-    }
-}
+window.abrirFormularioConta = abrirFormularioConta;
+window.fecharFormularioConta = fecharFormularioConta;
+window.salvarConta = salvarConta;
+window.baixarConta = baixarConta;

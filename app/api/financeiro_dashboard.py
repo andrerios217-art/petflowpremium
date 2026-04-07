@@ -145,6 +145,7 @@ def dashboard_financeiro(
             func.coalesce(FinanceiroPlanoDRE.grupo, "Sem grupo").label("grupo_dre"),
             func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
         )
+        .select_from(FinanceiroPagar)
         .outerjoin(
             FinanceiroPlanoDRE,
             FinanceiroPlanoDRE.id == FinanceiroPagar.classificacao_dre_id,
@@ -166,6 +167,7 @@ def dashboard_financeiro(
             func.coalesce(FinanceiroPlanoDRE.categoria, "Sem categoria").label("categoria_dre"),
             func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
         )
+        .select_from(FinanceiroPagar)
         .outerjoin(
             FinanceiroPlanoDRE,
             FinanceiroPlanoDRE.id == FinanceiroPagar.classificacao_dre_id,
@@ -193,6 +195,7 @@ def dashboard_financeiro(
             ),
             func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
         )
+        .select_from(FinanceiroPagar)
         .outerjoin(
             FinanceiroPlanoDRE,
             FinanceiroPlanoDRE.id == FinanceiroPagar.classificacao_dre_id,
@@ -248,10 +251,7 @@ def dashboard_financeiro(
 
     grafico_7_dias = []
 
-    if usar_hoje_real:
-        base_final_grafico = hoje
-    else:
-        base_final_grafico = fim_mes
+    base_final_grafico = hoje if usar_hoje_real else fim_mes
 
     for i in range(6, -1, -1):
         dia = base_final_grafico - timedelta(days=i)
