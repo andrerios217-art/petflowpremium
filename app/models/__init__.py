@@ -20,6 +20,7 @@ from app.models.estoque_deposito import EstoqueDeposito
 from app.models.estoque_movimento import EstoqueMovimento
 from app.models.estoque_saldo import EstoqueSaldo
 from app.models.financeiro_pagar import FinanceiroPagar
+from app.models.financeiro_plano_dre import FinanceiroPlanoDRE
 from app.models.financeiro_receber import FinanceiroReceber
 from app.models.funcionario import Funcionario
 from app.models.nota_entrada import NotaEntrada

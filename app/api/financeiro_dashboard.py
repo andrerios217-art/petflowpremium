@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
 from app.models.financeiro_pagar import FinanceiroPagar
+from app.models.financeiro_plano_dre import FinanceiroPlanoDRE
 from app.models.financeiro_receber import FinanceiroReceber
 
 router = APIRouter(prefix="/api/financeiro/dashboard", tags=["Financeiro Dashboard"])
@@ -29,7 +30,6 @@ def dashboard_financeiro(
     db: Session = Depends(get_db),
 ):
     hoje = date.today()
-
     competencia_mes = mes or hoje.month
     competencia_ano = ano or hoje.year
 
@@ -39,9 +39,6 @@ def dashboard_financeiro(
     usar_hoje_real = competencia_mes == hoje.month and competencia_ano == hoje.year
     data_final_periodo = hoje if usar_hoje_real else fim_mes
 
-    # =========================
-    # ENTRADAS HOJE
-    # =========================
     entradas_hoje = (
         db.query(func.coalesce(func.sum(FinanceiroReceber.valor_pago), 0))
         .filter(
@@ -52,9 +49,6 @@ def dashboard_financeiro(
         .scalar()
     )
 
-    # =========================
-    # SAÍDAS HOJE
-    # =========================
     saidas_hoje = (
         db.query(func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0))
         .filter(
@@ -65,9 +59,6 @@ def dashboard_financeiro(
         .scalar()
     )
 
-    # =========================
-    # RECEITA / DESPESA DO MÊS
-    # =========================
     receita_mes = (
         db.query(func.coalesce(func.sum(FinanceiroReceber.valor_pago), 0))
         .filter(
@@ -93,9 +84,6 @@ def dashboard_financeiro(
     lucro_hoje = _to_float(entradas_hoje) - _to_float(saidas_hoje)
     lucro_mes = _to_float(receita_mes) - _to_float(despesa_mes)
 
-    # =========================
-    # CONTAS A RECEBER
-    # =========================
     pendente_hoje = (
         db.query(func.coalesce(func.sum(FinanceiroReceber.valor), 0))
         .filter(
@@ -129,9 +117,6 @@ def dashboard_financeiro(
         .scalar()
     )
 
-    # =========================
-    # CONTAS A PAGAR
-    # =========================
     pagar_aberto = (
         db.query(func.coalesce(func.sum(FinanceiroPagar.valor), 0))
         .filter(
@@ -155,13 +140,14 @@ def dashboard_financeiro(
         .scalar()
     )
 
-    # =========================
-    # DRE GERENCIAL - DESPESAS
-    # =========================
     despesas_por_grupo_rows = (
         db.query(
-            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").label("grupo_dre"),
+            func.coalesce(FinanceiroPlanoDRE.grupo, "Sem grupo").label("grupo_dre"),
             func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
+        )
+        .outerjoin(
+            FinanceiroPlanoDRE,
+            FinanceiroPlanoDRE.id == FinanceiroPagar.classificacao_dre_id,
         )
         .filter(
             FinanceiroPagar.empresa_id == empresa_id,
@@ -169,16 +155,20 @@ def dashboard_financeiro(
             FinanceiroPagar.data_pagamento <= data_final_periodo,
             FinanceiroPagar.status == "PAGO",
         )
-        .group_by(FinanceiroPagar.grupo_dre)
+        .group_by(FinanceiroPlanoDRE.grupo)
         .order_by(func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).desc())
         .all()
     )
 
     despesas_por_categoria_rows = (
         db.query(
-            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").label("grupo_dre"),
-            func.coalesce(FinanceiroPagar.categoria_dre, "Sem categoria").label("categoria_dre"),
+            func.coalesce(FinanceiroPlanoDRE.grupo, "Sem grupo").label("grupo_dre"),
+            func.coalesce(FinanceiroPlanoDRE.categoria, "Sem categoria").label("categoria_dre"),
             func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
+        )
+        .outerjoin(
+            FinanceiroPlanoDRE,
+            FinanceiroPlanoDRE.id == FinanceiroPagar.classificacao_dre_id,
         )
         .filter(
             FinanceiroPagar.empresa_id == empresa_id,
@@ -186,9 +176,9 @@ def dashboard_financeiro(
             FinanceiroPagar.data_pagamento <= data_final_periodo,
             FinanceiroPagar.status == "PAGO",
         )
-        .group_by(FinanceiroPagar.grupo_dre, FinanceiroPagar.categoria_dre)
+        .group_by(FinanceiroPlanoDRE.grupo, FinanceiroPlanoDRE.categoria)
         .order_by(
-            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").asc(),
+            func.coalesce(FinanceiroPlanoDRE.grupo, "Sem grupo").asc(),
             func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).desc(),
         )
         .all()
@@ -196,10 +186,16 @@ def dashboard_financeiro(
 
     despesas_por_subcategoria_rows = (
         db.query(
-            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").label("grupo_dre"),
-            func.coalesce(FinanceiroPagar.categoria_dre, "Sem categoria").label("categoria_dre"),
-            func.coalesce(FinanceiroPagar.subcategoria_dre, "Sem subcategoria").label("subcategoria_dre"),
+            func.coalesce(FinanceiroPlanoDRE.grupo, "Sem grupo").label("grupo_dre"),
+            func.coalesce(FinanceiroPlanoDRE.categoria, "Sem categoria").label("categoria_dre"),
+            func.coalesce(FinanceiroPlanoDRE.subcategoria, "Sem subcategoria").label(
+                "subcategoria_dre"
+            ),
             func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).label("total"),
+        )
+        .outerjoin(
+            FinanceiroPlanoDRE,
+            FinanceiroPlanoDRE.id == FinanceiroPagar.classificacao_dre_id,
         )
         .filter(
             FinanceiroPagar.empresa_id == empresa_id,
@@ -208,13 +204,13 @@ def dashboard_financeiro(
             FinanceiroPagar.status == "PAGO",
         )
         .group_by(
-            FinanceiroPagar.grupo_dre,
-            FinanceiroPagar.categoria_dre,
-            FinanceiroPagar.subcategoria_dre,
+            FinanceiroPlanoDRE.grupo,
+            FinanceiroPlanoDRE.categoria,
+            FinanceiroPlanoDRE.subcategoria,
         )
         .order_by(
-            func.coalesce(FinanceiroPagar.grupo_dre, "Sem grupo").asc(),
-            func.coalesce(FinanceiroPagar.categoria_dre, "Sem categoria").asc(),
+            func.coalesce(FinanceiroPlanoDRE.grupo, "Sem grupo").asc(),
+            func.coalesce(FinanceiroPlanoDRE.categoria, "Sem categoria").asc(),
             func.coalesce(func.sum(FinanceiroPagar.valor_pago), 0).desc(),
         )
         .all()
@@ -247,13 +243,9 @@ def dashboard_financeiro(
         for row in despesas_por_subcategoria_rows
     ]
 
-    # Mantém compatibilidade com o dashboard antigo
     caixa_hoje = entradas_hoje
     vencido = receber_vencido
 
-    # =========================
-    # GRÁFICO 7 DIAS
-    # =========================
     grafico_7_dias = []
 
     if usar_hoje_real:

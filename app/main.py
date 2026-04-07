@@ -6,7 +6,6 @@ from fastapi.templating import Jinja2Templates
 from app.core.database import Base, engine
 from app.models import *  # noqa
 import app.models  # noqa
-
 from app.api import auth, empresas, usuarios, configuracoes
 from app.api import agenda_api
 from app.api import clientes_api
@@ -21,6 +20,7 @@ from app.api.comissao import router as comissao_router
 from app.api.estoque_api import router as estoque_router
 from app.api.financeiro_api import router as financeiro_router
 from app.api.financeiro_dashboard import router as financeiro_dashboard_router
+from app.api.financeiro_dre_api import router as financeiro_dre_router
 from app.api.financeiro_extrato_api import router as financeiro_extrato_router
 from app.api.financeiro_pagar_api import router as financeiro_pagar_router
 from app.api.nota_entrada_api import router as nota_entrada_router
@@ -32,6 +32,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Pet Flow Premium", version="1.0.0")
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 templates = Jinja2Templates(directory="app/templates")
 
 app.include_router(auth.router)
@@ -51,6 +52,7 @@ app.include_router(estoque_router)
 app.include_router(nota_entrada_router)
 app.include_router(financeiro_router)
 app.include_router(financeiro_dashboard_router)
+app.include_router(financeiro_dre_router)
 app.include_router(financeiro_extrato_router)
 app.include_router(financeiro_pagar_router)
 app.include_router(pdv_router)
@@ -81,7 +83,7 @@ def clientes_form_page(request: Request):
 @app.get("/clientes/editar/{cliente_id}", response_class=HTMLResponse)
 def clientes_edit_page(request: Request, cliente_id: int):
     return templates.TemplateResponse(
-        request, "clientes_form.html", {"request": request, "cliente_id": cliente_id},
+        request, "clientes_form.html", {"request": request, "cliente_id": cliente_id}
     )
 
 
@@ -108,7 +110,7 @@ def servicos_form_page(request: Request):
 @app.get("/servicos/editar/{servico_id}", response_class=HTMLResponse)
 def servicos_edit_page(request: Request, servico_id: int):
     return templates.TemplateResponse(
-        request, "servicos_form.html", {"request": request, "servico_id": servico_id},
+        request, "servicos_form.html", {"request": request, "servico_id": servico_id}
     )
 
 
@@ -125,7 +127,7 @@ def funcionarios_form_page(request: Request):
 @app.get("/funcionarios/editar/{funcionario_id}", response_class=HTMLResponse)
 def funcionarios_edit_page(request: Request, funcionario_id: int):
     return templates.TemplateResponse(
-        request, "funcionarios_form.html", {"request": request, "funcionario_id": funcionario_id},
+        request, "funcionarios_form.html", {"request": request, "funcionario_id": funcionario_id}
     )
 
 
@@ -142,7 +144,9 @@ def agenda_veterinaria_page(request: Request):
 @app.get("/atendimento-clinico/{agendamento_id}", response_class=HTMLResponse)
 def atendimento_clinico_page(request: Request, agendamento_id: int):
     return templates.TemplateResponse(
-        request, "atendimento_clinico.html", {"request": request, "agendamento_id": agendamento_id},
+        request,
+        "atendimento_clinico.html",
+        {"request": request, "agendamento_id": agendamento_id},
     )
 
 

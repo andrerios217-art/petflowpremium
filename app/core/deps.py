@@ -48,6 +48,7 @@ def get_current_actor(
 
     if isinstance(sub, str) and sub.startswith("funcionario:"):
         funcionario_id_raw = sub.split(":", 1)[1]
+
         if not funcionario_id_raw.isdigit():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -99,11 +100,13 @@ def get_empresa_id_atual(
     current_actor: dict = Depends(get_current_actor),
 ) -> int:
     empresa_id = current_actor.get("empresa_id")
+
     if not empresa_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Usuário sem empresa vinculada.",
         )
+
     return int(empresa_id)
 
 
@@ -111,11 +114,13 @@ def get_usuario_id_atual(
     current_actor: dict = Depends(get_current_actor),
 ) -> int:
     usuario_id = current_actor.get("id")
+
     if not usuario_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuário autenticado inválido.",
         )
+
     return int(usuario_id)
 
 
@@ -127,4 +132,5 @@ def get_usuario_admin_id_atual(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ação permitida apenas para usuário administrador.",
         )
+
     return int(current_actor["id"])

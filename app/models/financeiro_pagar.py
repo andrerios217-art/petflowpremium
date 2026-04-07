@@ -25,9 +25,12 @@ class FinanceiroPagar(Base):
     descricao = Column(String(255), nullable=False)
     observacao = Column(Text, nullable=True)
 
-    grupo_dre = Column(String(100), nullable=True, index=True)
-    categoria_dre = Column(String(100), nullable=True, index=True)
-    subcategoria_dre = Column(String(100), nullable=True, index=True)
+    classificacao_dre_id = Column(
+        Integer,
+        ForeignKey("financeiro_plano_dre.id"),
+        nullable=True,
+        index=True,
+    )
 
     valor = Column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
     valor_pago = Column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
@@ -45,6 +48,25 @@ class FinanceiroPagar(Base):
     )
 
     empresa = relationship("Empresa")
+    classificacao_dre = relationship("FinanceiroPlanoDRE", back_populates="contas_pagar")
+
+    @property
+    def grupo_dre(self) -> str | None:
+        if not self.classificacao_dre:
+            return None
+        return self.classificacao_dre.grupo
+
+    @property
+    def categoria_dre(self) -> str | None:
+        if not self.classificacao_dre:
+            return None
+        return self.classificacao_dre.categoria
+
+    @property
+    def subcategoria_dre(self) -> str | None:
+        if not self.classificacao_dre:
+            return None
+        return self.classificacao_dre.subcategoria
 
     @property
     def esta_vencido(self) -> bool:
