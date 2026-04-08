@@ -1,8 +1,10 @@
 {% extends "layout/base.html" %}
 
-{% block content %}
-<link rel="stylesheet" href="/static/css/financeiro.css">
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/financeiro.css?v=20260408-1">
+{% endblock %}
 
+{% block content %}
 <div class="financeiro-page">
     <div class="financeiro-header">
         <div>
@@ -388,7 +390,7 @@
     </div>
 </div>
 
-<script src="/static/js/financeiro.js"></script>
+<script src="/static/js/financeiro.js?v=20260408-1"></script>
 <script>
     function espelharDreResumo() {
         const receita = document.getElementById("financeiro-dre-receita");
