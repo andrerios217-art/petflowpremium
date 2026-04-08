@@ -762,21 +762,14 @@ function abrirFormularioConta() {
         return;
     }
 
-    if (overlay.parentElement !== document.body) {
-        document.body.appendChild(overlay);
-    }
-
     limparFormularioConta();
     financeiroWizardStep = 1;
     atualizarRotulosFormulario();
     atualizarWizardFinanceiro();
 
     overlay.style.display = "flex";
+    overlay.setAttribute("aria-hidden", "false");
     document.body.classList.add("financeiro-modal-open");
-
-    if (financeiroModo === "pagar") {
-        carregarPlanoDre();
-    }
 }
 
 function fecharFormularioConta() {
@@ -784,6 +777,7 @@ function fecharFormularioConta() {
 
     if (overlay) {
         overlay.style.display = "none";
+        overlay.setAttribute("aria-hidden", "true");
     }
 
     document.body.classList.remove("financeiro-modal-open");

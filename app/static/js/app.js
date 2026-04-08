@@ -118,40 +118,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function garantirTemaClaro() {
         limparStoragesDeTema();
 
-        document.documentElement.removeAttribute("data-theme");
-        document.body?.removeAttribute("data-theme");
+        if (document.documentElement) {
+            document.documentElement.removeAttribute("data-theme");
+            removerClassesTemaEscuro(document.documentElement);
+        }
 
-        removerClassesTemaEscuro(document.documentElement);
-        removerClassesTemaEscuro(document.body);
+        if (document.body) {
+            document.body.removeAttribute("data-theme");
+            removerClassesTemaEscuro(document.body);
+        }
 
         removerBotoesTema();
-    }
-
-    function observarMutacoesTema() {
-        const observer = new MutationObserver((mutations) => {
-            let deveReaplicarTemaClaro = false;
-
-            mutations.forEach((mutation) => {
-                if (mutation.type === "attributes") {
-                    deveReaplicarTemaClaro = true;
-                }
-
-                if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-                    deveReaplicarTemaClaro = true;
-                }
-            });
-
-            if (deveReaplicarTemaClaro) {
-                garantirTemaClaro();
-            }
-        });
-
-        observer.observe(document.documentElement, {
-            subtree: true,
-            childList: true,
-            attributes: true,
-            attributeFilter: ["data-theme", "class"],
-        });
     }
 
     function criarContainerToast() {
@@ -192,15 +169,39 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 3000);
     }
 
-   if (typeof window.showToast !== "function") {
-    window.showToast = showToast;
-}
+    if (typeof window.showToast !== "function") {
+        window.showToast = showToast;
+    }
 
-if (typeof window.notifyToast !== "function") {
-    window.notifyToast = showToast;
-}
+    if (typeof window.notifyToast !== "function") {
+        window.notifyToast = showToast;
+    }
 
     garantirTemaClaro();
-    observarMutacoesTema();
     aplicarPermissoesSidebar();
+});
+
+window.addEventListener("pageshow", () => {
+    try {
+        document.documentElement?.removeAttribute("data-theme");
+        document.body?.removeAttribute("data-theme");
+
+        document.documentElement?.classList.remove(
+            "dark",
+            "theme-dark",
+            "dark-mode",
+            "modo-escuro",
+            "is-dark"
+        );
+
+        document.body?.classList.remove(
+            "dark",
+            "theme-dark",
+            "dark-mode",
+            "modo-escuro",
+            "is-dark"
+        );
+    } catch (error) {
+        console.warn("Erro ao reforçar tema claro no pageshow:", error);
+    }
 });
