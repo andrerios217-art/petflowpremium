@@ -55,7 +55,7 @@ def obter_cliente(cliente_id: int, db: Session = Depends(get_db)):
             "email": cliente.email,
             "telefone": cliente.telefone,
             "telefone_fixo": cliente.telefone_fixo,
-            "ativo": cliente.ativo
+            "ativo": cliente.ativo,
         },
         "endereco": {
             "cep": endereco.cep if endereco else None,
@@ -64,7 +64,7 @@ def obter_cliente(cliente_id: int, db: Session = Depends(get_db)):
             "bairro": endereco.bairro if endereco else None,
             "cidade": endereco.cidade if endereco else None,
             "uf": endereco.uf if endereco else None,
-            "complemento": endereco.complemento if endereco else None
+            "complemento": endereco.complemento if endereco else None,
         },
         "pets": [
             {
@@ -80,7 +80,7 @@ def obter_cliente(cliente_id: int, db: Session = Depends(get_db)):
                 "pode_perfume": pet.pode_perfume,
                 "pode_acessorio": pet.pode_acessorio,
                 "castrado": pet.castrado,
-                "ativo": pet.ativo
+                "ativo": pet.ativo,
             }
             for pet in pets
         ]
@@ -111,12 +111,13 @@ def criar_completo(payload: ClienteCompletoCreate, db: Session = Depends(get_db)
         data=payload.endereco.model_dump()
     )
 
-    pets = pet_crud.create_many_from_list(
-        db=db,
-        empresa_id=payload.cliente.empresa_id,
-        cliente_id=cliente.id,
-        pets_data=[pet.model_dump() for pet in payload.pets]
-    )
+    pets = []
+    for pet_data in payload.pets:
+        dados_pet = pet_data.model_dump()
+        dados_pet["empresa_id"] = payload.cliente.empresa_id
+        dados_pet["cliente_id"] = cliente.id
+        pet = pet_crud.create(db, dados_pet)
+        pets.append(pet)
 
     return {
         "cliente_id": cliente.id,

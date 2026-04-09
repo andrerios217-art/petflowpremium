@@ -18,11 +18,15 @@ let confirmAction = null;
 let agendaAutoRefresh = null;
 let carregandoAgenda = false;
 let carregandoDetalheAgenda = false;
+let carregandoClientesPetsBase = false;
+let promessaCargaClientesPetsBase = null;
 let ultimoSnapshotAgenda = "";
 let ultimoSnapshotDetalhe = "";
 let ultimoRefreshManualAgenda = 0;
+let ultimaCargaClientesPetsBase = 0;
 
 const TIPO_SERVICO_AGENDA = "PETSHOP";
+const TTL_CACHE_CLIENTES_PETS_MS = 10000;
 
 /* =========================================================
    UTIL
@@ -455,21 +459,63 @@ function iniciarAutoRefreshAgenda() {
    CARGA DE BASE
 ========================================================= */
 
-async function carregarClientesPetsBase() {
-  const [clientesResp, petsResp] = await Promise.all([
-    fetch("/api/clientes/"),
-    fetch("/api/pets/")
-  ]);
+function precisaRecarregarClientesPetsBase(forcar = false) {
+  if (forcar) return true;
+  if (!clientesCache.length || !petsCache.length) return true;
+  return (Date.now() - ultimaCargaClientesPetsBase) > TTL_CACHE_CLIENTES_PETS_MS;
+}
 
-  clientesCache = await clientesResp.json();
-  petsCache = await petsResp.json();
+async function carregarClientesPetsBase(forcar = false) {
+  if (!precisaRecarregarClientesPetsBase(forcar)) {
+    return;
+  }
+
+  if (promessaCargaClientesPetsBase) {
+    await promessaCargaClientesPetsBase;
+    return;
+  }
+
+  carregandoClientesPetsBase = true;
+
+  promessaCargaClientesPetsBase = (async () => {
+    const [clientesResp, petsResp] = await Promise.all([
+      fetch("/api/clientes/", { cache: "no-store" }),
+      fetch("/api/pets/", { cache: "no-store" })
+    ]);
+
+    if (!clientesResp.ok) {
+      throw new Error(`Erro ao carregar clientes (${clientesResp.status})`);
+    }
+
+    if (!petsResp.ok) {
+      throw new Error(`Erro ao carregar pets (${petsResp.status})`);
+    }
+
+    const clientes = await clientesResp.json();
+    const pets = await petsResp.json();
+
+    clientesCache = Array.isArray(clientes) ? clientes : [];
+    petsCache = Array.isArray(pets) ? pets : [];
+    ultimaCargaClientesPetsBase = Date.now();
+  })();
+
+  try {
+    await promessaCargaClientesPetsBase;
+  } finally {
+    carregandoClientesPetsBase = false;
+    promessaCargaClientesPetsBase = null;
+  }
 }
 
 function atualizarSelectServicosPorPet() {
   const select = document.getElementById("servico-select");
   if (!select) return;
 
-  const portePet = String(petSelecionadoObj?.pet_porte || "").toUpperCase();
+  const portePet = String(
+    petSelecionadoObj?.pet_porte ||
+    petSelecionadoObj?.porte ||
+    ""
+  ).toUpperCase();
 
   select.innerHTML = `<option value="">Selecione um serviço</option>`;
 
@@ -556,13 +602,13 @@ function buscarClientesPets(termo) {
 
   const resultados = petsCache
     .map((pet) => {
-      const cliente = clientesCache.find((c) => c.id === pet.cliente_id);
+      const cliente = clientesCache.find((c) => Number(c.id) === Number(pet.cliente_id));
 
       return {
         pet_id: pet.id,
         pet_nome: pet.nome || "",
         pet_raca: pet.raca || "",
-        pet_porte: pet.porte || "",
+        pet_porte: pet.porte || pet.pet_porte || "",
         cliente_id: pet.cliente_id,
         cliente_nome: cliente?.nome || `Cliente #${pet.cliente_id}`,
         cliente_cpf: cliente?.cpf || "",
@@ -647,10 +693,17 @@ function atualizarTituloModal() {
   }
 }
 
-function abrirModal(dataPreenchida = null) {
+async function abrirModal(dataPreenchida = null) {
   modoEdicao = false;
   agendamentoEditandoId = null;
   atualizarTituloModal();
+
+  try {
+    await carregarClientesPetsBase(true);
+  } catch (error) {
+    console.error("Erro ao atualizar clientes/pets antes de abrir modal:", error);
+    mostrarMensagemAgenda("Não foi possível atualizar clientes e pets.");
+  }
 
   const modal = document.getElementById("agendamento-modal");
   if (!modal) return;
@@ -718,7 +771,7 @@ function preencherModalEdicao(ag) {
   const modal = document.getElementById("agendamento-modal");
   if (modal) modal.classList.remove("hidden");
 
-  const pet = petsCache.find((p) => p.id === ag.pet_id) || null;
+  const pet = petsCache.find((p) => Number(p.id) === Number(ag.pet_id)) || null;
 
   clienteSelecionado = ag.cliente_id;
   petSelecionado = ag.pet_id;
@@ -1048,7 +1101,12 @@ function adicionarServicoSelecionado() {
     return;
   }
 
-  const portePet = String(petSelecionadoObj.pet_porte || "").toUpperCase();
+  const portePet = String(
+    petSelecionadoObj.pet_porte ||
+    petSelecionadoObj.porte ||
+    ""
+  ).toUpperCase();
+
   const porteServico = String(servico.porte_referencia || "").toUpperCase();
 
   if (portePet && porteServico && portePet !== porteServico) {
@@ -1178,14 +1236,35 @@ async function salvarAgendamento(e) {
 ========================================================= */
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await carregarClientesPetsBase();
-  await carregarServicos();
-  await carregarFuncionarios();
-  await carregarAgenda(true);
+  try {
+    await carregarClientesPetsBase(true);
+  } catch (error) {
+    console.error("Erro ao carregar clientes/pets da agenda:", error);
+    clientesCache = [];
+    petsCache = [];
+  }
+
+  try {
+    await carregarServicos();
+  } catch (error) {
+    console.error("Erro ao carregar serviços da agenda:", error);
+  }
+
+  try {
+    await carregarFuncionarios();
+  } catch (error) {
+    console.error("Erro ao carregar funcionários da agenda:", error);
+  }
+
+  try {
+    await carregarAgenda(true);
+  } catch (error) {
+    console.error("Erro ao carregar agenda inicial:", error);
+  }
 
   iniciarAutoRefreshAgenda();
 
-  document.getElementById("novo-agendamento-btn")?.addEventListener("click", () => abrirModal());
+  document.getElementById("novo-agendamento-btn")?.addEventListener("click", async () => abrirModal());
   document.getElementById("fechar-modal")?.addEventListener("click", fecharModal);
   document.getElementById("cancelar-modal")?.addEventListener("click", fecharModal);
 
@@ -1213,8 +1292,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     await carregarAgenda(true);
   });
 
-  document.getElementById("busca-cliente-pet")?.addEventListener("input", (e) => {
-    buscarClientesPets(e.target.value);
+  document.getElementById("busca-cliente-pet")?.addEventListener("input", async (e) => {
+    const termo = e.target.value || "";
+
+    if (termo.trim().length >= 2 && precisaRecarregarClientesPetsBase()) {
+      try {
+        await carregarClientesPetsBase(true);
+      } catch (error) {
+        console.error("Erro ao atualizar base de clientes/pets durante busca:", error);
+      }
+    }
+
+    buscarClientesPets(termo);
   });
 
   document.getElementById("adicionar-servico-btn")?.addEventListener("click", adicionarServicoSelecionado);
@@ -1229,6 +1318,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.addEventListener("visibilitychange", async () => {
     if (!document.hidden && !modalAgendamentoAberto() && !modalConfirmAberto()) {
+      try {
+        await carregarClientesPetsBase(true);
+      } catch (error) {
+        console.error("Erro ao atualizar clientes/pets ao voltar para a aba:", error);
+      }
       await carregarAgenda(false);
       await atualizarDetalheAutomaticamente();
     }
