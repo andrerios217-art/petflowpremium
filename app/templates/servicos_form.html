@@ -41,12 +41,12 @@
 
     <div class="form-group">
       <label>Custo (R$)</label>
-      <input type="text" id="custo" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" required />
+      <input type="text" id="custo" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" required />
     </div>
 
     <div class="form-group">
       <label>Preço de venda (R$)</label>
-      <input type="text" id="venda" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" required />
+      <input type="text" id="venda" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" required />
     </div>
 
     <div class="form-group">
@@ -87,17 +87,28 @@ function parseMoeda(valor) {
     return Number.isFinite(valor) ? valor : 0;
   }
 
-  const texto = String(valor ?? "").trim();
+  let texto = String(valor ?? "").trim();
   if (!texto) return 0;
 
-  const normalizado = texto
-    .replace(/\s/g, "")
-    .replace(/R\$/gi, "")
-    .replace(/\./g, "")
-    .replace(/,/g, ".")
-    .replace(/[^\d.-]/g, "");
+  texto = texto.replace(/\s/g, "").replace(/[^\d,.-]/g, "");
+  if (!texto || texto === "," || texto === "." || texto === "-" || texto === "-," || texto === "-.") {
+    return 0;
+  }
 
-  const numero = Number(normalizado);
+  const temVirgula = texto.includes(",");
+  const temPonto = texto.includes(".");
+
+  if (temVirgula && temPonto) {
+    if (texto.lastIndexOf(",") > texto.lastIndexOf(".")) {
+      texto = texto.replace(/\./g, "").replace(",", ".");
+    } else {
+      texto = texto.replace(/,/g, "");
+    }
+  } else if (temVirgula) {
+    texto = texto.replace(",", ".");
+  }
+
+  const numero = Number(texto);
   return Number.isFinite(numero) ? numero : 0;
 }
 
@@ -109,14 +120,35 @@ function formatarMoeda(valor) {
   });
 }
 
+function getMoneyDigits(valor) {
+  return String(valor ?? "").replace(/\D/g, "");
+}
+
+function moneyDigitsToNumber(digits) {
+  const normalizado = String(digits ?? "").replace(/\D/g, "");
+  if (!normalizado) return 0;
+  return Number(normalizado) / 100;
+}
+
+function moveCaretToEnd(input) {
+  if (!input || typeof input.setSelectionRange !== "function") return;
+  const fim = input.value.length;
+  requestAnimationFrame(() => input.setSelectionRange(fim, fim));
+}
+
 function formatarMoedaEdicao(valor) {
-  const numero = parseMoeda(valor);
-  if (!numero) return "";
-  return numero.toFixed(2).replace(".", ",");
+  const digits = getMoneyDigits(valor);
+  if (!digits) return "";
+  return formatarMoeda(moneyDigitsToNumber(digits));
 }
 
 function configurarMascaraMoeda(input) {
-  if (!input) return;
+  if (!input || input.dataset.moneyBound === "true") return;
+
+  input.dataset.moneyBound = "true";
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.autocomplete = "off";
 
   input.addEventListener("focus", () => {
     input.value = formatarMoedaEdicao(input.value);
@@ -126,11 +158,16 @@ function configurarMascaraMoeda(input) {
   });
 
   input.addEventListener("input", () => {
-    const texto = String(input.value ?? "");
-    const limpo = texto.replace(/[^\d,.-]/g, "");
-    if (texto !== limpo) {
-      input.value = limpo;
+    const digits = getMoneyDigits(input.value);
+
+    if (!digits) {
+      input.value = "";
+      return;
     }
+
+    const numero = moneyDigitsToNumber(digits);
+    input.value = formatarMoeda(numero);
+    moveCaretToEnd(input);
   });
 
   input.addEventListener("blur", () => {
