@@ -176,7 +176,10 @@
     let str = String(value).trim();
     if (!str) return fallback;
 
-    str = str.replace(/\s+/g, "");
+    str = str.replace(/\s+/g, "").replace(/[^\d,.-]/g, "");
+    if (!str || str === "," || str === "." || str === "-" || str === "-," || str === "-.") {
+      return fallback;
+    }
 
     const hasComma = str.includes(",");
     const hasDot = str.includes(".");
@@ -202,15 +205,32 @@
     });
   }
 
+  function getMoneyDigits(value) {
+    return String(value ?? "").replace(/\D/g, "");
+  }
+
+  function moneyDigitsToNumber(digits) {
+    const normalized = String(digits ?? "").replace(/\D/g, "");
+    if (!normalized) return 0;
+    return Number(normalized) / 100;
+  }
+
+  function moveCaretToEnd(inputEl) {
+    if (!inputEl || typeof inputEl.setSelectionRange !== "function") return;
+    const end = inputEl.value.length;
+    requestAnimationFrame(() => inputEl.setSelectionRange(end, end));
+  }
+
   function formatEditableMoney(value) {
-    const number = toNumber(value, 0);
-    if (!number) return "";
-    return number.toFixed(2).replace(".", ",");
+    const digits = getMoneyDigits(value);
+    if (!digits) return "";
+    return formatMoney(moneyDigitsToNumber(digits));
   }
 
   function applyMoneyMask(inputEl) {
     if (!inputEl) return;
-    const number = toNumber(inputEl.value, 0);
+    const digits = getMoneyDigits(inputEl.value);
+    const number = digits ? moneyDigitsToNumber(digits) : toNumber(inputEl.value, 0);
     inputEl.value = number ? formatMoney(number) : "";
   }
 
@@ -219,7 +239,7 @@
 
     inputEl.dataset.moneyBound = "true";
     inputEl.type = "text";
-    inputEl.inputMode = "decimal";
+    inputEl.inputMode = "numeric";
     inputEl.autocomplete = "off";
 
     if (!inputEl.placeholder) {
@@ -239,10 +259,21 @@
     });
 
     inputEl.addEventListener("input", () => {
-      const cleaned = String(inputEl.value ?? "").replace(/[^\d,.-]/g, "");
-      if (cleaned !== inputEl.value) {
-        inputEl.value = cleaned;
+      const digits = getMoneyDigits(inputEl.value);
+
+      if (!digits) {
+        inputEl.value = "";
+        return;
       }
+
+      const number = moneyDigitsToNumber(digits);
+      if (!allowZero && number <= 0) {
+        inputEl.value = "";
+        return;
+      }
+
+      inputEl.value = formatMoney(number);
+      moveCaretToEnd(inputEl);
     });
 
     inputEl.addEventListener("blur", () => {
