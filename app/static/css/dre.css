@@ -1,0 +1,224 @@
+.dre-page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.dre-filtros-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dre-resumo-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dre-resumo-card .financeiro-kpi-value {
+    font-size: 1.7rem;
+}
+
+.dre-tabela-card {
+    padding: 24px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+
+.dre-tabela-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 22px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    background: #ffffff;
+}
+
+.dre-tabela {
+    width: 100%;
+    min-width: 920px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.dre-tabela thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 16px 18px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: left;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    white-space: nowrap;
+}
+
+.dre-tabela tbody td {
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    vertical-align: middle;
+    background: #ffffff;
+}
+
+.dre-tabela tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.dre-tabela .text-right,
+.dre-tabela td.text-right,
+.dre-tabela th.text-right {
+    text-align: right;
+}
+
+.dre-tabela .col-descricao {
+    width: 42%;
+}
+
+.dre-tabela .col-competencia {
+    width: 18%;
+}
+
+.dre-tabela .col-tipo {
+    width: 14%;
+}
+
+.dre-tabela .col-percentual {
+    width: 10%;
+}
+
+.dre-tabela .col-valor {
+    width: 16%;
+}
+
+.dre-descricao-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: calc(var(--dre-level, 0) * 22px);
+}
+
+.dre-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #23324a;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.dre-toggle:hover {
+    background: #f8fafc;
+    border-color: rgba(37, 99, 235, 0.22);
+    transform: scale(1.03);
+}
+
+.dre-toggle.is-hidden {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.dre-descricao {
+    color: #23324a;
+    font-weight: 700;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.dre-linha.is-grupo td {
+    background: linear-gradient(180deg, rgba(248, 250, 252, 1), rgba(255, 255, 255, 1));
+    font-weight: 800;
+}
+
+.dre-linha.is-categoria td {
+    background: rgba(250, 252, 255, 0.85);
+}
+
+.dre-linha.is-subcategoria td {
+    color: #5f6f86;
+}
+
+.dre-linha.is-subtotal td {
+    background: rgba(241, 245, 249, 0.9);
+    font-weight: 800;
+    color: #23324a;
+}
+
+.dre-linha.is-total td {
+    font-weight: 800;
+    color: #23324a;
+}
+
+.dre-linha.is-receita td {
+    background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
+}
+
+.dre-linha.is-positivo td {
+    background: linear-gradient(180deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.96));
+}
+
+.dre-linha.is-negativo td {
+    background: linear-gradient(180deg, rgba(254, 242, 242, 0.95), rgba(255, 255, 255, 0.96));
+}
+
+.dre-competencia,
+.dre-tipo,
+.dre-percentual {
+    color: #64748b;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.dre-valor {
+    color: #23324a;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.dre-empty {
+    text-align: center;
+    color: #7b8799;
+    padding: 28px 18px !important;
+    background: #ffffff !important;
+}
+
+.dre-error {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+    .dre-filtros-grid,
+    .dre-resumo-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 680px) {
+    .dre-tabela-card {
+        padding: 18px;
+    }
+
+    .dre-tabela {
+        min-width: 760px;
+    }
+
+    .dre-tabela thead th,
+    .dre-tabela tbody td {
+        padding: 12px 14px;
+    }
+
+    .dre-descricao-wrap {
+        padding-left: calc(var(--dre-level, 0) * 18px);
+    }
+}

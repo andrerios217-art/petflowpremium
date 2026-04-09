@@ -175,6 +175,11 @@ def financeiro_page(request: Request):
     return templates.TemplateResponse(request, "financeiro.html", {"request": request})
 
 
+@app.get("/dre", response_class=HTMLResponse)
+def dre_page(request: Request):
+    return templates.TemplateResponse(request, "dre.html", {"request": request})
+
+
 @app.get("/pdv", response_class=HTMLResponse)
 def pdv_page(request: Request):
     return templates.TemplateResponse(request, "pdv.html", {"request": request})
