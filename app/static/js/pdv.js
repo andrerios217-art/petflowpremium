@@ -202,6 +202,69 @@
     });
   }
 
+  function formatEditableMoney(value) {
+    const number = toNumber(value, 0);
+    if (!number) return "";
+    return number.toFixed(2).replace(".", ",");
+  }
+
+  function applyMoneyMask(inputEl) {
+    if (!inputEl) return;
+    const number = toNumber(inputEl.value, 0);
+    inputEl.value = number ? formatMoney(number) : "";
+  }
+
+  function bindMoneyInput(inputEl, { allowZero = true, readOnlyMask = false } = {}) {
+    if (!inputEl || inputEl.dataset.moneyBound === "true") return;
+
+    inputEl.dataset.moneyBound = "true";
+    inputEl.type = "text";
+    inputEl.inputMode = "decimal";
+    inputEl.autocomplete = "off";
+
+    if (!inputEl.placeholder) {
+      inputEl.placeholder = "R$ 0,00";
+    }
+
+    if (readOnlyMask) {
+      applyMoneyMask(inputEl);
+      return;
+    }
+
+    inputEl.addEventListener("focus", () => {
+      inputEl.value = formatEditableMoney(inputEl.value);
+      if (typeof inputEl.select === "function") {
+        inputEl.select();
+      }
+    });
+
+    inputEl.addEventListener("input", () => {
+      const cleaned = String(inputEl.value ?? "").replace(/[^\d,.-]/g, "");
+      if (cleaned !== inputEl.value) {
+        inputEl.value = cleaned;
+      }
+    });
+
+    inputEl.addEventListener("blur", () => {
+      const number = toNumber(inputEl.value, 0);
+      if (!allowZero && number <= 0) {
+        inputEl.value = "";
+        return;
+      }
+      applyMoneyMask(inputEl);
+    });
+
+    applyMoneyMask(inputEl);
+  }
+
+  function bindMoneyInputs() {
+    bindMoneyInput(els.caixaValorAbertura, { allowZero: true });
+    bindMoneyInput(els.caixaSangriaValor, { allowZero: false });
+    bindMoneyInput(els.caixaSuprimentoValor, { allowZero: false });
+    bindMoneyInput(els.caixaFechamentoValor, { allowZero: true });
+    bindMoneyInput(els.valorPagamento, { allowZero: true, readOnlyMask: true });
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -348,7 +411,7 @@
     listEl.querySelectorAll("[data-user-id]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const userId = toNumber(btn.getAttribute("data-user-id"), 0);
-        const usuario = usuarios.find((u) => u.id === userId);
+        const usuario = usuarios.find((u) => Number(u.id) === userId);
         if (usuario) onSelect(usuario);
       });
     });
@@ -426,6 +489,158 @@
         els.quantidadeParcelas.value = "1";
       }
     }
+  }
+
+  function renderVendaContexto() {
+    if (!hasVendaAtual()) {
+      setText(els.vendaCliente, "Nenhuma venda iniciada");
+      setText(els.vendaMeta, "Abra uma venda balcão ou puxe da produção.");
+      setText(els.vendaNumero, "Sem venda");
+      setText(els.vendaModo, "-");
+      return;
+    }
+
+    const venda = state.vendaAtual;
+
+    const nomeCliente =
+      venda.modo_cliente === "REGISTERED_CLIENT"
+        ? venda.nome_cliente_snapshot || "Cliente cadastrado"
+        : venda.nome_cliente_snapshot || "Venda balcão";
+
+    setText(els.vendaCliente, nomeCliente);
+    setText(els.vendaMeta, venda.observacoes || "");
+    setText(els.vendaNumero, venda.numero_venda || `#${venda.id}`);
+    setText(els.vendaModo, venda.status || "-");
+  }
+
+  function syncValorPagamento() {
+    if (!els.valorPagamento) return;
+
+    els.valorPagamento.readOnly = true;
+
+    if (!state.vendaAtual) {
+      setValue(els.valorPagamento, "");
+      return;
+    }
+
+    setValue(els.valorPagamento, formatMoney(state.vendaAtual.valor_total || 0));
+  }
+
+  function renderTotais() {
+    const venda = state.vendaAtual;
+    setText(els.totalSubtotal, formatMoney(venda?.subtotal || 0));
+    setText(els.totalDesconto, formatMoney(venda?.desconto_valor || 0));
+    setText(els.totalAcrescimo, formatMoney(venda?.acrescimo_valor || 0));
+    setText(els.totalFinal, formatMoney(venda?.valor_total || 0));
+
+    if (els.descontoPercent) {
+      const subtotal = toNumber(venda?.subtotal || 0, 0);
+      const desc = toNumber(venda?.desconto_valor || 0, 0);
+      const pct = subtotal > 0 ? (desc / subtotal) * 100 : 0;
+      setValue(els.descontoPercent, venda ? pct.toFixed(2) : "");
+    }
+
+    syncValorPagamento();
+    updateParcelasVisibility();
+    renderControlsState();
+  }
+
+  function renderCarrinho() {
+    const itens = state.vendaAtual?.itens || [];
+    if (!els.carrinhoLista) return;
+
+    if (!itens.length) {
+      setHtml(els.carrinhoLista, `<div class="pdv-empty-state">Nenhum item adicionado.</div>`);
+      return;
+    }
+
+    setHtml(
+      els.carrinhoLista,
+      itens
+        .map(
+          (item) => `
+        <div class="pdv-item-card">
+          <div class="pdv-item-card__header">
+            <strong>${escapeHtml(item.descricao_snapshot || "Item sem descrição")}</strong>
+            <span class="pdv-badge">${item.tipo_item === "SERVICE" ? "Atendimento" : "Produto"}</span>
+          </div>
+          <div class="pdv-item-card__meta">
+            Qtde: ${toNumber(item.quantidade, 0)} |
+            Unitário: ${formatMoney(item.valor_unitario)} |
+            Desconto: ${formatMoney(item.desconto_valor)}
+          </div>
+          ${item.observacao ? `<div class="pdv-item-card__obs">${escapeHtml(item.observacao)}</div>` : ""}
+          <div class="pdv-item-card__footer">
+            <strong>${formatMoney(item.valor_total)}</strong>
+          </div>
+        </div>
+      `
+        )
+        .join("")
+    );
+  }
+
+  function renderVenda() {
+    renderVendaContexto();
+    renderTotais();
+    renderCarrinho();
+  }
+
+  function setDisabled(el, disabled) {
+    if (!el) return;
+    el.disabled = !!disabled;
+  }
+
+  function toggleHidden(el) {
+    if (!el) return;
+    el.classList.toggle("pdv-hidden");
+  }
+
+  function renderControlsState() {
+    const podeFinalizar =
+      hasCaixaAberto() && hasVendaAberta() && (state.vendaAtual?.itens?.length || 0) > 0;
+
+    setDisabled(els.btnFinalizarVenda, !podeFinalizar);
+    setDisabled(els.btnAplicarDesconto, !hasVendaAberta());
+    setDisabled(els.btnZerarDesconto, !hasVendaAberta());
+  }
+
+  async function aplicarDescontoPercentual(percentValue) {
+    if (!hasVendaAberta()) throw new Error("Abra uma venda antes de aplicar desconto.");
+
+    const vendaId = state.vendaAtual.id;
+    const pct = requireNonNegativeNumber(percentValue, "Informe um desconto válido.");
+
+    if (pct > 100) throw new Error("Desconto não pode ser maior que 100%.");
+
+    const subtotal = toNumber(state.vendaAtual.subtotal, 0);
+    const descontoValor = Math.max(0, Math.min(subtotal, (subtotal * pct) / 100));
+
+    const vendaAtualizada = await request(`/api/pdv/vendas/${vendaId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        desconto_valor: Number(descontoValor.toFixed(2)),
+      }),
+    });
+
+    state.vendaAtual = vendaAtualizada;
+    renderVenda();
+    showAlert("Desconto aplicado.", "success");
+  }
+
+  async function zerarDesconto() {
+    if (!hasVendaAberta()) throw new Error("Abra uma venda antes de zerar desconto.");
+
+    const vendaId = state.vendaAtual.id;
+    const venda = await request(`/api/pdv/vendas/${vendaId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ desconto_valor: 0 }),
+    });
+
+    state.vendaAtual = venda;
+    if (els.descontoPercent) setValue(els.descontoPercent, "0.00");
+    renderVenda();
+    showAlert("Desconto zerado.", "success");
   }
 
   function renderProdutosResultado() {
@@ -562,6 +777,29 @@
         empresa_id: empresaId,
         caixa_sessao_id: caixaSessaoId,
         modo_cliente: "WALK_IN",
+      }),
+    });
+
+    state.vendaAtual = venda;
+    renderVenda();
+    renderControlsState();
+    return venda;
+  }
+
+  async function criarVendaParaCliente(clienteId) {
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
+
+    const empresaId = getEmpresaId();
+    const caixaSessaoId = getCaixaSessaoId();
+    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
+
+    const venda = await request("/api/pdv/vendas", {
+      method: "POST",
+      body: JSON.stringify({
+        empresa_id: empresaId,
+        caixa_sessao_id: caixaSessaoId,
+        modo_cliente: "REGISTERED_CLIENT",
+        cliente_id: Number(clienteId),
       }),
     });
 
@@ -826,219 +1064,8 @@
       String(state.caixaAtual.usuario_responsavel_id || "-");
 
     setText(els.caixaOperador, operadorNome);
-
     setText(els.caixaAbertura, formatMoney(state.caixaAtual.valor_abertura_informado || 0));
     setText(els.caixaSaldo, formatMoney(state.caixaResumo?.saldo_dinheiro_esperado ?? 0));
-  }
-
-  function renderVendaContexto() {
-    if (!hasVendaAtual()) {
-      setText(els.vendaCliente, "Nenhuma venda iniciada");
-      setText(els.vendaMeta, "Abra uma venda balcão ou puxe da produção.");
-      setText(els.vendaNumero, "Sem venda");
-      setText(els.vendaModo, "-");
-      return;
-    }
-
-    const venda = state.vendaAtual;
-
-    const nomeCliente =
-      venda.modo_cliente === "REGISTERED_CLIENT"
-        ? venda.nome_cliente_snapshot || "Cliente cadastrado"
-        : venda.nome_cliente_snapshot || "Venda balcão";
-
-    setText(els.vendaCliente, nomeCliente);
-    setText(els.vendaMeta, venda.observacoes || "");
-    setText(els.vendaNumero, venda.numero_venda || `#${venda.id}`);
-    setText(els.vendaModo, venda.status || "-");
-  }
-
-  function renderTotais() {
-    const venda = state.vendaAtual;
-    setText(els.totalSubtotal, formatMoney(venda?.subtotal || 0));
-    setText(els.totalDesconto, formatMoney(venda?.desconto_valor || 0));
-    setText(els.totalAcrescimo, formatMoney(venda?.acrescimo_valor || 0));
-    setText(els.totalFinal, formatMoney(venda?.valor_total || 0));
-
-    if (els.descontoPercent) {
-      const subtotal = toNumber(venda?.subtotal || 0, 0);
-      const desc = toNumber(venda?.desconto_valor || 0, 0);
-      const pct = subtotal > 0 ? (desc / subtotal) * 100 : 0;
-      setValue(els.descontoPercent, venda ? pct.toFixed(2) : "");
-    }
-
-    syncValorPagamento();
-    updateParcelasVisibility();
-    renderControlsState();
-  }
-
-  function renderCarrinho() {
-    const itens = state.vendaAtual?.itens || [];
-    if (!els.carrinhoLista) return;
-
-    if (!itens.length) {
-      setHtml(els.carrinhoLista, `<div class="pdv-empty-state">Nenhum item adicionado.</div>`);
-      return;
-    }
-
-    setHtml(
-      els.carrinhoLista,
-      itens
-        .map(
-          (item) => `
-        <div class="pdv-item-card">
-          <div class="pdv-item-card__header">
-            <strong>${escapeHtml(item.descricao_snapshot || "Item sem descrição")}</strong>
-            <span class="pdv-badge">${item.tipo_item === "SERVICE" ? "Atendimento" : "Produto"}</span>
-          </div>
-          <div class="pdv-item-card__meta">
-            Qtde: ${toNumber(item.quantidade, 0)} |
-            Unitário: ${formatMoney(item.valor_unitario)} |
-            Desconto: ${formatMoney(item.desconto_valor)}
-          </div>
-          ${item.observacao ? `<div class="pdv-item-card__obs">${escapeHtml(item.observacao)}</div>` : ""}
-          <div class="pdv-item-card__footer">
-            <strong>${formatMoney(item.valor_total)}</strong>
-          </div>
-        </div>
-      `
-        )
-        .join("")
-    );
-  }
-
-  function renderVenda() {
-    renderVendaContexto();
-    renderTotais();
-    renderCarrinho();
-  }
-
-  function setDisabled(el, disabled) {
-    if (!el) return;
-    el.disabled = !!disabled;
-  }
-
-  function toggleHidden(el) {
-    if (!el) return;
-    el.classList.toggle("pdv-hidden");
-  }
-
-  function syncValorPagamento() {
-    if (!els.valorPagamento) return;
-
-    els.valorPagamento.readOnly = true;
-
-    if (!state.vendaAtual) {
-      setValue(els.valorPagamento, "");
-      return;
-    }
-
-    setValue(els.valorPagamento, toNumber(state.vendaAtual.valor_total, 0).toFixed(2));
-  }
-
-  function renderControlsState() {
-    const podeFinalizar =
-      hasCaixaAberto() && hasVendaAberta() && (state.vendaAtual?.itens?.length || 0) > 0;
-
-    setDisabled(els.btnFinalizarVenda, !podeFinalizar);
-    setDisabled(els.btnAplicarDesconto, !hasVendaAberta());
-    setDisabled(els.btnZerarDesconto, !hasVendaAberta());
-  }
-
-  async function aplicarDescontoPercentual(percentValue) {
-    if (!hasVendaAberta()) throw new Error("Abra uma venda antes de aplicar desconto.");
-
-    const venda = state.vendaAtual;
-    const vendaId = venda.id;
-
-    const pct = requireNonNegativeNumber(percentValue, "Informe um desconto válido.");
-    if (pct > 100) throw new Error("Desconto não pode ser maior que 100%.");
-
-    const subtotal = toNumber(venda.subtotal, 0);
-    const descontoValor = Math.max(0, Math.min(subtotal, (subtotal * pct) / 100));
-
-    const payload = {
-      desconto_valor: Number(descontoValor.toFixed(2)),
-    };
-
-    const vendaAtualizada = await request(`/api/pdv/vendas/${vendaId}`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
-
-    state.vendaAtual = vendaAtualizada;
-    renderVenda();
-    showAlert("Desconto aplicado.", "success");
-  }
-
-  async function zerarDesconto() {
-    if (!hasVendaAberta()) throw new Error("Abra uma venda antes de zerar desconto.");
-
-    const vendaId = state.vendaAtual.id;
-    const venda = await request(`/api/pdv/vendas/${vendaId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ desconto_valor: 0 }),
-    });
-
-    state.vendaAtual = venda;
-    if (els.descontoPercent) setValue(els.descontoPercent, "0.00");
-    renderVenda();
-    showAlert("Desconto zerado.", "success");
-  }
-
-  async function finalizarVendaAtual() {
-    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de finalizar a venda.");
-    if (!hasVendaAberta()) throw new Error("Nenhuma venda aberta para finalizar.");
-
-    const venda = state.vendaAtual;
-    const vendaId = venda.id;
-
-    const formaPagamento = String(els.formaPagamento?.value || "DINHEIRO").trim() || "DINHEIRO";
-    const valor = toNumber(venda.valor_total, 0);
-    const quantidadeParcelas = getQuantidadeParcelasSelecionada();
-
-    if (valor < 0) throw new Error("Total inválido.");
-
-    const payload = {
-      pagamento: {
-        forma_pagamento: formaPagamento,
-        valor: Number(valor.toFixed(2)),
-        quantidade_parcelas: quantidadeParcelas,
-      },
-    };
-
-    const result = await request(`/api/pdv/vendas/${vendaId}/checkout`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-
-    state.vendaAtual = null;
-
-    if (els.buscaProduto) setValue(els.buscaProduto, "");
-    state.produtosEncontrados = [];
-    if (els.produtosResultado) {
-      setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
-    }
-    if (els.descontoPercent) setValue(els.descontoPercent, "");
-    if (els.quantidadeParcelas) setValue(els.quantidadeParcelas, "1");
-    updateParcelasVisibility();
-
-    renderVenda();
-    renderControlsState();
-    showAlert(result?.mensagem || "Venda finalizada com sucesso.", "success");
-
-    try {
-      await carregarResumoCaixa();
-    } catch (error) {
-      console.warn("Falha ao recarregar resumo do caixa:", error);
-    }
-
-    try {
-      await carregarProducaoPronta();
-      await carregarAtendimentosProntos();
-    } catch (error) {
-      console.warn("Falha ao atualizar prontos após finalizar:", error);
-    }
   }
 
   function renderProducaoLista() {
@@ -1046,7 +1073,7 @@
 
     const itens = state.producaoPronta || [];
     if (!itens.length) {
-      setHtml(els.producaoLista, `<div class="pdv-empty-state">Nenhum item pronto para cobrança.</div>`);
+      setHtml(els.producaoLista, `<div class="pdv-empty-state">Nenhum item pronto na produção.</div>`);
       return;
     }
 
@@ -1054,16 +1081,18 @@
       els.producaoLista,
       itens
         .map((item) => {
-          const cliente = escapeHtml(item.cliente_nome || "Cliente");
-          const pet = item.pet_nome ? ` - ${escapeHtml(item.pet_nome)}` : "";
-          const descricao = escapeHtml(item.descricao || "");
+          const pet = escapeHtml(item.pet_nome || "Pet");
+          const cliente = item.cliente_nome ? `<div class="pdv-muted">${escapeHtml(item.cliente_nome)}</div>` : "";
+          const servicos = item.servicos ? `<div class="pdv-muted">${escapeHtml(item.servicos)}</div>` : "";
           const valor = formatMoney(item.valor_total || 0);
+          const producaoId = item.producao_id || item.id;
 
           return `
           <div class="pdv-producao-item">
             <div class="pdv-producao-item__info">
-              <strong>${cliente}${pet}</strong>
-              <div class="pdv-muted">${descricao}</div>
+              <strong>${pet}</strong>
+              ${cliente}
+              ${servicos}
             </div>
             <div class="pdv-producao-item__actions">
               <strong>${valor}</strong>
@@ -1071,7 +1100,7 @@
                 type="button"
                 class="pdv-btn pdv-btn-primary"
                 data-action="puxar-producao"
-                data-producao-id="${escapeHtml(item.producao_id)}"
+                data-producao-id="${escapeHtml(producaoId)}"
               >
                 Puxar
               </button>
@@ -1174,28 +1203,6 @@
     return state.atendimentosProntos;
   }
 
-  async function criarVendaParaCliente(clienteId) {
-    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
-    const empresaId = getEmpresaId();
-    const caixaSessaoId = getCaixaSessaoId();
-    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
-
-    const venda = await request("/api/pdv/vendas", {
-      method: "POST",
-      body: JSON.stringify({
-        empresa_id: empresaId,
-        caixa_sessao_id: caixaSessaoId,
-        modo_cliente: "REGISTERED_CLIENT",
-        cliente_id: Number(clienteId),
-      }),
-    });
-
-    state.vendaAtual = venda;
-    renderVenda();
-    renderControlsState();
-    return venda;
-  }
-
   async function adicionarAtendimentoNaVenda(atendimentoId, clienteId) {
     if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
 
@@ -1233,20 +1240,48 @@
     renderAtendimentosLista();
   }
 
-  function bindFloatingActions() {
-    els.btnFloatingMinimizar?.addEventListener("click", () => {
-      if (!els.floatingBody) return;
-      els.floatingBody.classList.toggle("pdv-hidden");
+  async function finalizarVendaAtual() {
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de finalizar a venda.");
+    if (!hasVendaAberta()) throw new Error("Nenhuma venda aberta para finalizar.");
+
+    const venda = state.vendaAtual;
+    const vendaId = venda.id;
+
+    const formaPagamento = String(els.formaPagamento?.value || "DINHEIRO").trim() || "DINHEIRO";
+    const valor = toNumber(venda.valor_total, 0);
+    const quantidadeParcelas = getQuantidadeParcelasSelecionada();
+
+    if (valor < 0) throw new Error("Total inválido.");
+
+    const payload = {
+      pagamento: {
+        forma_pagamento: formaPagamento,
+        valor: Number(valor.toFixed(2)),
+        quantidade_parcelas: quantidadeParcelas,
+      },
+    };
+
+    const result = await request(`/api/pdv/vendas/${vendaId}/checkout`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
 
-    els.btnFloatingToggleCaixa?.addEventListener("click", () => toggleHidden(els.caixaCard));
-    els.btnFloatingToggleProntos?.addEventListener("click", () => toggleHidden(els.producaoSidebar));
+    state.vendaAtual = null;
+    renderVenda();
+    renderControlsState();
+    showAlert(result?.mensagem || "Venda finalizada com sucesso.", "success");
 
-    els.btnFloatingAbrirCaixa?.addEventListener("click", () => els.btnAbrirCaixa?.click());
-    els.btnFloatingSangria?.addEventListener("click", () => els.btnSangria?.click());
-    els.btnFloatingSuprimento?.addEventListener("click", () => els.btnSuprimento?.click());
-    els.btnFloatingFecharCaixa?.addEventListener("click", () => els.btnFecharCaixa?.click());
-    els.btnFloatingAtualizarProntos?.addEventListener("click", () => els.btnAtualizarProducao?.click());
+    try {
+      await carregarCaixaAtual();
+    } catch (error) {
+      console.warn("Falha ao atualizar caixa após checkout:", error);
+    }
+
+    try {
+      await Promise.all([carregarProducaoPronta(), carregarAtendimentosProntos()]);
+    } catch (error) {
+      console.warn("Falha ao atualizar listas após checkout:", error);
+    }
   }
 
   function collectAberturaPayload() {
@@ -1261,7 +1296,6 @@
     );
 
     const observacoes = String(els.caixaObservacoesAbertura?.value || "").trim();
-
     const motivoDiferencaAbertura = String(els.caixaMotivoDiferencaAbertura?.value || "").trim();
 
     const gerenteId = toNumber(els.caixaGerenteAberturaId?.value, 0);
@@ -1292,7 +1326,6 @@
     const operadorNome = String(els.caixaSangriaOperadorNome?.value || "").trim();
 
     const valor = requirePositiveNumber(els.caixaSangriaValor?.value, "Informe um valor de sangria válido.");
-
     const motivo = requireText(els.caixaSangriaMotivo?.value, "Informe um motivo.");
     const observacoes = String(els.caixaSangriaObservacoes?.value || "").trim();
 
@@ -1323,7 +1356,6 @@
     const operadorNome = String(els.caixaSuprimentoOperadorNome?.value || "").trim();
 
     const valor = requirePositiveNumber(els.caixaSuprimentoValor?.value, "Informe um valor de suprimento válido.");
-
     const motivo = requireText(els.caixaSuprimentoMotivo?.value, "Informe um motivo.");
     const observacoes = String(els.caixaSuprimentoObservacoes?.value || "").trim();
 
@@ -1353,7 +1385,6 @@
     const operadorNome = String(els.caixaFechamentoOperadorNome?.value || "").trim();
 
     const valor = requireNonNegativeNumber(els.caixaFechamentoValor?.value, "Informe um valor de fechamento válido.");
-
     const motivo = String(els.caixaMotivoDiferencaFechamento?.value || "").trim();
 
     const gerenteId = toNumber(els.caixaGerenteFechamentoId?.value, 0);
@@ -1470,6 +1501,22 @@
         showAlert(error.message, "danger");
       }
     });
+  }
+
+  function bindFloatingActions() {
+    els.btnFloatingMinimizar?.addEventListener("click", () => {
+      if (!els.floatingBody) return;
+      els.floatingBody.classList.toggle("pdv-hidden");
+    });
+
+    els.btnFloatingToggleCaixa?.addEventListener("click", () => toggleHidden(els.caixaCard));
+    els.btnFloatingToggleProntos?.addEventListener("click", () => toggleHidden(els.producaoSidebar));
+
+    els.btnFloatingAbrirCaixa?.addEventListener("click", () => els.btnAbrirCaixa?.click());
+    els.btnFloatingSangria?.addEventListener("click", () => els.btnSangria?.click());
+    els.btnFloatingSuprimento?.addEventListener("click", () => els.btnSuprimento?.click());
+    els.btnFloatingFecharCaixa?.addEventListener("click", () => els.btnFecharCaixa?.click());
+    els.btnFloatingAtualizarProntos?.addEventListener("click", () => els.btnAtualizarProducao?.click());
   }
 
   function bindEvents() {
@@ -1594,6 +1641,13 @@
       } catch (error) {
         showAlert(error.message, "danger");
       }
+    });
+
+    els.btnCancelarVenda?.addEventListener("click", () => {
+      state.vendaAtual = null;
+      renderVenda();
+      renderControlsState();
+      showAlert("Venda atual limpa no PDV.", "warning");
     });
 
     els.btnAplicarDesconto?.addEventListener("click", async () => {
@@ -1743,6 +1797,7 @@
     renderCaixa();
     renderVenda();
     syncValorPagamento();
+    bindMoneyInputs();
 
     if (els.produtosResultado) {
       setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);

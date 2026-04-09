@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const selectGrupoDre = document.getElementById("financeiro-grupo-dre");
     const selectCategoriaDre = document.getElementById("financeiro-categoria-dre");
+    const inputValor = document.getElementById("financeiro-valor");
 
     if (btnNovaConta) {
         btnNovaConta.onclick = abrirFormularioConta;
@@ -127,11 +128,28 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
+    if (inputValor) {
+        inputValor.addEventListener("input", () => {
+            aplicarMascaraMoeda("financeiro-valor");
+            atualizarResumoWizardFinanceiro();
+        });
+
+        inputValor.addEventListener("blur", () => {
+            normalizarCampoMoeda("financeiro-valor");
+            atualizarResumoWizardFinanceiro();
+        });
+
+        inputValor.addEventListener("focus", () => {
+            if (!inputValor.value || inputValor.value === "R$ 0,00") {
+                inputValor.value = "";
+            }
+        });
+    }
+
     const camposResumo = [
         "financeiro-cliente-id",
         "financeiro-fornecedor",
         "financeiro-descricao",
-        "financeiro-valor",
         "financeiro-vencimento",
         "financeiro-observacao",
         "financeiro-subcategoria-dre"
@@ -647,7 +665,7 @@ function renderizarContas() {
 
 async function salvarConta() {
     const descricao = getValue("financeiro-descricao");
-    const valor = getValue("financeiro-valor");
+    const valor = getNumericValue("financeiro-valor");
     const vencimento = getValue("financeiro-vencimento");
     const observacao = getValue("financeiro-observacao");
 
@@ -942,7 +960,7 @@ function irParaStepFinanceiro(step) {
 function validarStepAtualFinanceiro() {
     if (financeiroWizardStep === 1) {
         const descricao = getValue("financeiro-descricao");
-        const valor = getValue("financeiro-valor");
+        const valor = getNumericValue("financeiro-valor");
         const vencimento = getValue("financeiro-vencimento");
 
         if (!descricao || descricao.trim().length < 2) {
@@ -1069,7 +1087,7 @@ function atualizarResumoWizardFinanceiro() {
             : (getValue("financeiro-fornecedor") || "Não informado");
 
     const descricao = getValue("financeiro-descricao") || "-";
-    const valor = Number(getValue("financeiro-valor") || 0);
+    const valor = getNumericValue("financeiro-valor");
     const vencimento = getValue("financeiro-vencimento");
     const observacao = getValue("financeiro-observacao") || "Sem observação";
 
@@ -1237,6 +1255,45 @@ function formatarMoeda(valor) {
         style: "currency",
         currency: "BRL"
     });
+}
+
+function extrairNumeroMoeda(valor) {
+    const numeros = String(valor || "").replace(/\D/g, "");
+    return Number(numeros || 0) / 100;
+}
+
+function formatarMoedaInput(valor) {
+    return extrairNumeroMoeda(valor).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+    });
+}
+
+function aplicarMascaraMoeda(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const numeros = String(el.value || "").replace(/\D/g, "");
+    if (!numeros) {
+        el.value = "";
+        return;
+    }
+
+    el.value = formatarMoedaInput(numeros);
+}
+
+function normalizarCampoMoeda(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const valor = extrairNumeroMoeda(el.value);
+    el.value = valor > 0 ? formatarMoeda(valor) : "";
+}
+
+function getNumericValue(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    return extrairNumeroMoeda(el.value);
 }
 
 function formatarData(valor) {

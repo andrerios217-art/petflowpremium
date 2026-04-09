@@ -8,7 +8,7 @@
 <section class="page-header">
   <div>
     <h1>Estoque</h1>
-    <p>Posição resumida, alertas de mínimo, visão por depósito, entrada manual e gestão de produtos.</p>
+    <p>Busca rápida, indicadores essenciais e atalhos operacionais para o estoque.</p>
   </div>
 
   <div class="page-header-actions">
@@ -39,10 +39,32 @@
 <section style="margin-top: 24px;">
   <div class="glass-card">
     <div class="estoque-toolbar">
+      <div>
+        <h2>Atalhos do estoque</h2>
+        <p class="estoque-status-topo">Abra informações secundárias só quando precisar.</p>
+      </div>
+      <div class="estoque-actions-inline">
+        <button id="btn-abrir-entrada-modal" class="primary-btn estoque-btn-secundario" type="button">
+          Entrada manual
+        </button>
+        <button id="btn-abrir-posicao-modal" class="primary-btn estoque-btn-secundario" type="button">
+          Posição resumida
+        </button>
+        <button id="btn-abrir-movimentos-modal" class="primary-btn estoque-btn-secundario" type="button">
+          Movimentos recentes
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="margin-top: 24px;">
+  <div class="glass-card">
+    <div class="estoque-toolbar">
       <h2>Gestão de produtos</h2>
       <div class="estoque-actions-inline">
         <button id="btn-atualizar-produtos" class="primary-btn" type="button">
-          Atualizar listagem
+          Buscar produtos
         </button>
         <button id="btn-novo-produto" class="primary-btn" type="button">
           Novo produto
@@ -210,11 +232,11 @@
       </div>
 
       <div class="estoque-filtros-rodape">
-        <span id="status-produtos" class="estoque-status-topo">Aguardando carregamento...</span>
+        <span id="status-produtos" class="estoque-status-topo">Digite algo para buscar produtos.</span>
 
         <div class="estoque-actions-inline">
           <button id="btn-filtrar-produtos" class="primary-btn" type="button">
-            Filtrar produtos
+            Buscar produtos
           </button>
           <button id="btn-limpar-produtos" class="primary-btn" type="button">
             Limpar filtro
@@ -239,7 +261,7 @@
         <tbody id="tbody-produtos">
           <tr>
             <td colspan="7" class="estoque-empty">
-              Aguardando carregamento...
+              Digite um nome, SKU ou código de barras para buscar produtos.
             </td>
           </tr>
         </tbody>
@@ -248,7 +270,7 @@
   </div>
 </section>
 
-<section style="margin-top: 24px;">
+<section id="estoque-section-entrada" style="display: none;">
   <div class="glass-card">
     <h2>Entrada manual</h2>
 
@@ -325,7 +347,7 @@
   </div>
 </section>
 
-<section style="margin-top: 24px;">
+<section id="estoque-section-filtros" style="display: none;">
   <div class="glass-card">
     <h2>Filtros</h2>
 
@@ -364,7 +386,7 @@
   </div>
 </section>
 
-<section style="margin-top: 24px;">
+<section id="estoque-section-posicao" style="display: none;">
   <div class="glass-card">
     <div class="estoque-toolbar">
       <h2 id="titulo-tabela">Posição resumida</h2>
@@ -395,7 +417,7 @@
   </div>
 </section>
 
-<section style="margin-top: 24px; margin-bottom: 24px;">
+<section id="estoque-section-movimentos" style="display: none;">
   <div class="glass-card">
     <div class="estoque-toolbar">
       <h2>Movimentos recentes</h2>
@@ -428,6 +450,89 @@
   </div>
 </section>
 
+<style>
+  .estoque-modal-open {
+    overflow: hidden;
+  }
+
+  .estoque-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 20px;
+    z-index: 1000;
+    overflow-y: auto;
+  }
+
+  .estoque-modal-overlay.is-hidden {
+    display: none;
+  }
+
+  .estoque-modal-card {
+    width: min(1180px, 100%);
+    background: #f8fafc;
+    border-radius: 24px;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.2);
+    padding: 20px;
+  }
+
+  .estoque-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .estoque-modal-header h3 {
+    margin: 0 0 6px;
+  }
+
+  .estoque-modal-body > section {
+    display: block !important;
+    margin-top: 0 !important;
+  }
+
+  .estoque-modal-body > section + section {
+    margin-top: 16px !important;
+  }
+
+  .estoque-modal-body .glass-card {
+    box-shadow: none;
+  }
+
+  @media (max-width: 768px) {
+    .estoque-modal-overlay {
+      padding: 16px;
+    }
+
+    .estoque-modal-header {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div id="estoque-modal-overlay" class="estoque-modal-overlay is-hidden">
+  <div class="estoque-modal-card estoque-modal-card-lg">
+    <div class="estoque-modal-header">
+      <div>
+        <h3 id="estoque-modal-title">Detalhes do estoque</h3>
+        <p id="estoque-modal-subtitle" class="estoque-status-topo">Use este painel só quando precisar.</p>
+      </div>
+      <button id="btn-fechar-estoque-modal" class="primary-btn estoque-btn-secundario" type="button">Fechar</button>
+    </div>
+    <div id="estoque-modal-body" class="estoque-modal-body"></div>
+  </div>
+</div>
+
+<div id="estoque-section-entrada-placeholder"></div>
+<div id="estoque-section-filtros-placeholder"></div>
+<div id="estoque-section-posicao-placeholder"></div>
+<div id="estoque-section-movimentos-placeholder"></div>
+
 <script>
   const estadoEstoque = {
     modo: "resumido",
@@ -437,7 +542,77 @@
     depositos: [],
     categorias: [],
     produtoEditandoId: null,
+    modalSecaoAtual: null,
   };
+
+
+  function obterTextoBuscaProdutos() {
+    return document.getElementById("produto-busca").value.trim();
+  }
+
+  function exibirEstadoInicialProdutos() {
+    estadoEstoque.produtosGestao = [];
+    document.getElementById("tbody-produtos").innerHTML = `
+      <tr>
+        <td colspan="7" class="estoque-empty">
+          Digite um nome, SKU ou código de barras para buscar produtos.
+        </td>
+      </tr>
+    `;
+    atualizarStatusProdutos("Digite algo para buscar produtos.");
+  }
+
+  function abrirModalEstoque(titulo, subtitulo, secoesIds = []) {
+    const overlay = document.getElementById("estoque-modal-overlay");
+    const body = document.getElementById("estoque-modal-body");
+
+    fecharModalEstoque();
+
+    document.getElementById("estoque-modal-title").textContent = titulo;
+    document.getElementById("estoque-modal-subtitle").textContent = subtitulo;
+
+    secoesIds.forEach((secaoId) => {
+      const secao = document.getElementById(secaoId);
+      const placeholder = document.getElementById(`${secaoId}-placeholder`);
+
+      if (secao && placeholder) {
+        secao.style.display = "block";
+        body.appendChild(secao);
+      }
+    });
+
+    estadoEstoque.modalSecaoAtual = [...secoesIds];
+    overlay.classList.remove("is-hidden");
+    document.body.classList.add("estoque-modal-open");
+  }
+
+  function fecharModalEstoque() {
+    const body = document.getElementById("estoque-modal-body");
+    const overlay = document.getElementById("estoque-modal-overlay");
+    const secoesIds = Array.isArray(estadoEstoque.modalSecaoAtual) ? estadoEstoque.modalSecaoAtual : [];
+
+    secoesIds.forEach((secaoId) => {
+      const secao = document.getElementById(secaoId);
+      const placeholder = document.getElementById(`${secaoId}-placeholder`);
+
+      if (secao && placeholder) {
+        secao.style.display = "none";
+        placeholder.replaceWith(secao);
+
+        const novoPlaceholder = document.createElement("div");
+        novoPlaceholder.id = `${secaoId}-placeholder`;
+        secao.insertAdjacentElement("afterend", novoPlaceholder);
+      }
+    });
+
+    if (body) {
+      body.innerHTML = "";
+    }
+
+    estadoEstoque.modalSecaoAtual = null;
+    overlay.classList.add("is-hidden");
+    document.body.classList.remove("estoque-modal-open");
+  }
 
   function mostrarAlertaAuth(mensagem) {
     const el = document.getElementById("alerta-auth");
@@ -1072,6 +1247,11 @@
     const filtros = obterFiltrosProdutos();
     const queryString = montarQueryStringProdutos(filtros);
 
+    if (!filtros.busca) {
+      exibirEstadoInicialProdutos();
+      return;
+    }
+
     atualizarStatusProdutos("Carregando...");
     esconderAlertaAuth();
 
@@ -1504,7 +1684,7 @@
     document.getElementById("produto-busca").value = "";
     document.getElementById("produto-status-filtro").value = "ativos";
     esconderAlertaOperacao();
-    carregarProdutosGestao();
+    exibirEstadoInicialProdutos();
   }
 
   function configurarAtalhos() {
@@ -1572,13 +1752,38 @@
     document.getElementById("btn-limpar-produtos").addEventListener("click", limparFiltrosProdutos);
     document.getElementById("btn-atualizar-produtos").addEventListener("click", carregarProdutosGestao);
 
+    document.getElementById("btn-abrir-entrada-modal").addEventListener("click", () => {
+      abrirModalEstoque("Entrada manual", "Registre uma entrada só quando precisar.", ["estoque-section-entrada"]);
+    });
+
+    document.getElementById("btn-abrir-posicao-modal").addEventListener("click", () => {
+      abrirModalEstoque("Posição resumida", "Consulte saldo, depósito e alertas sem poluir a tela principal.", ["estoque-section-filtros", "estoque-section-posicao"]);
+    });
+
+    document.getElementById("btn-abrir-movimentos-modal").addEventListener("click", () => {
+      abrirModalEstoque("Movimentos recentes", "Histórico recente do estoque em um painel separado.", ["estoque-section-movimentos"]);
+    });
+
+    document.getElementById("btn-fechar-estoque-modal").addEventListener("click", fecharModalEstoque);
+    document.getElementById("estoque-modal-overlay").addEventListener("click", (event) => {
+      if (event.target.id === "estoque-modal-overlay") {
+        fecharModalEstoque();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !document.getElementById("estoque-modal-overlay").classList.contains("is-hidden")) {
+        fecharModalEstoque();
+      }
+    });
+
     configurarAtalhos();
     configurarPainelProduto();
+    exibirEstadoInicialProdutos();
 
     await carregarDepositos();
     await carregarCategoriasProduto();
     await carregarProdutosEntrada();
-    await carregarProdutosGestao();
     await carregarRelatorioResumido();
     await carregarMovimentosRecentes();
   });

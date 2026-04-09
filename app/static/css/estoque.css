@@ -45,7 +45,7 @@
 }
 
 .estoque-produto-filtros-grid {
-  grid-template-columns: minmax(280px, 2fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(320px, 2fr) minmax(220px, 1fr);
 }
 
 .estoque-field {
@@ -73,7 +73,7 @@
   color: #0f172a;
   outline: none;
   font: inherit;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   box-sizing: border-box;
 }
 
@@ -131,14 +131,18 @@
 
 .estoque-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .estoque-toolbar h2 {
   margin: 0;
+}
+
+.estoque-toolbar p {
+  margin: 6px 0 0;
 }
 
 .estoque-status-topo {
@@ -152,7 +156,9 @@
 
 .estoque-table-wrap {
   overflow-x: auto;
-  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #fff;
 }
 
 .estoque-table {
@@ -167,6 +173,10 @@
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
   vertical-align: middle;
+}
+
+.estoque-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .estoque-table th {
@@ -326,6 +336,59 @@
   justify-content: flex-end;
 }
 
+.estoque-modal-open {
+  overflow: hidden;
+}
+
+.estoque-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 20px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.estoque-modal-overlay.is-hidden {
+  display: none;
+}
+
+.estoque-modal-card {
+  width: min(1180px, 100%);
+  background: #f8fafc;
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.2);
+  padding: 20px;
+}
+
+.estoque-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.estoque-modal-header h3 {
+  margin: 0 0 6px;
+}
+
+.estoque-modal-body > section {
+  display: block !important;
+  margin-top: 0 !important;
+}
+
+.estoque-modal-body > section + section {
+  margin-top: 16px !important;
+}
+
+.estoque-modal-body .glass-card {
+  box-shadow: none;
+}
+
 @media (max-width: 1100px) {
   .estoque-filtros-grid,
   .estoque-produto-filtros-grid,
@@ -340,6 +403,16 @@
 
   .estoque-field-span-3 {
     grid-column: span 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .estoque-modal-overlay {
+    padding: 16px;
+  }
+
+  .estoque-modal-header {
+    flex-direction: column;
   }
 }
 
