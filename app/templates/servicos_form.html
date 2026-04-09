@@ -41,12 +41,12 @@
 
     <div class="form-group">
       <label>Custo (R$)</label>
-      <input type="number" id="custo" step="0.01" min="0.01" required />
+      <input type="text" id="custo" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" required />
     </div>
 
     <div class="form-group">
       <label>Preço de venda (R$)</label>
-      <input type="number" id="venda" step="0.01" min="0.01" required />
+      <input type="text" id="venda" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" required />
     </div>
 
     <div class="form-group">
@@ -82,18 +82,80 @@ function definirTipoPadrao() {
   }
 }
 
+function parseMoeda(valor) {
+  if (typeof valor === "number") {
+    return Number.isFinite(valor) ? valor : 0;
+  }
+
+  const texto = String(valor ?? "").trim();
+  if (!texto) return 0;
+
+  const normalizado = texto
+    .replace(/\s/g, "")
+    .replace(/R\$/gi, "")
+    .replace(/\./g, "")
+    .replace(/,/g, ".")
+    .replace(/[^\d.-]/g, "");
+
+  const numero = Number(normalizado);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function formatarMoeda(valor) {
+  const numero = parseMoeda(valor);
+  return numero.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  });
+}
+
+function formatarMoedaEdicao(valor) {
+  const numero = parseMoeda(valor);
+  if (!numero) return "";
+  return numero.toFixed(2).replace(".", ",");
+}
+
+function configurarMascaraMoeda(input) {
+  if (!input) return;
+
+  input.addEventListener("focus", () => {
+    input.value = formatarMoedaEdicao(input.value);
+    if (typeof input.select === "function") {
+      input.select();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    const texto = String(input.value ?? "");
+    const limpo = texto.replace(/[^\d,.-]/g, "");
+    if (texto !== limpo) {
+      input.value = limpo;
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    const numero = parseMoeda(input.value);
+    input.value = numero > 0 ? formatarMoeda(numero) : "";
+  });
+}
+
 function validarFormulario() {
   const nome = document.getElementById("nome").value.trim();
   const tipoServico = document.getElementById("tipo_servico").value;
   const porte = document.getElementById("porte_referencia").value;
-  const custo = document.getElementById("custo").value;
-  const venda = document.getElementById("venda").value;
-  const tempo = document.getElementById("tempo_minutos").value;
+  const custo = parseMoeda(document.getElementById("custo").value);
+  const venda = parseMoeda(document.getElementById("venda").value);
+  const tempo = Number(document.getElementById("tempo_minutos").value);
 
-  if (!nome || !tipoServico || !porte || !custo || !venda || !tempo) {
+  if (!nome || !tipoServico || !porte || !tempo) {
     document.getElementById("servico-message").innerText =
       "Preencha todos os campos obrigatórios.";
+    return false;
+  }
 
+  if (custo <= 0 || venda <= 0) {
+    document.getElementById("servico-message").innerText =
+      "Informe custo e preço de venda maiores que zero.";
     return false;
   }
 
@@ -114,8 +176,8 @@ async function carregarServicoEdicao() {
   document.getElementById("nome").value = data.nome || "";
   document.getElementById("tipo_servico").value = data.tipo_servico || "PETSHOP";
   document.getElementById("porte_referencia").value = data.porte_referencia || "";
-  document.getElementById("custo").value = data.custo ?? "";
-  document.getElementById("venda").value = data.venda ?? "";
+  document.getElementById("custo").value = data.custo ? formatarMoeda(data.custo) : "";
+  document.getElementById("venda").value = data.venda ? formatarMoeda(data.venda) : "";
   document.getElementById("tempo_minutos").value = data.tempo_minutos ?? "";
 }
 
@@ -129,8 +191,8 @@ document.getElementById("servico-form").addEventListener("submit", async functio
     nome: document.getElementById("nome").value.trim(),
     tipo_servico: document.getElementById("tipo_servico").value,
     porte_referencia: document.getElementById("porte_referencia").value,
-    custo: Number(document.getElementById("custo").value),
-    venda: Number(document.getElementById("venda").value),
+    custo: parseMoeda(document.getElementById("custo").value),
+    venda: parseMoeda(document.getElementById("venda").value),
     tempo_minutos: Number(document.getElementById("tempo_minutos").value)
   };
 
@@ -165,6 +227,8 @@ document.getElementById("servico-form").addEventListener("submit", async functio
   }
 });
 
+configurarMascaraMoeda(document.getElementById("custo"));
+configurarMascaraMoeda(document.getElementById("venda"));
 carregarServicoEdicao();
 </script>
 

@@ -52,7 +52,6 @@
         clinicoPetResumo: document.getElementById("clinicoPetResumo"),
         clinicoServicosPrevistos: document.getElementById("clinicoServicosPrevistos"),
         clinicoHistoricoConteudo: document.getElementById("clinicoHistoricoConteudo"),
-
         clinicoQueixaPrincipal: document.getElementById("clinicoQueixaPrincipal"),
         clinicoHistoricoAtual: document.getElementById("clinicoHistoricoAtual"),
         clinicoObservacoesGerais: document.getElementById("clinicoObservacoesGerais"),
@@ -66,13 +65,11 @@
 
     async function init() {
         bindEvents();
-
         await Promise.all([
             carregarClientes(),
             carregarFuncionarios(),
             carregarServicosVeterinarios(),
         ]);
-
         await carregarAgendaSemana();
     }
 
@@ -99,7 +96,7 @@
         }
 
         if (el.btnNovoAgendamento) {
-            el.btnNovoAgendamento.addEventListener("click", abrirModalAgendamentoVet);
+            el.btnNovoAgendamento.addEventListener("click", () => abrirModalAgendamentoVet());
         }
 
         if (el.btnFecharModalAgendamentoVet) {
@@ -166,6 +163,21 @@
         }
 
         document.addEventListener("click", (event) => {
+            const diaColuna = event.target.closest("[data-action='abrir-agendamento-dia']");
+            if (diaColuna) {
+                const data = diaColuna.dataset.data || "";
+                abrirModalAgendamentoVet(data);
+                return;
+            }
+
+            const btnNovoNoDia = event.target.closest("[data-action='novo-agendamento-dia']");
+            if (btnNovoNoDia) {
+                event.stopPropagation();
+                const data = btnNovoNoDia.dataset.data || "";
+                abrirModalAgendamentoVet(data);
+                return;
+            }
+
             const btnIniciar = event.target.closest("[data-action='iniciar-atendimento']");
             if (btnIniciar) {
                 const agendamentoId = Number(btnIniciar.dataset.agendamentoId);
@@ -184,12 +196,10 @@
             if (btnVerHistorico) {
                 const petId = Number(btnVerHistorico.dataset.petId);
                 const card = btnVerHistorico.closest(".agenda-vet-card");
-
                 const agendamentoIdAttr =
                     btnVerHistorico.dataset.agendamentoId ||
                     card?.dataset?.agendamentoId ||
                     "";
-
                 const agendamentoId = Number(agendamentoIdAttr || 0);
 
                 if (agendamentoId) {
@@ -235,7 +245,6 @@
         const raw = await response.text();
 
         let data = null;
-
         try {
             data = raw ? JSON.parse(raw) : null;
         } catch (error) {
@@ -252,6 +261,27 @@
         return data;
     }
 
+    async function fetchListaComFallback(endpoints, defaultErrorMessage) {
+        let ultimoErro = null;
+
+        for (const endpoint of endpoints) {
+            try {
+                const data = await fetchJsonSafe(endpoint, {}, defaultErrorMessage);
+                if (Array.isArray(data)) {
+                    return data;
+                }
+            } catch (error) {
+                ultimoErro = error;
+            }
+        }
+
+        if (ultimoErro) {
+            throw ultimoErro;
+        }
+
+        return [];
+    }
+
     async function carregarAgendaSemana() {
         try {
             const data = await fetchJsonSafe(
@@ -264,7 +294,8 @@
             state.dias = Array.isArray(data.dias) ? data.dias : [];
 
             if (el.periodoSemanaLabel) {
-                el.periodoSemanaLabel.textContent = `${data.periodo.inicio_label} até ${data.periodo.fim_label}`;
+                el.periodoSemanaLabel.textContent =
+                    `${data.periodo?.inicio_label || ""} até ${data.periodo?.fim_label || ""}`;
             }
 
             renderAgenda();
@@ -289,20 +320,31 @@
                     .join("");
 
                 return `
-                    <section class="agenda-vet-day">
+                    <section class="agenda-vet-day-column" data-action="abrir-agendamento-dia" data-data="${escapeHtml(dia.data || "")}">
                         <header class="agenda-vet-day-header">
-                            <h3>${escapeHtml(dia.dia_semana || "")} ${escapeHtml(dia.label || "")}</h3>
+                            <div>
+                                <h3>${escapeHtml(dia.dia_semana || "")}</h3>
+                                <span>${escapeHtml(dia.label || "")}</span>
+                            </div>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-primary"
+                                data-action="novo-agendamento-dia"
+                                data-data="${escapeHtml(dia.data || "")}"
+                            >
+                                Agendar
+                            </button>
                         </header>
 
                         <div class="agenda-vet-day-body">
                             ${
                                 cardsDia ||
                                 `
-                                <div class="empty-state">
-                                    <h4>Sem atendimentos</h4>
-                                    <p>Nenhum agendamento veterinário para este dia.</p>
-                                </div>
-                            `
+                                    <div class="agenda-vet-empty-day">
+                                        <h4>Sem atendimentos</h4>
+                                        <p>Nenhum agendamento veterinário para este dia.</p>
+                                    </div>
+                                `
                             }
                         </div>
                     </section>
@@ -313,11 +355,11 @@
         el.agendaVetGrid.innerHTML =
             html ||
             `
-            <div class="empty-state">
-                <h3>Nenhum dado encontrado</h3>
-                <p>Não foi possível montar a agenda veterinária.</p>
-            </div>
-        `;
+                <div class="agenda-vet-empty-day">
+                    <h3>Nenhum dado encontrado</h3>
+                    <p>Não foi possível montar a agenda veterinária.</p>
+                </div>
+            `;
     }
 
     function filtraAgenda(item, termo) {
@@ -343,89 +385,39 @@
         const status = String(item.status || "AGUARDANDO");
         const finalizado = agendamentoEstaFinalizado(status);
 
-        const cardStyle = finalizado
-            ? 'style="background: linear-gradient(135deg, #14532d 0%, #166534 100%); color: #ffffff; border: 1px solid #14532d; box-shadow: 0 12px 26px rgba(20, 83, 45, 0.28);"'
-            : "";
-
-        const textStyle = finalizado ? 'style="color: #ffffff;"' : "";
-        const strongStyle = finalizado ? 'style="color: #ffffff;"' : "";
-        const badgeStyle = finalizado
-            ? 'style="background: rgba(255,255,255,0.18); color: #ffffff; border: 1px solid rgba(255,255,255,0.18);"'
-            : "";
-
         return `
-            <article class="agenda-vet-card ${finalizado ? "status-finalizado" : ""}" data-agendamento-id="${Number(item.id || 0)}" ${cardStyle}>
-                <div class="agenda-vet-card-top">
-                    <h4 ${textStyle}>${escapeHtml(item.pet?.nome || "Pet não informado")}</h4>
-                    <span class="status-badge" ${badgeStyle}>${escapeHtml(status)}</span>
+            <article class="agenda-vet-card" data-agendamento-id="${Number(item.id || 0)}">
+                <div class="agenda-vet-card-head">
+                    <h4>${escapeHtml(item.pet?.nome || "Pet não informado")}</h4>
+                    <span class="agenda-vet-badge-status">${escapeHtml(status)}</span>
                 </div>
 
-                <p ${textStyle}><strong ${strongStyle}>Tutor:</strong> ${escapeHtml(item.cliente?.nome || "Tutor não informado")}</p>
-                <p ${textStyle}><strong ${strongStyle}>Horário:</strong> ${escapeHtml(dataHora)}</p>
-                <p ${textStyle}><strong ${strongStyle}>Responsável:</strong> ${escapeHtml(item.funcionario?.nome || "Não definido")}</p>
-                <p ${textStyle}><strong ${strongStyle}>Prioridade:</strong> ${escapeHtml(item.prioridade || "NORMAL")}</p>
-
-                <div class="agenda-vet-servicos">
-                    <strong ${strongStyle}>Serviços:</strong>
-                    <div class="tag-list">
-                        ${
-                            servicos.length
-                                ? servicos
-                                      .map((servico) => {
-                                          if (finalizado) {
-                                              return `<span class="tag" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.18); color: #ffffff;">${escapeHtml(servico.nome || "")}</span>`;
-                                          }
-                                          return `<span class="tag">${escapeHtml(servico.nome || "")}</span>`;
-                                      })
-                                      .join("")
-                                : finalizado
-                                    ? `<span class="tag" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.18); color: #ffffff;">Sem serviços</span>`
-                                    : `<span class="tag">Sem serviços</span>`
-                        }
-                    </div>
+                <div class="agenda-vet-card-body">
+                    <p><strong>Tutor:</strong> ${escapeHtml(item.cliente?.nome || "Tutor não informado")}</p>
+                    <p><strong>Horário:</strong> ${escapeHtml(dataHora)}</p>
+                    <p><strong>Responsável:</strong> ${escapeHtml(item.funcionario?.nome || "Não definido")}</p>
+                    <p><strong>Prioridade:</strong> ${escapeHtml(item.prioridade || "NORMAL")}</p>
+                    <p><strong>Serviços:</strong> ${servicos.length ? servicos.map((servico) => escapeHtml(servico.nome || "")).join(", ") : "Sem serviços"}</p>
+                    ${item.observacoes ? `<p><strong>Observações:</strong> ${escapeHtml(item.observacoes)}</p>` : ""}
                 </div>
-
-                ${
-                    item.observacoes
-                        ? `
-                    <p ${textStyle}><strong ${strongStyle}>Observações:</strong> ${escapeHtml(item.observacoes)}</p>
-                `
-                        : ""
-                }
 
                 <div class="agenda-vet-card-actions">
-                    ${
-                        finalizado
-                            ? `
-                        <button
-                            type="button"
-                            class="btn btn-secondary"
-                            disabled
-                            style="opacity: 1; background: rgba(255,255,255,0.16); color: #ffffff; border: 1px solid rgba(255,255,255,0.18); cursor: not-allowed;"
-                        >
-                            Atendimento Salvo
-                        </button>
-                    `
-                            : `
-                        <button
-                            type="button"
-                            class="btn btn-primary"
-                            data-action="iniciar-atendimento"
-                            data-agendamento-id="${Number(item.id || 0)}"
-                            data-status="${escapeHtml(status)}"
-                        >
-                            Iniciar Atendimento
-                        </button>
-                    `
-                    }
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        data-action="iniciar-atendimento"
+                        data-agendamento-id="${Number(item.id || 0)}"
+                        data-status="${escapeHtml(status)}"
+                    >
+                        ${finalizado ? "Atendimento Salvo" : "Iniciar Atendimento"}
+                    </button>
 
                     <button
                         type="button"
-                        class="btn ${finalizado ? "btn-secondary" : "btn-secondary"}"
+                        class="btn btn-secondary"
                         data-action="historico-rapido"
                         data-pet-id="${Number(item?.pet?.id || 0)}"
                         data-agendamento-id="${Number(item.id || 0)}"
-                        ${finalizado ? 'style="background: rgba(255,255,255,0.16); color: #ffffff; border: 1px solid rgba(255,255,255,0.18);"' : ""}
                     >
                         Histórico do Pet
                     </button>
@@ -436,16 +428,25 @@
 
     async function carregarClientes() {
         try {
-            const data = await fetchJsonSafe(
-                "/api/agenda-veterinaria/clientes",
-                {},
+            const data = await fetchListaComFallback(
+                [
+                    "/api/agenda-veterinaria/clientes",
+                    "/api/clientes?limit=500",
+                    "/api/clientes/?limit=500",
+                    "/api/clientes"
+                ],
                 "Erro ao carregar clientes."
             );
 
-            state.clientes = Array.isArray(data) ? data : [];
+            state.clientes = deduplicarPorId(
+                (Array.isArray(data) ? data : []).filter((cliente) => Number(cliente?.id || 0) > 0)
+            );
+
             preencherSelectClientes();
         } catch (error) {
             console.error(error);
+            state.clientes = [];
+            preencherSelectClientes();
         }
     }
 
@@ -468,17 +469,33 @@
 
     async function carregarPets(clienteId = null) {
         try {
-            let url = "/api/agenda-veterinaria/pets";
+            const endpoints = [];
+
             if (clienteId) {
-                url += `?cliente_id=${clienteId}`;
+                endpoints.push(`/api/agenda-veterinaria/pets?cliente_id=${clienteId}`);
+                endpoints.push(`/api/pets?cliente_id=${clienteId}&limit=500`);
+                endpoints.push(`/api/pets/?cliente_id=${clienteId}&limit=500`);
+            } else {
+                endpoints.push("/api/agenda-veterinaria/pets");
+                endpoints.push("/api/pets?limit=500");
+                endpoints.push("/api/pets/?limit=500");
+                endpoints.push("/api/pets");
             }
 
-            const data = await fetchJsonSafe(url, {}, "Erro ao carregar pets.");
+            const data = await fetchListaComFallback(endpoints, "Erro ao carregar pets.");
 
-            state.pets = Array.isArray(data) ? data : [];
+            state.pets = deduplicarPorId(
+                (Array.isArray(data) ? data : []).filter((pet) => {
+                    if (!clienteId) return Number(pet?.id || 0) > 0;
+                    return Number(pet?.id || 0) > 0 && Number(pet?.cliente_id || 0) === Number(clienteId);
+                })
+            );
+
             preencherSelectPets();
         } catch (error) {
             console.error(error);
+            state.pets = [];
+            preencherSelectPets();
         }
     }
 
@@ -512,6 +529,8 @@
             preencherSelectFuncionarios();
         } catch (error) {
             console.error(error);
+            state.funcionarios = [];
+            preencherSelectFuncionarios();
         }
     }
 
@@ -545,6 +564,8 @@
             preencherSelectServicosVet();
         } catch (error) {
             console.error(error);
+            state.servicos = [];
+            preencherSelectServicosVet();
         }
     }
 
@@ -572,7 +593,7 @@
 
         if (!state.servicosSelecionados.length) {
             el.agVetServicosSelecionados.innerHTML = `
-                <div class="empty-state">
+                <div class="agenda-vet-empty-day">
                     <h4>Nenhum serviço selecionado</h4>
                     <p>Adicione ao menos um serviço veterinário para o agendamento.</p>
                 </div>
@@ -583,7 +604,7 @@
         el.agVetServicosSelecionados.innerHTML = state.servicosSelecionados
             .map(
                 (servico) => `
-                    <div class="selected-service-item">
+                    <div class="agenda-vet-servico-item">
                         <span>
                             ${escapeHtml(servico.nome || "")}
                             ${servico.porte_referencia ? ` • ${escapeHtml(servico.porte_referencia)}` : ""}
@@ -591,7 +612,7 @@
                         </span>
                         <button
                             type="button"
-                            class="remove-service-btn"
+                            class="btn btn-sm btn-danger"
                             data-action="remover-servico-vet"
                             data-servico-id="${Number(servico.id || 0)}"
                         >
@@ -643,8 +664,20 @@
         return state.servicosSelecionados.map((item) => Number(item.id)).filter(Boolean);
     }
 
-    function abrirModalAgendamentoVet() {
+    async function abrirModalAgendamentoVet(dataISO = "") {
         limparFormularioAgendamentoVet();
+
+        if (!state.clientes.length) {
+            await carregarClientes();
+        }
+
+        if (!state.pets.length) {
+            await carregarPets();
+        }
+
+        if (dataISO && el.agVetDataHora) {
+            el.agVetDataHora.value = montarDataHoraPadrao(dataISO);
+        }
 
         if (el.modalAgendamentoVetOverlay) {
             el.modalAgendamentoVetOverlay.classList.add("active");
@@ -660,6 +693,8 @@
         if (form) {
             form.reset();
         }
+
+        limparFormularioAgendamentoVet();
     }
 
     function limparFormularioAgendamentoVet() {
@@ -707,16 +742,13 @@
                 "/api/agenda-veterinaria/agendamentos",
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload),
                 },
                 "Erro ao salvar agendamento."
             );
 
             fecharModalAgendamentoVet();
-            limparFormularioAgendamentoVet();
             await carregarAgendaSemana();
             showToast(data?.message || "Agendamento veterinário salvo com sucesso.");
         } catch (error) {
@@ -739,9 +771,7 @@
 
             const data = await fetchJsonSafe(
                 `/api/agenda-veterinaria/agendamentos/${agendamentoId}/iniciar-atendimento`,
-                {
-                    method: "POST",
-                },
+                { method: "POST" },
                 "Erro ao iniciar atendimento."
             );
 
@@ -779,22 +809,17 @@
         try {
             const data = await fetchJsonSafe(
                 `/api/clinico/iniciar-por-agendamento/${agendamentoId}?empresa_id=${empresaId}`,
-                {
-                    method: "POST",
-                },
+                { method: "POST" },
                 "Não foi possível iniciar o atendimento clínico no backend."
             );
 
             state.atendimentoClinicoId = data.id;
             state.atendimentoClinicoModo = "backend";
-
             await carregarDetalheAtendimentoClinico(data.id);
         } catch (error) {
             console.error(error);
-
             state.atendimentoClinicoId = null;
             state.atendimentoClinicoModo = "local";
-
             restaurarRascunhoClinicoLocal(agendamentoId);
         }
     }
@@ -830,33 +855,22 @@
         if (el.clinicoQueixaPrincipal) {
             el.clinicoQueixaPrincipal.value = anamnese.queixa_principal || "";
         }
-
         if (el.clinicoHistoricoAtual) {
             el.clinicoHistoricoAtual.value = anamnese.historico_atual || "";
         }
-
         if (el.clinicoObservacoesGerais) {
             el.clinicoObservacoesGerais.value =
-                observacoesClinicas.observacoes_gerais ||
-                anamnese.observacoes ||
-                "";
+                observacoesClinicas.observacoes_gerais || anamnese.observacoes || "";
         }
-
         if (el.clinicoServicosExecutados) {
             el.clinicoServicosExecutados.value = prontuario.conduta || "";
         }
-
         if (el.clinicoMedicacoes) {
             el.clinicoMedicacoes.value = observacoesClinicas.medicacoes || "";
         }
-
         if (el.clinicoExames) {
-            el.clinicoExames.value =
-                observacoesClinicas.exames ||
-                prontuario.diagnostico ||
-                "";
+            el.clinicoExames.value = observacoesClinicas.exames || prontuario.diagnostico || "";
         }
-
         if (el.clinicoReceita) {
             el.clinicoReceita.value = observacoesClinicas.receita || "";
         }
@@ -880,17 +894,14 @@
         if (el.clinicoTutorNome) {
             el.clinicoTutorNome.textContent = agendamento?.cliente?.nome || "-";
         }
-
         if (el.clinicoTutorContato) {
             const telefone = agendamento?.cliente?.telefone || "";
             const email = agendamento?.cliente?.email || "";
             el.clinicoTutorContato.textContent = [telefone, email].filter(Boolean).join(" | ") || "-";
         }
-
         if (el.clinicoPetNome) {
             el.clinicoPetNome.textContent = agendamento?.pet?.nome || "-";
         }
-
         if (el.clinicoPetResumo) {
             const resumo = [
                 agendamento?.pet?.especie || "",
@@ -899,15 +910,13 @@
             ]
                 .filter(Boolean)
                 .join(" • ");
-
             el.clinicoPetResumo.textContent = resumo || "-";
         }
-
         if (el.clinicoServicosPrevistos) {
             el.clinicoServicosPrevistos.innerHTML =
                 (agendamento?.servicos || [])
-                    .map((servico) => `<span class="tag">${escapeHtml(servico.nome || "")}</span>`)
-                    .join("") || `<span class="tag">Nenhum serviço previsto</span>`;
+                    .map((servico) => escapeHtml(servico.nome || ""))
+                    .join(", ") || "Nenhum serviço previsto";
         }
     }
 
@@ -948,157 +957,106 @@
         if (!el.clinicoHistoricoConteudo) return;
 
         const pet = data?.pet || {};
-        const consultasVeterinarias = Array.isArray(data?.consultas_veterinarias)
-            ? data.consultas_veterinarias
-            : [];
+        const consultasVeterinarias = Array.isArray(data?.consultas_veterinarias) ? data.consultas_veterinarias : [];
         const atendimentosGrooming = Array.isArray(data?.atendimentos_grooming)
             ? data.atendimentos_grooming
             : Array.isArray(data?.atendimentos)
-                ? data.atendimentos
-                : [];
+            ? data.atendimentos
+            : [];
         const intercorrencias = Array.isArray(data?.intercorrencias_grooming)
             ? data.intercorrencias_grooming
             : Array.isArray(data?.intercorrencias)
-                ? data.intercorrencias
-                : [];
+            ? data.intercorrencias
+            : [];
         const timeline = Array.isArray(data?.timeline_producao) ? data.timeline_producao : [];
 
         el.clinicoHistoricoConteudo.innerHTML = `
-            <section class="historico-section">
-                <h4>Resumo do Pet</h4>
-                <p><strong>Nome:</strong> ${escapeHtml(pet.nome || "-")}</p>
-                <p><strong>Tutor:</strong> ${escapeHtml(pet.tutor || "-")}</p>
-                <p><strong>Espécie:</strong> ${escapeHtml(pet.especie || "-")}</p>
-                <p><strong>Raça:</strong> ${escapeHtml(pet.raca || "-")}</p>
-                <p><strong>Porte:</strong> ${escapeHtml(pet.porte || "-")}</p>
-                <p><strong>Sexo:</strong> ${escapeHtml(pet.sexo || "-")}</p>
-                <p><strong>Peso:</strong> ${escapeHtml(formatPeso(pet.peso))}</p>
-                <p><strong>Temperamento:</strong> ${escapeHtml(pet.temperamento || "-")}</p>
-                <p><strong>Observações cadastrais:</strong> ${escapeHtml(pet.observacoes_cadastrais || "-")}</p>
+            <section class="historico-pet-bloco">
+                <h4>${escapeHtml(pet.nome || "Pet")}</h4>
+                <p>${[pet.especie, pet.raca, pet.porte].filter(Boolean).map(escapeHtml).join(" • ") || "-"}</p>
             </section>
 
-            <section class="historico-section">
-                <h4>Consultas veterinárias anteriores</h4>
+            <section class="historico-pet-bloco">
+                <h4>Consultas veterinárias</h4>
                 ${
                     consultasVeterinarias.length
                         ? consultasVeterinarias
                               .map(
                                   (item) => `
-                                    <div class="historico-item">
-                                        <p><strong>Início:</strong> ${escapeHtml(formatDateTime(item.data_inicio))}</p>
-                                        <p><strong>Fim:</strong> ${escapeHtml(formatDateTime(item.data_fim))}</p>
-                                        <p><strong>Status:</strong> ${escapeHtml(item.status || "-")}</p>
-                                        <p><strong>Veterinário:</strong> ${escapeHtml(item.veterinario || "-")}</p>
-                                        <p><strong>Serviços executados:</strong> ${escapeHtml(joinList(item.servicos_executados))}</p>
-                                        <p><strong>Observações da recepção:</strong> ${escapeHtml(item.observacoes_recepcao || "-")}</p>
-                                        <p><strong>Observações clínicas:</strong> ${escapeHtml(item.observacoes_clinicas || "-")}</p>
-
-                                        <hr>
-
-                                        <p><strong>Anamnese</strong></p>
-                                        <p><strong>Queixa principal:</strong> ${escapeHtml(item.anamnese?.queixa_principal || "-")}</p>
-                                        <p><strong>Histórico atual:</strong> ${escapeHtml(item.anamnese?.historico_atual || "-")}</p>
-                                        <p><strong>Alimentação:</strong> ${escapeHtml(item.anamnese?.alimentacao || "-")}</p>
-                                        <p><strong>Alergias:</strong> ${escapeHtml(item.anamnese?.alergias || "-")}</p>
-                                        <p><strong>Uso de medicação atual:</strong> ${escapeHtml(item.anamnese?.uso_medicacao_atual || "-")}</p>
-                                        <p><strong>Observações da anamnese:</strong> ${escapeHtml(item.anamnese?.observacoes || "-")}</p>
-
-                                        <hr>
-
-                                        <p><strong>Prontuário</strong></p>
-                                        <p><strong>Exame físico:</strong> ${escapeHtml(item.prontuario?.exame_fisico || "-")}</p>
-                                        <p><strong>Diagnóstico:</strong> ${escapeHtml(item.prontuario?.diagnostico || "-")}</p>
-                                        <p><strong>Conduta:</strong> ${escapeHtml(item.prontuario?.conduta || "-")}</p>
-                                        <p><strong>Observações do prontuário:</strong> ${escapeHtml(item.prontuario?.observacoes || "-")}</p>
-                                        <p><strong>Observações gerais:</strong> ${escapeHtml(item.prontuario?.observacoes_gerais || "-")}</p>
-                                        <p><strong>Medicações:</strong> ${escapeHtml(item.prontuario?.medicacoes || "-")}</p>
-                                        <p><strong>Exames:</strong> ${escapeHtml(item.prontuario?.exames || "-")}</p>
-                                        <p><strong>Receita:</strong> ${escapeHtml(item.prontuario?.receita || "-")}</p>
+                                    <div class="historico-pet-item">
+                                        <strong>${escapeHtml(formatDateLabel(item.data, item.hora, item.data_agendamento))}</strong>
+                                        <div>${escapeHtml(item.queixa_principal || item.diagnostico || "Consulta registrada")}</div>
                                     </div>
                                 `
                               )
                               .join("")
-                        : `<p>Nenhuma consulta veterinária encontrada no histórico.</p>`
+                        : "<p>Sem consultas veterinárias anteriores.</p>"
                 }
             </section>
 
-            <section class="historico-section">
-                <h4>Atendimentos anteriores de banho e tosa</h4>
+            <section class="historico-pet-bloco">
+                <h4>Banho e tosa</h4>
                 ${
                     atendimentosGrooming.length
                         ? atendimentosGrooming
                               .map(
                                   (item) => `
-                                    <div class="historico-item">
-                                        <p><strong>Data:</strong> ${escapeHtml(formatDateLabel(item.data, item.hora))}</p>
-                                        <p><strong>Status:</strong> ${escapeHtml(item.status_final || item.status || "-")}</p>
-                                        <p><strong>Funcionário responsável:</strong> ${escapeHtml(item.funcionario_responsavel || "-")}</p>
-                                        <p><strong>Serviços:</strong> ${escapeHtml(joinList(item.servicos_executados || item.servicos))}</p>
-                                        <p><strong>Intercorrências:</strong> ${escapeHtml(joinList(item.intercorrencias))}</p>
-                                        <p><strong>Observações gerais:</strong> ${escapeHtml(item.observacoes_gerais || item.observacoes || "-")}</p>
-                                        <p><strong>Observações da produção:</strong> ${escapeHtml(item.observacoes_producao || "-")}</p>
-                                        <p><strong>Tempo total:</strong> ${escapeHtml(formatMinutes(item.tempo_total_atendimento_minutos))}</p>
+                                    <div class="historico-pet-item">
+                                        <strong>${escapeHtml(formatDateLabel(item.data, item.hora, item.data_agendamento))}</strong>
+                                        <div>${escapeHtml(joinList(item.servicos || item.servicos_previstos || []))}</div>
                                     </div>
                                 `
                               )
                               .join("")
-                        : `<p>Nenhum atendimento de banho e tosa encontrado no histórico.</p>`
+                        : "<p>Sem atendimentos de grooming anteriores.</p>"
                 }
             </section>
 
-            <section class="historico-section">
-                <h4>Intercorrências de banho e tosa</h4>
+            <section class="historico-pet-bloco">
+                <h4>Intercorrências</h4>
                 ${
                     intercorrencias.length
                         ? intercorrencias
                               .map(
                                   (item) => `
-                                    <div class="historico-item">
-                                        <p><strong>Data:</strong> ${escapeHtml(formatDateLabel(item.data, item.hora))}</p>
-                                        <p><strong>Funcionário:</strong> ${escapeHtml(item.funcionario || "-")}</p>
-                                        <p><strong>Descrição:</strong> ${escapeHtml(item.descricao || item.intercorrencia || "-")}</p>
+                                    <div class="historico-pet-item">
+                                        <strong>${escapeHtml(formatDateLabel(item.data, item.hora, item.data_agendamento))}</strong>
+                                        <div>${escapeHtml(item.descricao || item.observacao || "Intercorrência registrada")}</div>
                                     </div>
                                 `
                               )
                               .join("")
-                        : `<p>Nenhuma intercorrência registrada.</p>`
+                        : "<p>Sem intercorrências registradas.</p>"
                 }
             </section>
 
-            <section class="historico-section">
-                <h4>Timeline operacional</h4>
+            <section class="historico-pet-bloco">
+                <h4>Timeline de produção</h4>
                 ${
                     timeline.length
                         ? timeline
                               .map(
                                   (item) => `
-                                    <div class="historico-item">
-                                        <p><strong>Data:</strong> ${escapeHtml(formatDateLabel(item.data, item.hora, item.iniciado_em || item.finalizado_em || item.data_hora))}</p>
-                                        <p><strong>Etapa:</strong> ${escapeHtml(item.etapa || "-")}</p>
-                                        <p><strong>Status:</strong> ${escapeHtml(item.status || "-")}</p>
-                                        <p><strong>Funcionário:</strong> ${escapeHtml(item.funcionario || "-")}</p>
-                                        <p><strong>Início:</strong> ${escapeHtml(formatDateTime(item.iniciado_em))}</p>
-                                        <p><strong>Fim:</strong> ${escapeHtml(formatDateTime(item.finalizado_em))}</p>
-                                        <p><strong>Intercorrência:</strong> ${escapeHtml(item.intercorrencia || "-")}</p>
-                                        <p><strong>Observação:</strong> ${escapeHtml(item.observacoes || item.observacao || "-")}</p>
-                                        <p><strong>Tempo gasto:</strong> ${escapeHtml(formatMinutes(item.tempo_gasto_minutos))}</p>
+                                    <div class="historico-pet-item">
+                                        <strong>${escapeHtml(formatDateLabel(item.data, item.hora, item.data_agendamento))}</strong>
+                                        <div>${escapeHtml(item.etapa || item.status || "Evento de produção")}</div>
                                     </div>
                                 `
                               )
                               .join("")
-                        : `<p>Nenhum histórico operacional encontrado.</p>`
+                        : "<p>Sem timeline de produção registrada.</p>"
                 }
             </section>
         `;
     }
 
-    function renderHistoricoVazio(titulo, descricao) {
+    function renderHistoricoVazio(title, description) {
         if (!el.clinicoHistoricoConteudo) return;
 
         el.clinicoHistoricoConteudo.innerHTML = `
-            <div class="empty-state">
-                <h4>${escapeHtml(titulo || "Sem histórico")}</h4>
-                <p>${escapeHtml(descricao || "Nenhuma informação disponível.")}</p>
+            <div class="agenda-vet-empty-day">
+                <h4>${escapeHtml(title || "Sem histórico")}</h4>
+                <p>${escapeHtml(description || "Nenhuma informação disponível.")}</p>
             </div>
         `;
     }
@@ -1173,10 +1131,7 @@
             );
 
             if (state.atendimentoClinicoId) {
-                window.open(
-                    `/api/clinico/${state.atendimentoClinicoId}/receita/imprimir`,
-                    "_blank"
-                );
+                window.open(`/api/clinico/${state.atendimentoClinicoId}/receita/imprimir`, "_blank");
             }
 
             if (state.agendamentoAtual) {
@@ -1189,7 +1144,9 @@
                 renderAgenda();
             }, 100);
 
-            await abrirHistoricoPetPorId(state.agendamentoAtual.pet.id);
+            if (state.agendamentoAtual?.pet?.id) {
+                await abrirHistoricoPetPorId(state.agendamentoAtual.pet.id);
+            }
 
             fecharModalAtendimentoClinico();
             showToast("Atendimento clínico salvo e finalizado com sucesso.");
@@ -1207,7 +1164,6 @@
 
             const payload = coletarFormularioClinico();
             const chave = getClinicoStorageKey(state.agendamentoAtual.id);
-
             localStorage.setItem(chave, JSON.stringify(payload));
         } catch (error) {
             console.error(error);
@@ -1220,7 +1176,6 @@
         try {
             const chave = getClinicoStorageKey(agendamentoId);
             const bruto = localStorage.getItem(chave);
-
             if (!bruto) return;
 
             const data = JSON.parse(bruto);
@@ -1331,9 +1286,9 @@
         if (!el.agendaVetGrid) return;
 
         el.agendaVetGrid.innerHTML = `
-            <div class="empty-state error-state">
-                <h3>Erro ao carregar agenda veterinária</h3>
-                <p>${escapeHtml(message || "Falha inesperada.")}</p>
+            <div class="agenda-vet-empty-day">
+                <h3>Erro ao carregar agenda</h3>
+                <p>${escapeHtml(message || "Falha ao montar agenda veterinária.")}</p>
             </div>
         `;
     }
@@ -1347,7 +1302,7 @@
         if (!value) return "-";
 
         const date = new Date(value);
-        if (isNaN(date.getTime())) return String(value);
+        if (Number.isNaN(date.getTime())) return String(value);
 
         return date.toLocaleString("pt-BR", {
             day: "2-digit",
@@ -1378,40 +1333,6 @@
         return "-";
     }
 
-    function formatMinutes(value) {
-        if (value === null || value === undefined || value === "") return "-";
-
-        const total = Number(value);
-        if (!Number.isFinite(total)) return String(value);
-
-        if (total < 60) return `${total} min`;
-
-        const horas = Math.floor(total / 60);
-        const minutos = total % 60;
-
-        return minutos ? `${horas}h ${minutos}min` : `${horas}h`;
-    }
-
-    function joinList(list) {
-        if (!Array.isArray(list) || !list.length) return "-";
-
-        const itens = list
-            .map((item) => {
-                if (item === null || item === undefined) return "";
-                if (typeof item === "string") return item.trim();
-                if (typeof item === "object" && item.nome) return String(item.nome).trim();
-                return String(item).trim();
-            })
-            .filter(Boolean);
-
-        return itens.length ? itens.join(", ") : "-";
-    }
-
-    function formatPeso(value) {
-        if (value === null || value === undefined || value === "") return "-";
-        return `${String(value)} kg`;
-    }
-
     function formatCurrency(value) {
         return Number(value || 0).toLocaleString("pt-BR", {
             style: "currency",
@@ -1429,15 +1350,64 @@
     function addDays(isoDate, days) {
         const date = new Date(`${isoDate}T00:00:00`);
         date.setDate(date.getDate() + days);
-
         const offset = date.getTimezoneOffset();
         const localDate = new Date(date.getTime() - offset * 60000);
-
         return localDate.toISOString().slice(0, 10);
+    }
+
+    function montarDataHoraPadrao(dataISO) {
+        const hoje = getTodayISO();
+        const hora = dataISO === hoje ? obterHoraLocalArredondada() : "09:00";
+        return `${dataISO}T${hora}`;
+    }
+
+    function obterHoraLocalArredondada() {
+        const agora = new Date();
+        let horas = agora.getHours();
+        let minutos = agora.getMinutes();
+
+        if (minutos > 0 && minutos <= 30) {
+            minutos = 30;
+        } else if (minutos > 30) {
+            minutos = 0;
+            horas += 1;
+        } else {
+            minutos = 0;
+        }
+
+        return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
     }
 
     function getClinicoStorageKey(agendamentoId) {
         return `petflow_clinico_draft_${agendamentoId}`;
+    }
+
+    function joinList(list) {
+        if (!Array.isArray(list) || !list.length) return "-";
+
+        const itens = list
+            .map((item) => {
+                if (item === null || item === undefined) return "";
+                if (typeof item === "string") return item.trim();
+                if (typeof item === "object" && item.nome) return String(item.nome).trim();
+                return String(item).trim();
+            })
+            .filter(Boolean);
+
+        return itens.length ? itens.join(", ") : "-";
+    }
+
+    function deduplicarPorId(lista) {
+        const mapa = new Map();
+
+        (Array.isArray(lista) ? lista : []).forEach((item) => {
+            const id = Number(item?.id || 0);
+            if (id > 0 && !mapa.has(id)) {
+                mapa.set(id, item);
+            }
+        });
+
+        return Array.from(mapa.values());
     }
 
     function escapeHtml(value) {
@@ -1446,7 +1416,7 @@
             .replaceAll("<", "&lt;")
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#39;");
+            .replaceAll("'", "&#039;");
     }
 
     function showToast(message, type = "success") {
