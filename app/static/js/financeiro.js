@@ -1,4 +1,4 @@
-const FINANCEIRO_EMPRESA_ID = 1;
+const FINANCEIRO_EMPRESA_ID = obterEmpresaId();
 
 let financeiroContas = [];
 let financeiroModo = "receber"; // receber | pagar
@@ -324,9 +324,17 @@ function preencherDashboardPremium(data) {
     const saidasHoje = Number(data.saidas_hoje ?? 0);
     const lucroHoje = Number(data.lucro_hoje ?? (entradasHoje - saidasHoje));
 
-    const receitaMes = Number(data.receita_mes ?? 0);
-    const despesaMes = Number(data.despesa_mes ?? 0);
-    const lucroMes = Number(data.lucro_mes ?? (receitaMes - despesaMes));
+    const receitaMes = Number(data.receita_mes ?? data.total_receitas ?? 0);
+    const despesaMes = Number(data.despesa_mes ?? data.total_despesas ?? 0);
+    const lucroMes = Number(data.lucro_mes ?? data.resultado ?? (receitaMes - despesaMes));
+
+    const receberAberto = Number(data.receber_aberto ?? 0);
+    const pagarAberto = Number(data.pagar_aberto ?? 0);
+    const vencido = Number(
+        financeiroModo === "receber"
+            ? (data.receber_vencido ?? data.vencido ?? 0)
+            : (data.pagar_vencido ?? 0)
+    );
 
     setText("financeiro-entradas-hoje", formatarMoeda(entradasHoje));
     setText("financeiro-saidas-hoje", formatarMoeda(saidasHoje));
@@ -339,6 +347,9 @@ function preencherDashboardPremium(data) {
 
     setText("financeiro-dre-receita-resumo", formatarMoeda(receitaMes));
     setText("financeiro-dre-despesa-resumo", formatarMoeda(despesaMes));
+    setText("financeiro-receber-aberto", formatarMoeda(receberAberto));
+    setText("financeiro-pago-recebido", formatarMoeda(financeiroModo === "receber" ? receberAberto : pagarAberto));
+    setText("financeiro-vencido", formatarMoeda(vencido));
 
     aplicarCorLucro("financeiro-lucro-hoje", lucroHoje);
     aplicarCorLucro("financeiro-lucro-mes", lucroMes);
@@ -349,12 +360,14 @@ function aplicarCorLucro(id, valor) {
     const el = document.getElementById(id);
     if (!el) return;
 
-    el.classList.remove("valor-positivo", "valor-negativo");
+    el.classList.remove("valor-positivo", "valor-negativo", "text-success", "text-danger");
 
     if (Number(valor || 0) >= 0) {
         el.classList.add("valor-positivo");
+        el.classList.add("text-success");
     } else {
         el.classList.add("valor-negativo");
+        el.classList.add("text-danger");
     }
 }
 
@@ -436,8 +449,8 @@ function renderizarDreDetalhado(data) {
         grupos,
         (item) => `
             <div class="financeiro-info">
-                <span class="financeiro-info-label">${escapeHtml(item.grupo_dre || "Sem grupo")}</span>
-                <span class="financeiro-info-value">${formatarMoeda(item.total || 0)}</span>
+                <span class="financeiro-info-label">${escapeHtml(item.grupo_dre || item.grupo || "Sem grupo")}</span>
+                <span class="financeiro-info-value">${formatarMoeda(item.total ?? item.valor ?? 0)}</span>
             </div>
         `,
         "Nenhuma despesa classificada por grupo no período."
@@ -449,9 +462,9 @@ function renderizarDreDetalhado(data) {
         (item) => `
             <div class="financeiro-info">
                 <span class="financeiro-info-label">
-                    ${escapeHtml(item.grupo_dre || "Sem grupo")} › ${escapeHtml(item.categoria_dre || "Sem categoria")}
+                    ${escapeHtml(item.grupo_dre || item.grupo || "Sem grupo")} › ${escapeHtml(item.categoria_dre || item.categoria || "Sem categoria")}
                 </span>
-                <span class="financeiro-info-value">${formatarMoeda(item.total || 0)}</span>
+                <span class="financeiro-info-value">${formatarMoeda(item.total ?? item.valor ?? 0)}</span>
             </div>
         `,
         "Nenhuma despesa classificada por categoria no período."
@@ -463,11 +476,11 @@ function renderizarDreDetalhado(data) {
         (item) => `
             <div class="financeiro-info">
                 <span class="financeiro-info-label">
-                    ${escapeHtml(item.grupo_dre || "Sem grupo")} ›
-                    ${escapeHtml(item.categoria_dre || "Sem categoria")} ›
-                    ${escapeHtml(item.subcategoria_dre || "Sem subcategoria")}
+                    ${escapeHtml(item.grupo_dre || item.grupo || "Sem grupo")} ›
+                    ${escapeHtml(item.categoria_dre || item.categoria || "Sem categoria")} ›
+                    ${escapeHtml(item.subcategoria_dre || item.subcategoria || "Sem subcategoria")}
                 </span>
-                <span class="financeiro-info-value">${formatarMoeda(item.total || 0)}</span>
+                <span class="financeiro-info-value">${formatarMoeda(item.total ?? item.valor ?? 0)}</span>
             </div>
         `,
         "Nenhuma despesa classificada por subcategoria no período."
@@ -503,18 +516,13 @@ function preencherResumo(resumo) {
     setText("financeiro-total-pago", formatarMoeda(resumo.total_pago || 0));
     setText("financeiro-total-vencido", formatarMoeda(resumo.total_vencido || 0));
 
-    setText(
-        "financeiro-qtd-pendente",
-        `${Number(resumo.quantidade_pendente || 0)} conta(s)`
-    );
-    setText(
-        "financeiro-qtd-pago",
-        `${Number(resumo.quantidade_paga || 0)} conta(s)`
-    );
-    setText(
-        "financeiro-qtd-vencido",
-        `${Number(resumo.quantidade_vencida || 0)} conta(s)`
-    );
+    setText("financeiro-qtd-pendente", `${Number(resumo.quantidade_pendente || 0)} conta(s)`);
+    setText("financeiro-qtd-pago", `${Number(resumo.quantidade_paga || 0)} conta(s)`);
+    setText("financeiro-qtd-vencido", `${Number(resumo.quantidade_vencida || 0)} conta(s)`);
+
+    setText("financeiro-qtd-pendentes", `${Number(resumo.quantidade_pendente || 0)} conta(s)`);
+    setText("financeiro-qtd-pagas", `${Number(resumo.quantidade_paga || 0)} conta(s)`);
+    setText("financeiro-qtd-vencidas", `${Number(resumo.quantidade_vencida || 0)} conta(s)`);
 }
 
 function renderizarContas() {
@@ -825,9 +833,9 @@ function atualizarAbasFinanceiro() {
 }
 
 function atualizarRotulosFormulario() {
-    const tituloModal = document.getElementById("financeiro-modal-title");
+    const tituloModal = document.getElementById("financeiro-modal-title") || document.getElementById("financeiro-modal-titulo");
     const subtituloModal = document.getElementById("financeiro-modal-subtitle");
-    const tituloLista = document.getElementById("financeiro-titulo-lista");
+    const tituloLista = document.getElementById("financeiro-titulo-lista") || document.getElementById("financeiro-contas-titulo");
     const badgeLista = document.getElementById("financeiro-badge-lista");
     const labelCliente = document.getElementById("financeiro-label-cliente-id");
     const fieldCliente = document.getElementById("financeiro-field-cliente-id");
@@ -835,7 +843,7 @@ function atualizarRotulosFormulario() {
     const fieldDre = document.getElementById("financeiro-dre-fields");
     const dreEmpty = document.getElementById("financeiro-step-2-empty");
     const btnSalvar = document.getElementById("btn-salvar-conta");
-    const reviewTipo = document.getElementById("financeiro-review-tipo");
+    const reviewTipo = document.getElementById("financeiro-review-tipo") || document.getElementById("financeiro-resumo-tipo");
 
     if (tituloModal) {
         tituloModal.textContent =
@@ -968,21 +976,23 @@ function validarStepAtualFinanceiro() {
 }
 
 function atualizarWizardFinanceiro() {
-    const step1 = document.getElementById("financeiro-step-1");
-    const step2 = document.getElementById("financeiro-step-2");
-    const step3 = document.getElementById("financeiro-step-3");
+    const step1 = document.getElementById("financeiro-step-1") || document.querySelector('[data-step-panel="1"]');
+    const step2 = document.getElementById("financeiro-step-2") || document.querySelector('[data-step-panel="2"]');
+    const step3 = document.getElementById("financeiro-step-3") || document.querySelector('[data-step-panel="3"]');
 
-    const indicador1 = document.getElementById("financeiro-step-indicador-1");
-    const indicador2 = document.getElementById("financeiro-step-indicador-2");
-    const indicador3 = document.getElementById("financeiro-step-indicador-3");
+    const indicador1 = document.getElementById("financeiro-step-indicador-1") || document.querySelector('.financeiro-step[data-step="1"]');
+    const indicador2 = document.getElementById("financeiro-step-indicador-2") || document.querySelector('.financeiro-step[data-step="2"]');
+    const indicador3 = document.getElementById("financeiro-step-indicador-3") || document.querySelector('.financeiro-step[data-step="3"]');
 
     const btnVoltar = document.getElementById("btn-voltar-step-financeiro");
     const btnAvancar = document.getElementById("btn-avancar-step-financeiro");
     const btnSalvar = document.getElementById("btn-salvar-conta");
 
     [step1, step2, step3].forEach((el) => {
-        if (el) {
-            el.classList.remove("is-active");
+        if (!el) return;
+        el.classList.remove("is-active");
+        if (el.dataset && Object.prototype.hasOwnProperty.call(el.dataset, "stepPanel")) {
+            el.style.display = "none";
         }
     });
 
@@ -992,9 +1002,26 @@ function atualizarWizardFinanceiro() {
         }
     });
 
-    if (step1 && financeiroWizardStep === 1) step1.classList.add("is-active");
-    if (step2 && financeiroWizardStep === 2) step2.classList.add("is-active");
-    if (step3 && financeiroWizardStep === 3) step3.classList.add("is-active");
+    if (step1 && financeiroWizardStep === 1) {
+        step1.classList.add("is-active");
+        if (step1.dataset && Object.prototype.hasOwnProperty.call(step1.dataset, "stepPanel")) {
+            step1.style.display = "";
+        }
+    }
+
+    if (step2 && financeiroWizardStep === 2) {
+        step2.classList.add("is-active");
+        if (step2.dataset && Object.prototype.hasOwnProperty.call(step2.dataset, "stepPanel")) {
+            step2.style.display = "";
+        }
+    }
+
+    if (step3 && financeiroWizardStep === 3) {
+        step3.classList.add("is-active");
+        if (step3.dataset && Object.prototype.hasOwnProperty.call(step3.dataset, "stepPanel")) {
+            step3.style.display = "";
+        }
+    }
 
     if (indicador1) {
         indicador1.classList.add("is-active");
@@ -1062,6 +1089,15 @@ function atualizarResumoWizardFinanceiro() {
     setText("financeiro-review-categoria", financeiroModo === "pagar" ? categoria : "Não se aplica");
     setText("financeiro-review-subcategoria", financeiroModo === "pagar" ? subcategoria : "Não se aplica");
     setText("financeiro-review-observacao", observacao);
+
+    setText("financeiro-resumo-cliente-fornecedor", String(pessoa));
+    setText("financeiro-resumo-descricao", descricao);
+    setText("financeiro-resumo-valor", formatarMoeda(valor));
+    setText("financeiro-resumo-vencimento", vencimento ? formatarData(vencimento) : "-");
+    setText("financeiro-resumo-grupo", financeiroModo === "pagar" ? grupo : "Não se aplica");
+    setText("financeiro-resumo-categoria", financeiroModo === "pagar" ? categoria : "Não se aplica");
+    setText("financeiro-resumo-subcategoria", financeiroModo === "pagar" ? subcategoria : "Não se aplica");
+    setText("financeiro-resumo-observacao", observacao);
 }
 
 function preencherCamposCompetencia() {
@@ -1100,7 +1136,7 @@ function atualizarCompetenciaDosCampos() {
 }
 
 function atualizarLabelCompetencia() {
-    const el = document.getElementById("financeiro-competencia-atual");
+    const el = document.getElementById("financeiro-competencia-atual") || document.getElementById("financeiro-competencia-label");
     if (!el) return;
 
     const mesNome = obterNomeMes(financeiroCompetencia.mes);
@@ -1121,6 +1157,33 @@ function obterCompetenciaAtual() {
         mes: hoje.getMonth() + 1,
         ano: hoje.getFullYear()
     };
+}
+
+function obterEmpresaId() {
+    const candidatos = [
+        localStorage.getItem("empresa_id"),
+        localStorage.getItem("empresaId"),
+        localStorage.getItem("id_empresa")
+    ];
+
+    for (const valor of candidatos) {
+        const numero = Number(valor);
+        if (numero > 0) {
+            return numero;
+        }
+    }
+
+    try {
+        const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+        const numero = Number(usuario?.empresa_id || usuario?.empresaId || usuario?.id_empresa);
+        if (numero > 0) {
+            return numero;
+        }
+    } catch (error) {
+        console.warn("[FINANCEIRO] Não foi possível ler empresa do localStorage.", error);
+    }
+
+    return 1;
 }
 
 function obterNomeMes(mes) {

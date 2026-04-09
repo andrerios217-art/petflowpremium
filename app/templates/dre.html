@@ -1,0 +1,118 @@
+{% extends "layout/base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/financeiro.css">
+<link rel="stylesheet" href="/static/css/dre.css">
+{% endblock %}
+
+{% block content %}
+<section class="financeiro-page dre-page">
+  <header class="financeiro-header">
+    <div>
+      <h1>DRE</h1>
+      <p>Análise detalhada por grupo, categoria e subcategoria.</p>
+    </div>
+
+    <div class="financeiro-header-actions">
+      <a href="/financeiro" class="btn btn-outline">Voltar ao Financeiro</a>
+      <button type="button" class="btn btn-primary" id="btnAplicarFiltrosDre">Atualizar</button>
+    </div>
+  </header>
+
+  <section class="financeiro-competencia-card">
+    <div class="financeiro-card-header">
+      <div>
+        <h2>Período de Análise</h2>
+        <p class="text-muted">Defina a faixa de competência para montar o DRE detalhado.</p>
+      </div>
+    </div>
+
+    <div class="financeiro-competencia-grid dre-filtros-grid">
+      <div class="form-group">
+        <label for="dreCompetenciaInicio">Competência inicial</label>
+        <input type="month" id="dreCompetenciaInicio" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="dreCompetenciaFim">Competência final</label>
+        <input type="month" id="dreCompetenciaFim" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="dreModoVisualizacao">Visualização</label>
+        <select id="dreModoVisualizacao" class="form-control">
+          <option value="agrupado">Agrupado</option>
+          <option value="lista">Lista</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="financeiro-kpis-grid dre-resumo-grid">
+    <article class="financeiro-kpi-card dre-resumo-card">
+      <span class="financeiro-kpi-label">Receita</span>
+      <strong class="financeiro-kpi-value dre-resumo-valor" id="dreResumoReceita">R$ 0,00</strong>
+      <small class="text-muted">Total de receitas no período</small>
+    </article>
+
+    <article class="financeiro-kpi-card dre-resumo-card">
+      <span class="financeiro-kpi-label">Despesa</span>
+      <strong class="financeiro-kpi-value dre-resumo-valor text-danger" id="dreResumoDespesa">R$ 0,00</strong>
+      <small class="text-muted">Total de despesas no período</small>
+    </article>
+
+    <article class="financeiro-kpi-card dre-resumo-card">
+      <span class="financeiro-kpi-label">Resultado</span>
+      <strong class="financeiro-kpi-value dre-resumo-valor" id="dreResumoResultado">R$ 0,00</strong>
+      <small class="text-muted">Resultado consolidado do período</small>
+    </article>
+  </section>
+
+  <section class="financeiro-dre-card dre-tabela-card">
+    <div class="financeiro-card-header dre-tabela-header">
+      <div>
+        <h2>DRE Detalhado</h2>
+        <p class="text-muted">Leitura tabular com hierarquia, subtotal e percentual sobre a receita.</p>
+      </div>
+    </div>
+
+    <div class="dre-tabela-wrapper">
+      <table class="dre-tabela" id="dreTabela">
+        <thead>
+          <tr>
+            <th class="col-descricao">Descrição</th>
+            <th class="col-competencia">Competência</th>
+            <th class="col-tipo">Tipo</th>
+            <th class="col-percentual">%</th>
+            <th class="col-valor text-right">Valor</th>
+          </tr>
+        </thead>
+        <tbody id="dreTabelaBody">
+          <tr>
+            <td colspan="5" class="dre-empty">Carregando DRE...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>
+
+<template id="dreLinhaTemplate">
+  <tr class="dre-linha">
+    <td class="col-descricao">
+      <div class="dre-descricao-wrap">
+        <button type="button" class="dre-toggle" data-toggle="expandir" aria-label="Expandir">
+          <span class="dre-toggle-icon">+</span>
+        </button>
+        <span class="dre-descricao"></span>
+      </div>
+    </td>
+    <td class="col-competencia dre-competencia"></td>
+    <td class="col-tipo dre-tipo"></td>
+    <td class="col-percentual dre-percentual"></td>
+    <td class="col-valor text-right dre-valor"></td>
+  </tr>
+</template>
+
+<script src="/static/js/dre.js"></script>
+{% endblock %}
