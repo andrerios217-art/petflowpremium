@@ -1,95 +1,837 @@
-<aside class="sidebar" id="sidebar">
-  <div class="sidebar-header">
-    <a href="/dashboard" class="sidebar-logo">
-      <span class="logo-mark">🐾</span>
-      <span class="logo-text">Pet Flow Premium</span>
-    </a>
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section
+  class="assinatura-form-page"
+  data-assinatura-id="{% if assinatura_id is defined %}{{ assinatura_id }}{% endif %}"
+>
+  <div class="assinatura-form-header">
+    <div>
+      <h1 id="titulo-pagina">Nova assinatura</h1>
+      <p>Monte a assinatura por pet com serviços, quantidades e desconto por item.</p>
+    </div>
+
+    <div class="assinatura-form-header__actions">
+      <a href="/assinaturas" class="assinatura-btn">Voltar</a>
+      <button id="btn-cancelar-assinatura" type="button" class="assinatura-btn assinatura-btn-danger assinatura-hidden">
+        Cancelar assinatura
+      </button>
+    </div>
   </div>
 
-  <nav class="sidebar-nav">
-    <a href="/dashboard" class="nav-item">
-      <span class="nav-icon">🏠</span>
-      <span class="nav-text">Dashboard</span>
-    </a>
+  <div id="assinatura-alerta" class="assinatura-alert assinatura-alert-info">
+    Preencha os dados da assinatura.
+  </div>
 
-    <a href="/clientes" class="nav-item">
-      <span class="nav-icon">👤</span>
-      <span class="nav-text">Clientes</span>
-    </a>
+  <form id="form-assinatura" class="assinatura-form-layout">
+    <div class="assinatura-card">
+      <div class="assinatura-card__header">
+        <div>
+          <h2>Dados principais</h2>
+          <p>Vincule a assinatura ao cliente e ao pet.</p>
+        </div>
+      </div>
 
-    <a href="/pets" class="nav-item">
-      <span class="nav-icon">🐶</span>
-      <span class="nav-text">Pets</span>
-    </a>
+      <div class="assinatura-grid">
+        <div class="assinatura-field">
+          <label for="cliente-id">ID do cliente</label>
+          <input type="number" id="cliente-id" min="1" required />
+        </div>
 
-    <a href="/servicos" class="nav-item">
-      <span class="nav-icon">✂️</span>
-      <span class="nav-text">Serviços</span>
-    </a>
+        <div class="assinatura-field">
+          <label for="pet-id">ID do pet</label>
+          <input type="number" id="pet-id" min="1" required />
+        </div>
 
-    <a href="/assinaturas" class="nav-item">
-      <span class="nav-icon">🧾</span>
-      <span class="nav-text">Assinaturas</span>
-    </a>
+        <div class="assinatura-field">
+          <label for="data-inicio">Data de início</label>
+          <input type="date" id="data-inicio" required />
+        </div>
 
-    <a href="/agenda" class="nav-item">
-      <span class="nav-icon">📅</span>
-      <span class="nav-text">Agenda</span>
-    </a>
+        <div class="assinatura-field">
+          <label for="data-fim">Data de fim</label>
+          <input type="date" id="data-fim" />
+        </div>
 
-    <a href="/agenda-veterinaria" class="nav-item">
-      <span class="nav-icon">🩺</span>
-      <span class="nav-text">Agenda Veterinária</span>
-    </a>
+        <div class="assinatura-field">
+          <label for="origem">Origem</label>
+          <select id="origem">
+            <option value="INTERNA">Interna</option>
+            <option value="EXTERNA">Externa</option>
+          </select>
+        </div>
 
-    <a href="/producao" class="nav-item">
-      <span class="nav-icon">🛁</span>
-      <span class="nav-text">Produção</span>
-    </a>
+        <div class="assinatura-field">
+          <label for="dia-fechamento-ciclo">Dia de fechamento do ciclo</label>
+          <input type="number" id="dia-fechamento-ciclo" min="1" max="28" value="28" required />
+        </div>
 
-    <a href="/pdv" class="nav-item">
-      <span class="nav-icon">💳</span>
-      <span class="nav-text">PDV</span>
-    </a>
+        <div class="assinatura-field assinatura-field-full">
+          <label for="contrato-externo-id">Contrato externo ID</label>
+          <input type="text" id="contrato-externo-id" maxlength="100" />
+        </div>
 
-    <a href="/estoque" class="nav-item">
-      <span class="nav-icon">📦</span>
-      <span class="nav-text">Estoque</span>
-    </a>
+        <div class="assinatura-field assinatura-field-full">
+          <label for="observacoes">Observações</label>
+          <textarea id="observacoes" rows="3"></textarea>
+        </div>
+      </div>
 
-    <a href="/notas-entrada" class="nav-item">
-      <span class="nav-icon">🧾</span>
-      <span class="nav-text">Notas de Entrada</span>
-    </a>
+      <div class="assinatura-checks">
+        <label>
+          <input type="checkbox" id="usar-limite-ate-dia-28" checked />
+          Limitar contratação até dia 28
+        </label>
 
-    <a href="/precificacao" class="nav-item">
-      <span class="nav-icon">🏷️</span>
-      <span class="nav-text">Precificação</span>
-    </a>
+        <label>
+          <input type="checkbox" id="nao-cumulativa" checked />
+          Não cumulativa
+        </label>
 
-    <a href="/financeiro" class="nav-item">
-      <span class="nav-icon">💰</span>
-      <span class="nav-text">Financeiro</span>
-    </a>
+        <label>
+          <input type="checkbox" id="ativa-renovacao" checked />
+          Renovação ativa
+        </label>
+      </div>
+    </div>
 
-    <a href="/dre" class="nav-item">
-      <span class="nav-icon">📊</span>
-      <span class="nav-text">DRE</span>
-    </a>
+    <div class="assinatura-card">
+      <div class="assinatura-card__header">
+        <div>
+          <h2>Serviços da assinatura</h2>
+          <p>Adicione serviços, quantidades e desconto por item.</p>
+        </div>
 
-    <a href="/crm" class="nav-item">
-      <span class="nav-icon">📣</span>
-      <span class="nav-text">CRM</span>
-    </a>
+        <button type="button" id="btn-adicionar-servico" class="assinatura-btn assinatura-btn-primary">
+          Adicionar serviço
+        </button>
+      </div>
 
-    <a href="/relatorios" class="nav-item">
-      <span class="nav-icon">📑</span>
-      <span class="nav-text">Relatórios</span>
-    </a>
+      <div id="lista-servicos" class="assinatura-servicos-list"></div>
+    </div>
 
-    <a href="/configuracoes" class="nav-item">
-      <span class="nav-icon">⚙️</span>
-      <span class="nav-text">Configurações</span>
-    </a>
-  </nav>
-</aside>
+    <div class="assinatura-card">
+      <div class="assinatura-card__header">
+        <div>
+          <h2>Resumo financeiro</h2>
+          <p>Totais calculados automaticamente conforme os itens informados.</p>
+        </div>
+      </div>
+
+      <div class="assinatura-totais">
+        <div class="assinatura-total-box">
+          <span class="assinatura-label">Valor bruto</span>
+          <strong id="total-bruto">R$ 0,00</strong>
+        </div>
+
+        <div class="assinatura-total-box">
+          <span class="assinatura-label">Desconto total</span>
+          <strong id="total-desconto">R$ 0,00</strong>
+        </div>
+
+        <div class="assinatura-total-box assinatura-total-box-highlight">
+          <span class="assinatura-label">Valor final</span>
+          <strong id="total-final">R$ 0,00</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="assinatura-card">
+      <div class="assinatura-form-actions">
+        <button type="submit" class="assinatura-btn assinatura-btn-primary" id="btn-salvar-assinatura">
+          Salvar assinatura
+        </button>
+        <a href="/assinaturas" class="assinatura-btn">Cancelar</a>
+      </div>
+    </div>
+  </form>
+
+  <template id="template-servico-item">
+    <div class="assinatura-servico-item">
+      <div class="assinatura-servico-grid">
+        <div class="assinatura-field">
+          <label>Serviço</label>
+          <input type="number" class="servico-id" min="1" placeholder="ID do serviço" required />
+        </div>
+
+        <div class="assinatura-field">
+          <label>Nome do serviço</label>
+          <input type="text" class="servico-nome" maxlength="150" placeholder="Nome exibido" required />
+        </div>
+
+        <div class="assinatura-field">
+          <label>Quantidade</label>
+          <input type="number" class="servico-quantidade" min="1" value="1" required />
+        </div>
+
+        <div class="assinatura-field">
+          <label>Preço base</label>
+          <input type="number" class="servico-preco-base" min="0" step="0.01" value="0.00" required />
+        </div>
+
+        <div class="assinatura-field">
+          <label>% desconto</label>
+          <input
+            type="number"
+            class="servico-percentual-desconto"
+            min="0"
+            max="100"
+            step="0.01"
+            value="0.00"
+            required
+          />
+        </div>
+
+        <div class="assinatura-servico-action">
+          <button type="button" class="assinatura-btn assinatura-btn-danger btn-remover-servico">
+            Remover
+          </button>
+        </div>
+      </div>
+
+      <div class="assinatura-servico-resumo">
+        <span>Bruto: <strong class="resumo-bruto">R$ 0,00</strong></span>
+        <span>Desconto: <strong class="resumo-desconto">R$ 0,00</strong></span>
+        <span>Final: <strong class="resumo-final">R$ 0,00</strong></span>
+      </div>
+    </div>
+  </template>
+
+  <style>
+    .assinatura-form-page {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .assinatura-form-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .assinatura-form-header h1 {
+      margin: 0 0 4px;
+    }
+
+    .assinatura-form-header p {
+      margin: 0;
+      color: #64748b;
+    }
+
+    .assinatura-form-header__actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .assinatura-form-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .assinatura-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+    }
+
+    .assinatura-card__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .assinatura-card__header h2 {
+      margin: 0 0 4px;
+    }
+
+    .assinatura-card__header p {
+      margin: 0;
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+
+    .assinatura-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .assinatura-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .assinatura-field-full {
+      grid-column: 1 / -1;
+    }
+
+    .assinatura-field label {
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .assinatura-field input,
+    .assinatura-field select,
+    .assinatura-field textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 0.95rem;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .assinatura-field textarea {
+      resize: vertical;
+    }
+
+    .assinatura-checks {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .assinatura-checks label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+      color: #334155;
+    }
+
+    .assinatura-btn {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #0f172a;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: 0.2s ease;
+    }
+
+    .assinatura-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    }
+
+    .assinatura-btn-primary {
+      background: #0f172a;
+      color: #fff;
+      border-color: #0f172a;
+    }
+
+    .assinatura-btn-danger {
+      background: #7f1d1d;
+      color: #fff;
+      border-color: #7f1d1d;
+    }
+
+    .assinatura-alert {
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 600;
+    }
+
+    .assinatura-alert-info {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+    }
+
+    .assinatura-alert-warning {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #b45309;
+    }
+
+    .assinatura-alert-danger {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+    }
+
+    .assinatura-alert-success {
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      color: #15803d;
+    }
+
+    .assinatura-hidden {
+      display: none !important;
+    }
+
+    .assinatura-servicos-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .assinatura-servico-item {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px;
+      background: #f8fafc;
+    }
+
+    .assinatura-servico-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1.8fr 0.8fr 1fr 0.9fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .assinatura-servico-action {
+      display: flex;
+      align-items: end;
+    }
+
+    .assinatura-servico-resumo {
+      margin-top: 12px;
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      color: #475569;
+      font-size: 0.92rem;
+    }
+
+    .assinatura-totais {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .assinatura-total-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .assinatura-total-box-highlight {
+      background: #ecfeff;
+      border-color: #a5f3fc;
+    }
+
+    .assinatura-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #64748b;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .assinatura-total-box strong {
+      font-size: 1.5rem;
+      color: #0f172a;
+    }
+
+    .assinatura-form-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 1200px) {
+      .assinatura-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .assinatura-servico-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .assinatura-totais {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .assinatura-form-header {
+        flex-direction: column;
+      }
+
+      .assinatura-grid,
+      .assinatura-servico-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .assinatura-checks,
+      .assinatura-servico-resumo,
+      .assinatura-form-actions {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+
+  <script>
+    const pageEl = document.querySelector(".assinatura-form-page");
+    const assinaturaIdRaw = pageEl ? pageEl.getAttribute("data-assinatura-id") : "";
+    const assinaturaId = assinaturaIdRaw ? parseInt(assinaturaIdRaw, 10) : null;
+
+    function obterToken() {
+      return localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+    }
+
+    function formatarMoeda(valor) {
+      return Number(valor || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+      });
+    }
+
+    function hojeISO() {
+      const hoje = new Date();
+      const ano = hoje.getFullYear();
+      const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+      const dia = String(hoje.getDate()).padStart(2, "0");
+      return `${ano}-${mes}-${dia}`;
+    }
+
+    function parseNumero(valor) {
+      const numero = Number(valor);
+      return Number.isFinite(numero) ? numero : 0;
+    }
+
+    function definirAlerta(tipo, mensagem) {
+      const alerta = document.getElementById("assinatura-alerta");
+      alerta.className = "assinatura-alert";
+
+      if (tipo === "sucesso") {
+        alerta.classList.add("assinatura-alert-success");
+      } else if (tipo === "erro") {
+        alerta.classList.add("assinatura-alert-danger");
+      } else if (tipo === "aviso") {
+        alerta.classList.add("assinatura-alert-warning");
+      } else {
+        alerta.classList.add("assinatura-alert-info");
+      }
+
+      alerta.textContent = mensagem;
+    }
+
+    function recalcularItem(itemEl) {
+      const quantidade = parseNumero(itemEl.querySelector(".servico-quantidade").value);
+      const precoBase = parseNumero(itemEl.querySelector(".servico-preco-base").value);
+      const percentualDesconto = parseNumero(itemEl.querySelector(".servico-percentual-desconto").value);
+
+      const bruto = quantidade * precoBase;
+      const descontoUnitario = precoBase * (percentualDesconto / 100);
+      const descontoTotal = quantidade * descontoUnitario;
+      const final = bruto - descontoTotal;
+
+      itemEl.querySelector(".resumo-bruto").textContent = formatarMoeda(bruto);
+      itemEl.querySelector(".resumo-desconto").textContent = formatarMoeda(descontoTotal);
+      itemEl.querySelector(".resumo-final").textContent = formatarMoeda(final < 0 ? 0 : final);
+
+      recalcularTotais();
+    }
+
+    function adicionarServico(item) {
+      const template = document.getElementById("template-servico-item");
+      const clone = template.content.cloneNode(true);
+      const elemento = clone.querySelector(".assinatura-servico-item");
+
+      if (item) {
+        elemento.querySelector(".servico-id").value = item.servico_id || "";
+        elemento.querySelector(".servico-nome").value = item.nome_servico || "";
+        elemento.querySelector(".servico-quantidade").value = item.quantidade_contratada || 1;
+        elemento.querySelector(".servico-preco-base").value = item.preco_unitario_base || 0;
+        elemento.querySelector(".servico-percentual-desconto").value = item.percentual_desconto || 0;
+      }
+
+      const campos = elemento.querySelectorAll(
+        ".servico-id, .servico-nome, .servico-quantidade, .servico-preco-base, .servico-percentual-desconto"
+      );
+
+      campos.forEach(function(campo) {
+        campo.addEventListener("input", function() {
+          recalcularItem(elemento);
+        });
+      });
+
+      elemento.querySelector(".btn-remover-servico").addEventListener("click", function() {
+        elemento.remove();
+        recalcularTotais();
+      });
+
+      document.getElementById("lista-servicos").appendChild(elemento);
+      recalcularItem(elemento);
+    }
+
+    function coletarItens() {
+      const itens = [];
+      const blocos = document.querySelectorAll(".assinatura-servico-item");
+
+      blocos.forEach(function(itemEl) {
+        itens.push({
+          servico_id: parseInt(itemEl.querySelector(".servico-id").value, 10),
+          nome_servico: itemEl.querySelector(".servico-nome").value.trim(),
+          quantidade_contratada: parseInt(itemEl.querySelector(".servico-quantidade").value, 10),
+          preco_unitario_base: parseNumero(itemEl.querySelector(".servico-preco-base").value).toFixed(2),
+          percentual_desconto: parseNumero(itemEl.querySelector(".servico-percentual-desconto").value).toFixed(2)
+        });
+      });
+
+      return itens;
+    }
+
+    function recalcularTotais() {
+      const itens = coletarItens();
+
+      let bruto = 0;
+      let desconto = 0;
+
+      itens.forEach(function(item) {
+        const quantidade = parseNumero(item.quantidade_contratada);
+        const precoBase = parseNumero(item.preco_unitario_base);
+        const percentual = parseNumero(item.percentual_desconto);
+
+        const subtotalBruto = quantidade * precoBase;
+        const subtotalDesconto = quantidade * (precoBase * (percentual / 100));
+
+        bruto += subtotalBruto;
+        desconto += subtotalDesconto;
+      });
+
+      const final = bruto - desconto;
+
+      document.getElementById("total-bruto").textContent = formatarMoeda(bruto);
+      document.getElementById("total-desconto").textContent = formatarMoeda(desconto);
+      document.getElementById("total-final").textContent = formatarMoeda(final < 0 ? 0 : final);
+    }
+
+    function validarFormulario() {
+      const clienteId = parseInt(document.getElementById("cliente-id").value, 10);
+      const petId = parseInt(document.getElementById("pet-id").value, 10);
+      const dataInicio = document.getElementById("data-inicio").value;
+      const diaFechamento = parseInt(document.getElementById("dia-fechamento-ciclo").value, 10);
+      const itens = coletarItens();
+
+      if (!clienteId || clienteId < 1) {
+        throw new Error("Informe um cliente válido.");
+      }
+
+      if (!petId || petId < 1) {
+        throw new Error("Informe um pet válido.");
+      }
+
+      if (!dataInicio) {
+        throw new Error("Informe a data de início.");
+      }
+
+      if (!diaFechamento || diaFechamento < 1 || diaFechamento > 28) {
+        throw new Error("O dia de fechamento do ciclo deve estar entre 1 e 28.");
+      }
+
+      if (!itens.length) {
+        throw new Error("Adicione ao menos um serviço na assinatura.");
+      }
+
+      itens.forEach(function(item, index) {
+        if (!item.servico_id || item.servico_id < 1) {
+          throw new Error("Informe um serviço válido no item " + (index + 1) + ".");
+        }
+
+        if (!item.nome_servico) {
+          throw new Error("Informe o nome do serviço no item " + (index + 1) + ".");
+        }
+
+        if (!item.quantidade_contratada || item.quantidade_contratada < 1) {
+          throw new Error("Informe uma quantidade válida no item " + (index + 1) + ".");
+        }
+      });
+    }
+
+    function montarPayloadCriacao() {
+      return {
+        empresa_id: 1,
+        cliente_id: parseInt(document.getElementById("cliente-id").value, 10),
+        pet_id: parseInt(document.getElementById("pet-id").value, 10),
+        data_inicio: document.getElementById("data-inicio").value,
+        data_fim: document.getElementById("data-fim").value || null,
+        dia_fechamento_ciclo: parseInt(document.getElementById("dia-fechamento-ciclo").value, 10),
+        usar_limite_ate_dia_28: document.getElementById("usar-limite-ate-dia-28").checked,
+        nao_cumulativa: document.getElementById("nao-cumulativa").checked,
+        ativa_renovacao: document.getElementById("ativa-renovacao").checked,
+        origem: document.getElementById("origem").value,
+        observacoes: document.getElementById("observacoes").value.trim() || null,
+        contrato_externo_id: document.getElementById("contrato-externo-id").value.trim() || null,
+        itens: coletarItens()
+      };
+    }
+
+    function montarPayloadAtualizacao() {
+      return {
+        cliente_id: parseInt(document.getElementById("cliente-id").value, 10),
+        pet_id: parseInt(document.getElementById("pet-id").value, 10),
+        data_inicio: document.getElementById("data-inicio").value,
+        data_fim: document.getElementById("data-fim").value || null,
+        dia_fechamento_ciclo: parseInt(document.getElementById("dia-fechamento-ciclo").value, 10),
+        usar_limite_ate_dia_28: document.getElementById("usar-limite-ate-dia-28").checked,
+        nao_cumulativa: document.getElementById("nao-cumulativa").checked,
+        ativa_renovacao: document.getElementById("ativa-renovacao").checked,
+        origem: document.getElementById("origem").value,
+        observacoes: document.getElementById("observacoes").value.trim() || null,
+        contrato_externo_id: document.getElementById("contrato-externo-id").value.trim() || null
+      };
+    }
+
+    function preencherFormulario(assinatura) {
+      document.getElementById("cliente-id").value = assinatura.cliente_id || "";
+      document.getElementById("pet-id").value = assinatura.pet_id || "";
+      document.getElementById("data-inicio").value = assinatura.data_inicio || "";
+      document.getElementById("data-fim").value = assinatura.data_fim || "";
+      document.getElementById("dia-fechamento-ciclo").value = assinatura.dia_fechamento_ciclo || 28;
+      document.getElementById("usar-limite-ate-dia-28").checked = !!assinatura.usar_limite_ate_dia_28;
+      document.getElementById("nao-cumulativa").checked = !!assinatura.nao_cumulativa;
+      document.getElementById("ativa-renovacao").checked = !!assinatura.ativa_renovacao;
+      document.getElementById("origem").value = assinatura.origem || "INTERNA";
+      document.getElementById("observacoes").value = assinatura.observacoes || "";
+      document.getElementById("contrato-externo-id").value = assinatura.contrato_externo_id || "";
+
+      document.getElementById("lista-servicos").innerHTML = "";
+
+      if (assinatura.itens && assinatura.itens.length) {
+        assinatura.itens.forEach(function(item) {
+          adicionarServico(item);
+        });
+      } else {
+        adicionarServico();
+      }
+
+      recalcularTotais();
+    }
+
+    async function carregarAssinaturaEdicao() {
+      if (!assinaturaId) {
+        document.getElementById("data-inicio").value = hojeISO();
+        adicionarServico();
+        return;
+      }
+
+      document.getElementById("titulo-pagina").textContent = "Editar assinatura #" + assinaturaId;
+      document.getElementById("btn-cancelar-assinatura").classList.remove("assinatura-hidden");
+      definirAlerta("info", "Carregando assinatura...");
+
+      try {
+        const response = await fetch("/assinaturas/" + assinaturaId, {
+          headers: {
+            "Authorization": "Bearer " + obterToken()
+          }
+        });
+
+        const data = await response.json().catch(function() {
+          return {};
+        });
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Não foi possível carregar a assinatura.");
+        }
+
+        preencherFormulario(data);
+        definirAlerta("sucesso", "Assinatura carregada com sucesso.");
+      } catch (error) {
+        definirAlerta("erro", error.message || "Erro ao carregar assinatura.");
+      }
+    }
+
+    async function salvarAssinatura(event) {
+      event.preventDefault();
+
+      try {
+        validarFormulario();
+        definirAlerta("info", "Salvando assinatura...");
+
+        const isEdicao = !!assinaturaId;
+        const url = isEdicao ? ("/assinaturas/" + assinaturaId) : "/assinaturas";
+        const method = isEdicao ? "PUT" : "POST";
+        const payload = isEdicao ? montarPayloadAtualizacao() : montarPayloadCriacao();
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + obterToken()
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(function() {
+          return {};
+        });
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Não foi possível salvar a assinatura.");
+        }
+
+        definirAlerta("sucesso", data.mensagem || "Assinatura salva com sucesso.");
+
+        if (!isEdicao && data.assinatura && data.assinatura.id) {
+          window.location.href = "/assinaturas/editar/" + data.assinatura.id;
+        }
+      } catch (error) {
+        definirAlerta("erro", error.message || "Erro ao salvar assinatura.");
+      }
+    }
+
+    async function cancelarAssinatura() {
+      if (!assinaturaId) {
+        return;
+      }
+
+      const confirmou = window.confirm("Deseja realmente cancelar esta assinatura?");
+      if (!confirmou) {
+        return;
+      }
+
+      try {
+        definirAlerta("info", "Cancelando assinatura...");
+
+        const response = await fetch("/assinaturas/" + assinaturaId + "/cancelar", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + obterToken()
+          }
+        });
+
+        const data = await response.json().catch(function() {
+          return {};
+        });
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Não foi possível cancelar a assinatura.");
+        }
+
+        definirAlerta("sucesso", data.mensagem || "Assinatura cancelada com sucesso.");
+      } catch (error) {
+        definirAlerta("erro", error.message || "Erro ao cancelar assinatura.");
+      }
+    }
+
+    document.getElementById("btn-adicionar-servico").addEventListener("click", function() {
+      adicionarServico();
+    });
+
+    document.getElementById("form-assinatura").addEventListener("submit", salvarAssinatura);
+    document.getElementById("btn-cancelar-assinatura").addEventListener("click", cancelarAssinatura);
+
+    carregarAssinaturaEdicao();
+  </script>
+</section>
+{% endblock %}

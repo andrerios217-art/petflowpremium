@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
-from app.core.database import get_db
+from app.core.deps import get_current_actor, get_db, get_empresa_id_atual
 from app.crud.assinatura import (
     atualizar_assinatura,
     buscar_assinatura_por_id,
@@ -12,7 +11,6 @@ from app.crud.assinatura import (
     listar_consumos_assinatura,
     registrar_consumo_assinatura,
 )
-from app.models.usuario import Usuario
 from app.schemas.assinatura import (
     AssinaturaConsumoOperacaoResponse,
     AssinaturaOperacaoResponse,
@@ -26,23 +24,14 @@ from app.schemas.assinatura import (
 router = APIRouter(prefix="/assinaturas", tags=["assinaturas"])
 
 
-def _empresa_id_usuario(usuario: Usuario) -> int:
-    empresa_id = getattr(usuario, "empresa_id", None)
-    if not empresa_id:
-        raise HTTPException(status_code=400, detail="Usuário sem empresa vinculada.")
-    return empresa_id
-
-
 @router.get("/", response_model=list[AssinaturaPetOut])
 def listar_assinaturas_route(
     status: str | None = Query(default=None),
     cliente_id: int | None = Query(default=None),
     pet_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    empresa_id: int = Depends(get_empresa_id_atual),
 ):
-    empresa_id = _empresa_id_usuario(current_user)
-
     return listar_assinaturas(
         db=db,
         empresa_id=empresa_id,
@@ -56,10 +45,8 @@ def listar_assinaturas_route(
 def obter_assinatura_route(
     assinatura_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    empresa_id: int = Depends(get_empresa_id_atual),
 ):
-    empresa_id = _empresa_id_usuario(current_user)
-
     assinatura = buscar_assinatura_por_id(
         db=db,
         assinatura_id=assinatura_id,
@@ -75,10 +62,8 @@ def obter_assinatura_route(
 def criar_assinatura_route(
     payload: AssinaturaPetCreate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    empresa_id: int = Depends(get_empresa_id_atual),
 ):
-    empresa_id = _empresa_id_usuario(current_user)
-
     if payload.empresa_id != empresa_id:
         raise HTTPException(
             status_code=400,
@@ -101,10 +86,8 @@ def atualizar_assinatura_route(
     assinatura_id: int,
     payload: AssinaturaPetUpdate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    empresa_id: int = Depends(get_empresa_id_atual),
 ):
-    empresa_id = _empresa_id_usuario(current_user)
-
     try:
         assinatura = atualizar_assinatura(
             db=db,
@@ -125,10 +108,8 @@ def atualizar_assinatura_route(
 def cancelar_assinatura_route(
     assinatura_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    empresa_id: int = Depends(get_empresa_id_atual),
 ):
-    empresa_id = _empresa_id_usuario(current_user)
-
     try:
         assinatura = cancelar_assinatura(
             db=db,
@@ -151,10 +132,8 @@ def cancelar_assinatura_route(
 def listar_consumos_assinatura_route(
     assinatura_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    empresa_id: int = Depends(get_empresa_id_atual),
 ):
-    empresa_id = _empresa_id_usuario(current_user)
-
     assinatura = buscar_assinatura_por_id(
         db=db,
         assinatura_id=assinatura_id,
@@ -178,10 +157,9 @@ def registrar_consumo_assinatura_route(
     assinatura_id: int,
     payload: AssinaturaPetConsumoCreate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    empresa_id: int = Depends(get_empresa_id_atual),
+    current_actor: dict = Depends(get_current_actor),
 ):
-    empresa_id = _empresa_id_usuario(current_user)
-
     if payload.assinatura_id != assinatura_id:
         raise HTTPException(
             status_code=400,
