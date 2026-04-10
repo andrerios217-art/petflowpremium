@@ -1,0 +1,205 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from app.core.auth import get_current_user
+from app.core.database import get_db
+from app.crud.assinatura import (
+    atualizar_assinatura,
+    buscar_assinatura_por_id,
+    cancelar_assinatura,
+    criar_assinatura,
+    listar_assinaturas,
+    listar_consumos_assinatura,
+    registrar_consumo_assinatura,
+)
+from app.models.usuario import Usuario
+from app.schemas.assinatura import (
+    AssinaturaConsumoOperacaoResponse,
+    AssinaturaOperacaoResponse,
+    AssinaturaPetConsumoCreate,
+    AssinaturaPetConsumoOut,
+    AssinaturaPetCreate,
+    AssinaturaPetOut,
+    AssinaturaPetUpdate,
+)
+
+router = APIRouter(prefix="/assinaturas", tags=["assinaturas"])
+
+
+def _empresa_id_usuario(usuario: Usuario) -> int:
+    empresa_id = getattr(usuario, "empresa_id", None)
+    if not empresa_id:
+        raise HTTPException(status_code=400, detail="Usuário sem empresa vinculada.")
+    return empresa_id
+
+
+@router.get("/", response_model=list[AssinaturaPetOut])
+def listar_assinaturas_route(
+    status: str | None = Query(default=None),
+    cliente_id: int | None = Query(default=None),
+    pet_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    empresa_id = _empresa_id_usuario(current_user)
+
+    return listar_assinaturas(
+        db=db,
+        empresa_id=empresa_id,
+        status=status,
+        cliente_id=cliente_id,
+        pet_id=pet_id,
+    )
+
+
+@router.get("/{assinatura_id}", response_model=AssinaturaPetOut)
+def obter_assinatura_route(
+    assinatura_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    empresa_id = _empresa_id_usuario(current_user)
+
+    assinatura = buscar_assinatura_por_id(
+        db=db,
+        assinatura_id=assinatura_id,
+        empresa_id=empresa_id,
+    )
+    if not assinatura:
+        raise HTTPException(status_code=404, detail="Assinatura não encontrada.")
+
+    return assinatura
+
+
+@router.post("/", response_model=AssinaturaOperacaoResponse)
+def criar_assinatura_route(
+    payload: AssinaturaPetCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    empresa_id = _empresa_id_usuario(current_user)
+
+    if payload.empresa_id != empresa_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Empresa da assinatura difere da empresa do usuário logado.",
+        )
+
+    try:
+        assinatura = criar_assinatura(db=db, data=payload)
+        return AssinaturaOperacaoResponse(
+            ok=True,
+            mensagem="Assinatura criada com sucesso.",
+            assinatura=assinatura,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.put("/{assinatura_id}", response_model=AssinaturaOperacaoResponse)
+def atualizar_assinatura_route(
+    assinatura_id: int,
+    payload: AssinaturaPetUpdate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    empresa_id = _empresa_id_usuario(current_user)
+
+    try:
+        assinatura = atualizar_assinatura(
+            db=db,
+            assinatura_id=assinatura_id,
+            empresa_id=empresa_id,
+            data=payload,
+        )
+        return AssinaturaOperacaoResponse(
+            ok=True,
+            mensagem="Assinatura atualizada com sucesso.",
+            assinatura=assinatura,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/{assinatura_id}/cancelar", response_model=AssinaturaOperacaoResponse)
+def cancelar_assinatura_route(
+    assinatura_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    empresa_id = _empresa_id_usuario(current_user)
+
+    try:
+        assinatura = cancelar_assinatura(
+            db=db,
+            assinatura_id=assinatura_id,
+            empresa_id=empresa_id,
+        )
+        return AssinaturaOperacaoResponse(
+            ok=True,
+            mensagem="Assinatura cancelada com sucesso.",
+            assinatura=assinatura,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get(
+    "/{assinatura_id}/consumos",
+    response_model=list[AssinaturaPetConsumoOut],
+)
+def listar_consumos_assinatura_route(
+    assinatura_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    empresa_id = _empresa_id_usuario(current_user)
+
+    assinatura = buscar_assinatura_por_id(
+        db=db,
+        assinatura_id=assinatura_id,
+        empresa_id=empresa_id,
+    )
+    if not assinatura:
+        raise HTTPException(status_code=404, detail="Assinatura não encontrada.")
+
+    return listar_consumos_assinatura(
+        db=db,
+        assinatura_id=assinatura_id,
+        empresa_id=empresa_id,
+    )
+
+
+@router.post(
+    "/{assinatura_id}/consumos",
+    response_model=AssinaturaConsumoOperacaoResponse,
+)
+def registrar_consumo_assinatura_route(
+    assinatura_id: int,
+    payload: AssinaturaPetConsumoCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    empresa_id = _empresa_id_usuario(current_user)
+
+    if payload.assinatura_id != assinatura_id:
+        raise HTTPException(
+            status_code=400,
+            detail="O ID da assinatura no corpo difere do ID da rota.",
+        )
+
+    if payload.empresa_id != empresa_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Empresa do consumo difere da empresa do usuário logado.",
+        )
+
+    try:
+        consumo = registrar_consumo_assinatura(db=db, data=payload)
+        return AssinaturaConsumoOperacaoResponse(
+            ok=True,
+            mensagem="Consumo registrado com sucesso.",
+            consumo=consumo,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

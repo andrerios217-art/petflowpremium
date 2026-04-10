@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assinatura - Pet Flow Premium</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    .page-container {
+      display: flex;
+      min-height: 100vh;
+      background: #f5f7fb;
+    }
+
+    .content {
+      flex: 1;
+      padding: 24px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .page-title h1 {
+      margin: 0;
+      font-size: 28px;
+      color: #1f2937;
+    }
+
+    .page-title p {
+      margin: 6px 0 0;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s ease;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      color: #111827;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .field-group input,
+    .field-group select,
+    .field-group textarea {
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      background: #fff;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .field-group input:focus,
+    .field-group select:focus,
+    .field-group textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .field-group.full {
+      grid-column: 1 / -1;
+    }
+
+    .inline-checks {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .inline-checks label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #374151;
+      cursor: pointer;
+    }
+
+    .inline-checks input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+    }
+
+    .service-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .service-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .service-item {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px;
+      background: #fafafa;
+    }
+
+    .service-grid {
+      display: grid;
+      grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .service-summary {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #4b5563;
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .totals-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .total-box {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .total-box h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .total-box strong {
+      font-size: 24px;
+      color: #111827;
+    }
+
+    .status-message {
+      margin-bottom: 18px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .status-success {
+      display: block;
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-error {
+      display: block;
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .helper-text {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1200px) {
+      .grid {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+      }
+
+      .service-grid {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+      }
+
+      .totals-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .page-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .grid,
+      .service-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .content {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body data-assinatura-id="{% if assinatura_id is defined %}{{ assinatura_id }}{% endif %}">
+  <div class="page-container">
+    {% include "layout/sidebar.html" %}
+
+    <main class="content">
+      <div class="page-header">
+        <div class="page-title">
+          <h1 id="titulo-pagina">Nova assinatura</h1>
+          <p>Monte a assinatura por pet com serviços, quantidades e desconto por item.</p>
+        </div>
+
+        <div class="header-actions">
+          <a href="/assinaturas" class="btn btn-secondary">Voltar</a>
+          <button id="btn-cancelar-assinatura" type="button" class="btn btn-danger hidden">
+            Cancelar assinatura
+          </button>
+        </div>
+      </div>
+
+      <div id="status-message" class="status-message"></div>
+
+      <form id="form-assinatura">
+        <section class="card">
+          <h2>Dados principais</h2>
+
+          <div class="grid">
+            <div class="field-group">
+              <label for="cliente-id">ID do cliente</label>
+              <input type="number" id="cliente-id" min="1" required />
+            </div>
+
+            <div class="field-group">
+              <label for="pet-id">ID do pet</label>
+              <input type="number" id="pet-id" min="1" required />
+            </div>
+
+            <div class="field-group">
+              <label for="data-inicio">Data de início</label>
+              <input type="date" id="data-inicio" required />
+            </div>
+
+            <div class="field-group">
+              <label for="data-fim">Data de fim</label>
+              <input type="date" id="data-fim" />
+            </div>
+
+            <div class="field-group">
+              <label for="origem">Origem</label>
+              <select id="origem">
+                <option value="INTERNA">Interna</option>
+                <option value="EXTERNA">Externa</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="dia-fechamento-ciclo">Dia de fechamento do ciclo</label>
+              <input type="number" id="dia-fechamento-ciclo" min="1" max="28" value="28" required />
+            </div>
+
+            <div class="field-group">
+              <label for="contrato-externo-id">Contrato externo ID</label>
+              <input type="text" id="contrato-externo-id" maxlength="100" />
+            </div>
+
+            <div class="field-group full">
+              <label for="observacoes">Observações</label>
+              <textarea id="observacoes" rows="3"></textarea>
+            </div>
+          </div>
+
+          <div class="inline-checks">
+            <label>
+              <input type="checkbox" id="usar-limite-ate-dia-28" checked />
+              Limitar contratação até dia 28
+            </label>
+
+            <label>
+              <input type="checkbox" id="nao-cumulativa" checked />
+              Não cumulativa
+            </label>
+
+            <label>
+              <input type="checkbox" id="ativa-renovacao" checked />
+              Renovação ativa
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="service-toolbar">
+            <div>
+              <h2>Serviços da assinatura</h2>
+              <div class="helper-text">
+                Cada serviço deve ter quantidade, preço base e desconto. O valor é calculado automaticamente.
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-primary" id="btn-adicionar-servico">
+              Adicionar serviço
+            </button>
+          </div>
+
+          <div id="lista-servicos" class="service-list"></div>
+        </section>
+
+        <section class="card">
+          <h2>Resumo financeiro</h2>
+
+          <div class="totals-grid">
+            <div class="total-box">
+              <h3>Valor bruto</h3>
+              <strong id="total-bruto">R$ 0,00</strong>
+            </div>
+
+            <div class="total-box">
+              <h3>Desconto total</h3>
+              <strong id="total-desconto">R$ 0,00</strong>
+            </div>
+
+            <div class="total-box">
+              <h3>Valor final</h3>
+              <strong id="total-final">R$ 0,00</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="header-actions">
+            <button type="submit" class="btn btn-primary" id="btn-salvar">
+              Salvar assinatura
+            </button>
+            <a href="/assinaturas" class="btn btn-secondary">Cancelar</a>
+          </div>
+        </section>
+      </form>
+    </main>
+  </div>
+
+  <template id="template-servico-item">
+    <div class="service-item">
+      <div class="service-grid">
+        <div class="field-group">
+          <label>Serviço</label>
+          <input type="number" class="servico-id" min="1" placeholder="ID do serviço" required />
+        </div>
+
+        <div class="field-group">
+          <label>Nome do serviço</label>
+          <input type="text" class="servico-nome" maxlength="150" placeholder="Nome exibido" required />
+        </div>
+
+        <div class="field-group">
+          <label>Quantidade</label>
+          <input type="number" class="servico-quantidade" min="1" value="1" required />
+        </div>
+
+        <div class="field-group">
+          <label>Preço base</label>
+          <input type="number" class="servico-preco-base" min="0" step="0.01" value="0.00" required />
+        </div>
+
+        <div class="field-group">
+          <label>% desconto</label>
+          <input type="number" class="servico-percentual-desconto" min="0" max="100" step="0.01" value="0.00" required />
+        </div>
+
+        <div class="field-group">
+          <button type="button" class="btn btn-danger btn-remover-servico">
+            Remover
+          </button>
+        </div>
+      </div>
+
+      <div class="service-summary">
+        <span>Bruto: <strong class="resumo-bruto">R$ 0,00</strong></span>
+        <span>Desconto: <strong class="resumo-desconto">R$ 0,00</strong></span>
+        <span>Final: <strong class="resumo-final">R$ 0,00</strong></span>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    const bodyEl = document.body;
+    const assinaturaIdRaw = bodyEl.getAttribute("data-assinatura-id");
+    const assinaturaId = assinaturaIdRaw ? parseInt(assinaturaIdRaw, 10) : null;
+
+    function obterToken() {
+      return localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+    }
+
+    function mostrarStatus(tipo, mensagem) {
+      const el = document.getElementById("status-message");
+      el.className = "status-message";
+      el.textContent = mensagem || "";
+
+      if (tipo === "sucesso") {
+        el.classList.add("status-success");
+      } else if (tipo === "erro") {
+        el.classList.add("status-error");
+      } else {
+        el.style.display = "none";
+      }
+    }
+
+    function formatarMoeda(valor) {
+      return Number(valor || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+      });
+    }
+
+    function hojeISO() {
+      const hoje = new Date();
+      const ano = hoje.getFullYear();
+      const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+      const dia = String(hoje.getDate()).padStart(2, "0");
+      return `${ano}-${mes}-${dia}`;
+    }
+
+    function parseNumero(valor) {
+      const numero = Number(valor);
+      return Number.isFinite(numero) ? numero : 0;
+    }
+
+    function recalcularTotais() {
+      const itens = coletarItens();
+      let bruto = 0;
+      let desconto = 0;
+
+      itens.forEach(function(item) {
+        const quantidade = parseNumero(item.quantidade_contratada);
+        const precoBase = parseNumero(item.preco_unitario_base);
+        const percentual = parseNumero(item.percentual_desconto);
+
+        const subtotalBruto = quantidade * precoBase;
+        const subtotalDesconto = quantidade * (precoBase * (percentual / 100));
+
+        bruto += subtotalBruto;
+        desconto += subtotalDesconto;
+      });
+
+      const final = bruto - desconto;
+
+      document.getElementById("total-bruto").textContent = formatarMoeda(bruto);
+      document.getElementById("total-desconto").textContent = formatarMoeda(desconto);
+      document.getElementById("total-final").textContent = formatarMoeda(final < 0 ? 0 : final);
+    }
+
+    function recalcularItem(itemEl) {
+      const quantidade = parseNumero(itemEl.querySelector(".servico-quantidade").value);
+      const precoBase = parseNumero(itemEl.querySelector(".servico-preco-base").value);
+      const percentualDesconto = parseNumero(itemEl.querySelector(".servico-percentual-desconto").value);
+
+      const bruto = quantidade * precoBase;
+      const descontoUnitario = precoBase * (percentualDesconto / 100);
+      const descontoTotal = quantidade * descontoUnitario;
+      const final = bruto - descontoTotal;
+
+      itemEl.querySelector(".resumo-bruto").textContent = formatarMoeda(bruto);
+      itemEl.querySelector(".resumo-desconto").textContent = formatarMoeda(descontoTotal);
+      itemEl.querySelector(".resumo-final").textContent = formatarMoeda(final < 0 ? 0 : final);
+
+      recalcularTotais();
+    }
+
+    function adicionarServico(item) {
+      const template = document.getElementById("template-servico-item");
+      const clone = template.content.cloneNode(true);
+      const elemento = clone.querySelector(".service-item");
+
+      if (item) {
+        elemento.querySelector(".servico-id").value = item.servico_id || "";
+        elemento.querySelector(".servico-nome").value = item.nome_servico || "";
+        elemento.querySelector(".servico-quantidade").value = item.quantidade_contratada || 1;
+        elemento.querySelector(".servico-preco-base").value = item.preco_unitario_base || 0;
+        elemento.querySelector(".servico-percentual-desconto").value = item.percentual_desconto || 0;
+      }
+
+      const campos = elemento.querySelectorAll(
+        ".servico-id, .servico-nome, .servico-quantidade, .servico-preco-base, .servico-percentual-desconto"
+      );
+
+      campos.forEach(function(campo) {
+        campo.addEventListener("input", function() {
+          recalcularItem(elemento);
+        });
+      });
+
+      const btnRemover = elemento.querySelector(".btn-remover-servico");
+      btnRemover.addEventListener("click", function() {
+        elemento.remove();
+        recalcularTotais();
+      });
+
+      document.getElementById("lista-servicos").appendChild(elemento);
+      recalcularItem(elemento);
+    }
+
+    function coletarItens() {
+      const itens = [];
+      const blocos = document.querySelectorAll(".service-item");
+
+      blocos.forEach(function(itemEl) {
+        itens.push({
+          servico_id: parseInt(itemEl.querySelector(".servico-id").value, 10),
+          nome_servico: itemEl.querySelector(".servico-nome").value.trim(),
+          quantidade_contratada: parseInt(itemEl.querySelector(".servico-quantidade").value, 10),
+          preco_unitario_base: parseNumero(itemEl.querySelector(".servico-preco-base").value).toFixed(2),
+          percentual_desconto: parseNumero(itemEl.querySelector(".servico-percentual-desconto").value).toFixed(2)
+        });
+      });
+
+      return itens;
+    }
+
+    function validarFormulario() {
+      const clienteId = parseInt(document.getElementById("cliente-id").value, 10);
+      const petId = parseInt(document.getElementById("pet-id").value, 10);
+      const dataInicio = document.getElementById("data-inicio").value;
+      const diaFechamento = parseInt(document.getElementById("dia-fechamento-ciclo").value, 10);
+      const itens = coletarItens();
+
+      if (!clienteId || clienteId < 1) {
+        throw new Error("Informe um cliente válido.");
+      }
+
+      if (!petId || petId < 1) {
+        throw new Error("Informe um pet válido.");
+      }
+
+      if (!dataInicio) {
+        throw new Error("Informe a data de início.");
+      }
+
+      if (!diaFechamento || diaFechamento < 1 || diaFechamento > 28) {
+        throw new Error("O dia de fechamento do ciclo deve estar entre 1 e 28.");
+      }
+
+      if (!itens.length) {
+        throw new Error("Adicione ao menos um serviço na assinatura.");
+      }
+
+      itens.forEach(function(item, index) {
+        if (!item.servico_id || item.servico_id < 1) {
+          throw new Error("Informe um serviço válido no item " + (index + 1) + ".");
+        }
+
+        if (!item.nome_servico) {
+          throw new Error("Informe o nome do serviço no item " + (index + 1) + ".");
+        }
+
+        if (!item.quantidade_contratada || item.quantidade_contratada < 1) {
+          throw new Error("Informe uma quantidade válida no item " + (index + 1) + ".");
+        }
+      });
+    }
+
+    function montarPayloadCriacao() {
+      return {
+        empresa_id: 1,
+        cliente_id: parseInt(document.getElementById("cliente-id").value, 10),
+        pet_id: parseInt(document.getElementById("pet-id").value, 10),
+        data_inicio: document.getElementById("data-inicio").value,
+        data_fim: document.getElementById("data-fim").value || null,
+        dia_fechamento_ciclo: parseInt(document.getElementById("dia-fechamento-ciclo").value, 10),
+        usar_limite_ate_dia_28: document.getElementById("usar-limite-ate-dia-28").checked,
+        nao_cumulativa: document.getElementById("nao-cumulativa").checked,
+        ativa_renovacao: document.getElementById("ativa-renovacao").checked,
+        origem: document.getElementById("origem").value,
+        observacoes: document.getElementById("observacoes").value.trim() || null,
+        contrato_externo_id: document.getElementById("contrato-externo-id").value.trim() || null,
+        itens: coletarItens()
+      };
+    }
+
+    function montarPayloadAtualizacao() {
+      return {
+        cliente_id: parseInt(document.getElementById("cliente-id").value, 10),
+        pet_id: parseInt(document.getElementById("pet-id").value, 10),
+        data_inicio: document.getElementById("data-inicio").value,
+        data_fim: document.getElementById("data-fim").value || null,
+        dia_fechamento_ciclo: parseInt(document.getElementById("dia-fechamento-ciclo").value, 10),
+        usar_limite_ate_dia_28: document.getElementById("usar-limite-ate-dia-28").checked,
+        nao_cumulativa: document.getElementById("nao-cumulativa").checked,
+        ativa_renovacao: document.getElementById("ativa-renovacao").checked,
+        origem: document.getElementById("origem").value,
+        observacoes: document.getElementById("observacoes").value.trim() || null,
+        contrato_externo_id: document.getElementById("contrato-externo-id").value.trim() || null
+      };
+    }
+
+    function preencherFormulario(assinatura) {
+      document.getElementById("cliente-id").value = assinatura.cliente_id || "";
+      document.getElementById("pet-id").value = assinatura.pet_id || "";
+      document.getElementById("data-inicio").value = assinatura.data_inicio || "";
+      document.getElementById("data-fim").value = assinatura.data_fim || "";
+      document.getElementById("dia-fechamento-ciclo").value = assinatura.dia_fechamento_ciclo || 28;
+      document.getElementById("usar-limite-ate-dia-28").checked = !!assinatura.usar_limite_ate_dia_28;
+      document.getElementById("nao-cumulativa").checked = !!assinatura.nao_cumulativa;
+      document.getElementById("ativa-renovacao").checked = !!assinatura.ativa_renovacao;
+      document.getElementById("origem").value = assinatura.origem || "INTERNA";
+      document.getElementById("observacoes").value = assinatura.observacoes || "";
+      document.getElementById("contrato-externo-id").value = assinatura.contrato_externo_id || "";
+
+      document.getElementById("lista-servicos").innerHTML = "";
+
+      if (assinatura.itens && assinatura.itens.length) {
+        assinatura.itens.forEach(function(item) {
+          adicionarServico(item);
+        });
+      } else {
+        adicionarServico();
+      }
+
+      recalcularTotais();
+    }
+
+    async function carregarAssinaturaEdicao() {
+      if (!assinaturaId) {
+        document.getElementById("data-inicio").value = hojeISO();
+        adicionarServico();
+        return;
+      }
+
+      document.getElementById("titulo-pagina").textContent = "Editar assinatura #" + assinaturaId;
+      document.getElementById("btn-cancelar-assinatura").classList.remove("hidden");
+
+      try {
+        const response = await fetch("/assinaturas/" + assinaturaId, {
+          headers: {
+            "Authorization": "Bearer " + obterToken()
+          }
+        });
+
+        if (!response.ok) {
+          let detalhe = "Não foi possível carregar a assinatura.";
+          try {
+            const erro = await response.json();
+            detalhe = erro.detail || detalhe;
+          } catch (_) {}
+          throw new Error(detalhe);
+        }
+
+        const assinatura = await response.json();
+        preencherFormulario(assinatura);
+      } catch (error) {
+        mostrarStatus("erro", error.message || "Erro ao carregar assinatura.");
+      }
+    }
+
+    async function salvarAssinatura(event) {
+      event.preventDefault();
+      mostrarStatus("", "");
+
+      try {
+        validarFormulario();
+
+        const isEdicao = !!assinaturaId;
+        const url = isEdicao ? ("/assinaturas/" + assinaturaId) : "/assinaturas";
+        const method = isEdicao ? "PUT" : "POST";
+        const payload = isEdicao ? montarPayloadAtualizacao() : montarPayloadCriacao();
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + obterToken()
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(function() {
+          return {};
+        });
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Não foi possível salvar a assinatura.");
+        }
+
+        mostrarStatus("sucesso", data.mensagem || "Assinatura salva com sucesso.");
+
+        if (!isEdicao && data.assinatura && data.assinatura.id) {
+          window.location.href = "/assinaturas/editar/" + data.assinatura.id;
+        }
+      } catch (error) {
+        mostrarStatus("erro", error.message || "Erro ao salvar assinatura.");
+      }
+    }
+
+    async function cancelarAssinatura() {
+      if (!assinaturaId) {
+        return;
+      }
+
+      const confirmou = window.confirm("Deseja realmente cancelar esta assinatura?");
+      if (!confirmou) {
+        return;
+      }
+
+      mostrarStatus("", "");
+
+      try {
+        const response = await fetch("/assinaturas/" + assinaturaId + "/cancelar", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + obterToken()
+          }
+        });
+
+        const data = await response.json().catch(function() {
+          return {};
+        });
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Não foi possível cancelar a assinatura.");
+        }
+
+        mostrarStatus("sucesso", data.mensagem || "Assinatura cancelada com sucesso.");
+      } catch (error) {
+        mostrarStatus("erro", error.message || "Erro ao cancelar assinatura.");
+      }
+    }
+
+    document.getElementById("btn-adicionar-servico").addEventListener("click", function() {
+      adicionarServico();
+    });
+
+    document.getElementById("form-assinatura").addEventListener("submit", salvarAssinatura);
+    document.getElementById("btn-cancelar-assinatura").addEventListener("click", cancelarAssinatura);
+
+    carregarAssinaturaEdicao();
+  </script>
+</body>
+</html>

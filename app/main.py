@@ -15,6 +15,7 @@ from app.api import pets_api
 from app.api import servicos_api
 from app.api import precificacao_api
 from app.api.agenda_veterinaria_api import router as agenda_veterinaria_router
+from app.api.assinaturas_api import router as assinaturas_router
 from app.api.atendimento_clinico_api import router as atendimento_clinico_router
 from app.api.caixa_api import router as caixa_router
 from app.api.cashback_api import router as cashback_router
@@ -28,7 +29,6 @@ from app.api.financeiro_pagar_api import router as financeiro_pagar_router
 from app.api.nota_entrada_api import router as nota_entrada_router
 from app.api.pdv_api import router as pdv_router
 from app.api.producao_api import router as producao_router
-from app.api import cashback_api
 
 Base.metadata.create_all(bind=engine)
 
@@ -61,6 +61,7 @@ app.include_router(pdv_router)
 app.include_router(caixa_router)
 app.include_router(cashback_router)
 app.include_router(precificacao_api.router)
+app.include_router(assinaturas_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -218,3 +219,22 @@ def demonstrativo_comissao_page(request: Request, fechamento_id: int):
 @app.get("/configuracoes", response_class=HTMLResponse)
 def configuracoes_page(request: Request):
     return templates.TemplateResponse(request, "configuracoes.html", {"request": request})
+
+
+@app.get("/assinaturas", response_class=HTMLResponse)
+def assinaturas_page(request: Request):
+    return templates.TemplateResponse(request, "assinaturas.html", {"request": request})
+
+
+@app.get("/assinaturas/nova", response_class=HTMLResponse)
+def assinaturas_form_page(request: Request):
+    return templates.TemplateResponse(request, "assinaturas_form.html", {"request": request})
+
+
+@app.get("/assinaturas/editar/{assinatura_id}", response_class=HTMLResponse)
+def assinaturas_edit_page(request: Request, assinatura_id: int):
+    return templates.TemplateResponse(
+        request,
+        "assinaturas_form.html",
+        {"request": request, "assinatura_id": assinatura_id},
+    )
