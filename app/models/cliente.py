@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, func
 from app.core.database import Base
 
 
@@ -15,4 +15,6 @@ class Cliente(Base):
     telefone_fixo = Column(String(20), nullable=True)
 
     ativo = Column(Boolean, default=True, nullable=False)
+    saldo_cashback = Column(Numeric(10, 2), nullable=False, server_default="0")
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())

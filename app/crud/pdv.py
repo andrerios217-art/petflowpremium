@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import HTTPException
@@ -15,6 +15,8 @@ from app.models.agendamento_servico import AgendamentoServico
 from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.caixa_movimento import CaixaMovimento
 from app.models.caixa_sessao import CaixaSessao
+from app.models.cashback_configuracao import CashbackConfiguracao
+from app.models.cashback_lancamento import CashbackLancamento
 from app.models.cliente import Cliente
 from app.models.empresa import Empresa
 from app.models.estoque_deposito import EstoqueDeposito
@@ -153,6 +155,23 @@ def _get_cliente_or_404(db: Session, cliente_id: int | None) -> Cliente:
     if not cliente_id:
         raise HTTPException(status_code=400, detail="cliente_id inválido.")
     cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+    return cliente
+
+
+def _get_cliente_for_update_or_404(db: Session, cliente_id: int | None, empresa_id: int) -> Cliente:
+    if not cliente_id:
+        raise HTTPException(status_code=400, detail="cliente_id inválido.")
+    cliente = (
+        db.query(Cliente)
+        .filter(
+            Cliente.id == cliente_id,
+            Cliente.empresa_id == empresa_id,
+        )
+        .with_for_update()
+        .first()
+    )
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente não encontrado.")
     return cliente
@@ -576,6 +595,65 @@ def _baixar_estoque_venda(
     db.flush()
 
 
+def _get_cashback_config_ativa(db: Session, empresa_id: int) -> CashbackConfiguracao | None:
+    return (
+        db.query(CashbackConfiguracao)
+        .filter(
+            CashbackConfiguracao.empresa_id == empresa_id,
+            CashbackConfiguracao.ativo.is_(True),
+        )
+        .first()
+    )
+
+
+def _calcular_expiracao_cashback(config: CashbackConfiguracao | None) -> datetime | None:
+    if not config:
+        return None
+    dias_validade = getattr(config, "dias_validade", None)
+    if dias_validade is None:
+        return None
+    return _agora_utc() + timedelta(days=int(dias_validade))
+
+
+def _registrar_lancamento_cashback(
+    db: Session,
+    *,
+    empresa_id: int,
+    cliente_id: int,
+    venda_id: int | None,
+    tipo: str,
+    origem: str,
+    valor: Decimal,
+    saldo_apos: Decimal,
+    expira_em: datetime | None = None,
+    observacao: str | None = None,
+) -> CashbackLancamento:
+    lancamento = CashbackLancamento(
+        empresa_id=empresa_id,
+        cliente_id=cliente_id,
+        venda_id=venda_id,
+        tipo=tipo,
+        origem=origem,
+        valor=_decimal_2(valor),
+        saldo_apos=_decimal_2(saldo_apos),
+        expira_em=expira_em,
+        observacao=observacao,
+        created_at=_agora_utc(),
+    )
+    db.add(lancamento)
+    db.flush()
+    return lancamento
+
+
+def _buscar_lancamentos_cashback_venda(db: Session, venda_id: int) -> list[CashbackLancamento]:
+    return (
+        db.query(CashbackLancamento)
+        .filter(CashbackLancamento.venda_id == venda_id)
+        .order_by(CashbackLancamento.id.asc())
+        .all()
+    )
+
+
 def buscar_clientes(db: Session, empresa_id: int, termo: str, limite: int = 20) -> list[Cliente]:
     _get_empresa_or_404(db, empresa_id)
 
@@ -750,12 +828,12 @@ def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> Pd
         updated_at=_agora_utc(),
     )
     item.definir_como_item_producao(
-    descricao_snapshot=descricao,
-    valor_unitario=total,
-    quantidade=Decimal("1.000"),
-    desconto_valor=Decimal("0.00"),
-    observacao=None,
-)
+        descricao_snapshot=descricao,
+        valor_unitario=total,
+        quantidade=Decimal("1.000"),
+        desconto_valor=Decimal("0.00"),
+        observacao=None,
+    )
 
     db.add(item)
     db.flush()
@@ -863,10 +941,10 @@ def adicionar_item(db: Session, venda_id: int, payload: PdvVendaItemAdd) -> PdvV
     _validar_venda_aberta(venda)
 
     item = PdvVendaItem(
-    venda=venda,
-    created_at=_agora_utc(),
-    updated_at=_agora_utc(),
-)
+        venda=venda,
+        created_at=_agora_utc(),
+        updated_at=_agora_utc(),
+    )
 
     if payload.tipo_item == "SERVICE":
         atendimento_lock = _get_atendimento_or_404(db, payload.atendimento_clinico_id, for_update=True)
@@ -988,9 +1066,52 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
             deposito_id=deposito_pdv.id,
         )
 
-    if total == Decimal("0.00"):
+    cashback_config = _get_cashback_config_ativa(db, venda.empresa_id)
+    usar_cashback = bool(getattr(payload, "usar_cashback", False))
+    valor_cashback_utilizado = _decimal_2(getattr(payload, "valor_cashback_utilizado", Decimal("0.00")))
+
+    cliente_cashback = None
+    if usar_cashback or valor_cashback_utilizado > Decimal("0.00"):
+        if venda.modo_cliente != "REGISTERED_CLIENT" or not venda.cliente_id:
+            raise HTTPException(status_code=400, detail="Cashback só pode ser usado em venda com cliente cadastrado.")
+
+        if not cashback_config or not getattr(cashback_config, "permite_uso_no_pdv", False):
+            raise HTTPException(status_code=400, detail="Uso de cashback não está habilitado para esta empresa.")
+
+        cliente_cashback = _get_cliente_for_update_or_404(db, venda.cliente_id, venda.empresa_id)
+        saldo_atual = _decimal_2(getattr(cliente_cashback, "saldo_cashback", Decimal("0.00")))
+
+        if valor_cashback_utilizado <= Decimal("0.00"):
+            raise HTTPException(status_code=400, detail="Valor de cashback inválido.")
+        if valor_cashback_utilizado > total:
+            raise HTTPException(status_code=400, detail="Cashback não pode ser maior que o total da venda.")
+        if valor_cashback_utilizado > saldo_atual:
+            raise HTTPException(status_code=400, detail="Saldo de cashback insuficiente.")
+
+    total_a_pagar = _decimal_2(total - valor_cashback_utilizado)
+    if total_a_pagar < Decimal("0.00"):
+        raise HTTPException(status_code=400, detail="Total líquido inválido após aplicar cashback.")
+
+    if total_a_pagar == Decimal("0.00"):
         if valor_pago != Decimal("0.00"):
-            raise HTTPException(status_code=400, detail="Venda zerada: valor pago deve ser 0,00.")
+            raise HTTPException(status_code=400, detail="Venda quitada com cashback: valor pago deve ser 0,00.")
+
+        if valor_cashback_utilizado > Decimal("0.00") and cliente_cashback:
+            novo_saldo = _decimal_2(_decimal_2(cliente_cashback.saldo_cashback) - valor_cashback_utilizado)
+            cliente_cashback.saldo_cashback = novo_saldo
+            db.add(cliente_cashback)
+
+            _registrar_lancamento_cashback(
+                db,
+                empresa_id=venda.empresa_id,
+                cliente_id=cliente_cashback.id,
+                venda_id=venda.id,
+                tipo=CashbackLancamento.TIPO_DEBITO,
+                origem=CashbackLancamento.ORIGEM_PDV_USO,
+                valor=valor_cashback_utilizado,
+                saldo_apos=novo_saldo,
+                observacao=f"Uso de cashback na venda {venda.numero_venda or venda.id}",
+            )
 
         if itens_para_baixa and deposito_pdv:
             _baixar_estoque_venda(
@@ -1015,8 +1136,8 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
 
     if valor_pago <= Decimal("0.00"):
         raise HTTPException(status_code=400, detail="Valor de pagamento inválido.")
-    if valor_pago != total:
-        raise HTTPException(status_code=400, detail="Nesta versão, valor pago deve ser igual ao total da venda.")
+    if valor_pago != total_a_pagar:
+        raise HTTPException(status_code=400, detail="Nesta versão, valor pago deve ser igual ao total líquido da venda.")
 
     pagamento = PdvPagamento(
         venda_id=venda.id,
@@ -1033,6 +1154,23 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
     )
     db.add(pagamento)
     db.flush()
+
+    if valor_cashback_utilizado > Decimal("0.00") and cliente_cashback:
+        novo_saldo = _decimal_2(_decimal_2(cliente_cashback.saldo_cashback) - valor_cashback_utilizado)
+        cliente_cashback.saldo_cashback = novo_saldo
+        db.add(cliente_cashback)
+
+        _registrar_lancamento_cashback(
+            db,
+            empresa_id=venda.empresa_id,
+            cliente_id=cliente_cashback.id,
+            venda_id=venda.id,
+            tipo=CashbackLancamento.TIPO_DEBITO,
+            origem=CashbackLancamento.ORIGEM_PDV_USO,
+            valor=valor_cashback_utilizado,
+            saldo_apos=novo_saldo,
+            observacao=f"Uso de cashback na venda {venda.numero_venda or venda.id}",
+        )
 
     if itens_para_baixa and deposito_pdv:
         _baixar_estoque_venda(
@@ -1051,6 +1189,39 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
 
     _gerar_financeiro_recebido_para_venda(db, venda, forma_pagamento=forma_pagamento, valor=valor_pago)
     _registrar_movimento_venda(db, venda, forma_pagamento=forma_pagamento, valor=valor_pago)
+
+    if (
+        cashback_config
+        and venda.modo_cliente == "REGISTERED_CLIENT"
+        and venda.cliente_id
+        and Decimal(str(getattr(cashback_config, "percentual_cashback", 0) or 0)) > Decimal("0.00")
+        and total_a_pagar >= _decimal_2(getattr(cashback_config, "valor_minimo_venda", Decimal("0.00")))
+    ):
+        cliente_credito = cliente_cashback or _get_cliente_for_update_or_404(db, venda.cliente_id, venda.empresa_id)
+
+        if valor_cashback_utilizado > Decimal("0.00") and not getattr(cashback_config, "acumula_com_desconto", False):
+            pass
+        else:
+            percentual = Decimal(str(cashback_config.percentual_cashback))
+            valor_credito = _decimal_2((total_a_pagar * percentual) / Decimal("100"))
+
+            if valor_credito > Decimal("0.00"):
+                novo_saldo = _decimal_2(_decimal_2(cliente_credito.saldo_cashback) + valor_credito)
+                cliente_credito.saldo_cashback = novo_saldo
+                db.add(cliente_credito)
+
+                _registrar_lancamento_cashback(
+                    db,
+                    empresa_id=venda.empresa_id,
+                    cliente_id=cliente_credito.id,
+                    venda_id=venda.id,
+                    tipo=CashbackLancamento.TIPO_CREDITO,
+                    origem=CashbackLancamento.ORIGEM_PDV_VENDA,
+                    valor=valor_credito,
+                    saldo_apos=novo_saldo,
+                    expira_em=_calcular_expiracao_cashback(cashback_config),
+                    observacao=f"Cashback gerado pela venda {venda.numero_venda or venda.id}",
+                )
 
     venda.fechar(usuario_fechamento_id=pagamento.usuario_id)
     db.add(venda)
@@ -1095,9 +1266,53 @@ def cancelar_venda(db: Session, venda_id: int, payload: PdvCancelRequest) -> Pdv
 
     if venda.pagamentos:
         forma_pagamento = venda.pagamentos[0].forma_pagamento
-        valor = _decimal_2(venda.valor_total)
+        valor = _decimal_2(venda.pagamentos[0].valor)
         _cancelar_financeiro_da_venda(db, venda)
         _registrar_movimento_estorno(db, venda, forma_pagamento=forma_pagamento, valor=valor)
+
+    lancamentos_cashback = _buscar_lancamentos_cashback_venda(db, venda.id)
+    if lancamentos_cashback and venda.cliente_id:
+        cliente = _get_cliente_for_update_or_404(db, venda.cliente_id, venda.empresa_id)
+        saldo_atual = _decimal_2(getattr(cliente, "saldo_cashback", Decimal("0.00")))
+
+        for lanc in lancamentos_cashback:
+            if lanc.tipo == CashbackLancamento.TIPO_CREDITO:
+                novo_saldo = _decimal_2(saldo_atual - _decimal_2(lanc.valor))
+                if novo_saldo < Decimal("0.00"):
+                    novo_saldo = Decimal("0.00")
+                cliente.saldo_cashback = novo_saldo
+                saldo_atual = novo_saldo
+                db.add(cliente)
+
+                _registrar_lancamento_cashback(
+                    db,
+                    empresa_id=venda.empresa_id,
+                    cliente_id=cliente.id,
+                    venda_id=venda.id,
+                    tipo=CashbackLancamento.TIPO_ESTORNO,
+                    origem=CashbackLancamento.ORIGEM_CANCELAMENTO,
+                    valor=_decimal_2(lanc.valor),
+                    saldo_apos=novo_saldo,
+                    observacao=f"Estorno de crédito de cashback da venda {venda.numero_venda or venda.id}",
+                )
+
+            elif lanc.tipo == CashbackLancamento.TIPO_DEBITO:
+                novo_saldo = _decimal_2(saldo_atual + _decimal_2(lanc.valor))
+                cliente.saldo_cashback = novo_saldo
+                saldo_atual = novo_saldo
+                db.add(cliente)
+
+                _registrar_lancamento_cashback(
+                    db,
+                    empresa_id=venda.empresa_id,
+                    cliente_id=cliente.id,
+                    venda_id=venda.id,
+                    tipo=CashbackLancamento.TIPO_ESTORNO,
+                    origem=CashbackLancamento.ORIGEM_CANCELAMENTO,
+                    valor=_decimal_2(lanc.valor),
+                    saldo_apos=novo_saldo,
+                    observacao=f"Devolução de cashback usado na venda {venda.numero_venda or venda.id}",
+                )
 
     venda.cancelar(
         motivo_cancelamento=payload.motivo_cancelamento,

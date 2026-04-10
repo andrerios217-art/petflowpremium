@@ -50,3 +50,5 @@ from app.api import configuracoes
 from app.api import empresas
 from app.api import precificacao_api
 from app.api import usuarios
+from app.models.cashback_configuracao import CashbackConfiguracao
+from app.models.cashback_lancamento import CashbackLancamento

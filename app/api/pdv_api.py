@@ -57,6 +57,7 @@ def _serializar_cliente(cliente):
         "nome": getattr(cliente, "nome", None),
         "cpf": getattr(cliente, "cpf", None),
         "telefone": getattr(cliente, "telefone", None),
+        "saldo_cashback": _to_float(getattr(cliente, "saldo_cashback", 0)),
     }
 
 

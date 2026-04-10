@@ -18,6 +18,7 @@ class PdvClienteResumo(BaseModel):
     nome: str
     cpf: str | None = None
     telefone: str | None = None
+    saldo_cashback: Decimal = Field(default=Decimal("0.00"))
 
     class Config:
         from_attributes = True
@@ -102,6 +103,18 @@ class PdvPagamentoCreate(BaseModel):
 class PdvCheckoutRequest(BaseModel):
     pagamento: PdvPagamentoCreate
     observacoes: str | None = None
+    usar_cashback: bool = False
+    valor_cashback_utilizado: Decimal = Field(default=Decimal("0.00"), ge=0)
+
+    @model_validator(mode="after")
+    def validar_cashback(self):
+        if self.usar_cashback and self.valor_cashback_utilizado <= Decimal("0.00"):
+            raise ValueError("Informe um valor de cashback maior que zero para usar no checkout.")
+
+        if not self.usar_cashback and self.valor_cashback_utilizado > Decimal("0.00"):
+            raise ValueError("Marque usar_cashback para informar valor de cashback no checkout.")
+
+        return self
 
 
 class PdvCancelRequest(BaseModel):
@@ -218,6 +231,7 @@ class PdvClienteBuscaOut(BaseModel):
     nome: str
     cpf: str | None = None
     telefone: str | None = None
+    saldo_cashback: Decimal = Field(default=Decimal("0.00"))
 
     class Config:
         from_attributes = True
