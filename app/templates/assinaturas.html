@@ -33,14 +33,31 @@
       </div>
 
       <div class="assinatura-grid">
-        <div class="assinatura-field">
-          <label for="cliente-id">ID do cliente</label>
-          <input type="number" id="cliente-id" min="1" required />
+        <div class="assinatura-field assinatura-field-full assinatura-lookup-wrap">
+          <label for="cliente-busca">Cliente</label>
+          <input type="text" id="cliente-busca" placeholder="Buscar cliente por nome" autocomplete="off" />
+          <input type="hidden" id="cliente-id" />
+          <div id="cliente-resultados" class="assinatura-lookup-results"></div>
+          <div class="assinatura-selecao-box">
+            <span id="cliente-selecionado" class="assinatura-pill assinatura-hidden"></span>
+          </div>
         </div>
 
-        <div class="assinatura-field">
-          <label for="pet-id">ID do pet</label>
-          <input type="number" id="pet-id" min="1" required />
+        <div class="assinatura-field assinatura-field-full assinatura-lookup-wrap">
+          <label for="pet-busca">Pet</label>
+          <input
+            type="text"
+            id="pet-busca"
+            placeholder="Buscar pet do cliente selecionado"
+            autocomplete="off"
+            disabled
+          />
+          <input type="hidden" id="pet-id" />
+          <div id="pet-resultados" class="assinatura-lookup-results"></div>
+          <div class="assinatura-selecao-box">
+            <span id="pet-selecionado" class="assinatura-pill assinatura-hidden"></span>
+            <span id="pet-porte-selecionado" class="assinatura-pill assinatura-hidden"></span>
+          </div>
         </div>
 
         <div class="assinatura-field">
@@ -99,7 +116,7 @@
       <div class="assinatura-card__header">
         <div>
           <h2>Serviços da assinatura</h2>
-          <p>Adicione serviços, quantidades e desconto por item.</p>
+          <p>Adicione serviços por nome, com quantidade e desconto por item.</p>
         </div>
 
         <button type="button" id="btn-adicionar-servico" class="assinatura-btn assinatura-btn-primary">
@@ -149,14 +166,13 @@
   <template id="template-servico-item">
     <div class="assinatura-servico-item">
       <div class="assinatura-servico-grid">
-        <div class="assinatura-field">
+        <div class="assinatura-field assinatura-lookup-wrap">
           <label>Serviço</label>
-          <input type="number" class="servico-id" min="1" placeholder="ID do serviço" required />
-        </div>
-
-        <div class="assinatura-field">
-          <label>Nome do serviço</label>
-          <input type="text" class="servico-nome" maxlength="150" placeholder="Nome exibido" required />
+          <input type="text" class="servico-busca" placeholder="Buscar serviço por nome" autocomplete="off" />
+          <input type="hidden" class="servico-id" />
+          <input type="hidden" class="servico-nome" />
+          <input type="hidden" class="servico-porte" />
+          <div class="assinatura-lookup-results servico-resultados"></div>
         </div>
 
         <div class="assinatura-field">
@@ -172,12 +188,11 @@
         <div class="assinatura-field">
           <label>% desconto</label>
           <input
-            type="number"
+            type="text"
             class="servico-percentual-desconto"
-            min="0"
-            max="100"
-            step="0.01"
-            value="0.00"
+            inputmode="decimal"
+            placeholder="0,00"
+            value="0,00"
             required
           />
         </div>
@@ -187,6 +202,10 @@
             Remover
           </button>
         </div>
+      </div>
+
+      <div class="assinatura-selecao-box">
+        <span class="servico-selecionado-pill assinatura-pill assinatura-hidden"></span>
       </div>
 
       <div class="assinatura-servico-resumo">
@@ -269,6 +288,7 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      position: relative;
     }
 
     .assinatura-field-full {
@@ -388,7 +408,7 @@
 
     .assinatura-servico-grid {
       display: grid;
-      grid-template-columns: 1.2fr 1.8fr 0.8fr 1fr 0.9fr auto;
+      grid-template-columns: 2fr 0.8fr 1fr 0.9fr auto;
       gap: 12px;
       align-items: end;
     }
@@ -446,6 +466,71 @@
       flex-wrap: wrap;
     }
 
+    .assinatura-lookup-results {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 30;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.10);
+      max-height: 240px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .assinatura-lookup-results.show {
+      display: block;
+    }
+
+    .assinatura-lookup-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .assinatura-lookup-item:last-child {
+      border-bottom: 0;
+    }
+
+    .assinatura-lookup-item:hover {
+      background: #f8fafc;
+    }
+
+    .assinatura-lookup-item-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .assinatura-lookup-item-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .assinatura-selecao-box {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .assinatura-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
     @media (max-width: 1200px) {
       .assinatura-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -484,8 +569,30 @@
     const assinaturaIdRaw = pageEl ? pageEl.getAttribute("data-assinatura-id") : "";
     const assinaturaId = assinaturaIdRaw ? parseInt(assinaturaIdRaw, 10) : null;
 
+    const assinaturaState = {
+      clientes: [],
+      pets: [],
+      servicos: [],
+      clienteSelecionado: null,
+      petSelecionado: null
+    };
+
     function obterToken() {
-      return localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+      return (
+        sessionStorage.getItem("petflow_token") ||
+        localStorage.getItem("petflow_token") ||
+        sessionStorage.getItem("token") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("access_token") ||
+        localStorage.getItem("access_token") ||
+        ""
+      );
+    }
+
+    function authHeaders(extra) {
+      const token = obterToken();
+      const base = token ? { "Authorization": "Bearer " + token } : {};
+      return Object.assign(base, extra || {});
     }
 
     function formatarMoeda(valor) {
@@ -504,8 +611,34 @@
     }
 
     function parseNumero(valor) {
-      const numero = Number(valor);
+      if (valor === null || valor === undefined) {
+        return 0;
+      }
+
+      if (typeof valor === "number") {
+        return Number.isFinite(valor) ? valor : 0;
+      }
+
+      let texto = String(valor).trim();
+
+      if (!texto) {
+        return 0;
+      }
+
+      texto = texto.replace(/\s+/g, "");
+
+      if (texto.includes(",") && texto.includes(".")) {
+        texto = texto.replace(/\./g, "").replace(",", ".");
+      } else if (texto.includes(",")) {
+        texto = texto.replace(",", ".");
+      }
+
+      const numero = Number(texto);
       return Number.isFinite(numero) ? numero : 0;
+    }
+
+    function formatarPercentualInput(valor) {
+      return parseNumero(valor).toFixed(2).replace(".", ",");
     }
 
     function definirAlerta(tipo, mensagem) {
@@ -525,6 +658,245 @@
       alerta.textContent = mensagem;
     }
 
+    function normalizarTexto(valor) {
+      return String(valor || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    }
+
+    function obterNomeCliente(cliente) {
+      return (
+        cliente.nome ||
+        cliente.nome_completo ||
+        cliente.razao_social ||
+        cliente.nome_fantasia ||
+        ""
+      );
+    }
+
+    function obterNomePet(pet) {
+      return pet.nome || pet.nome_pet || "";
+    }
+
+    function obterNomeServico(servico) {
+      return servico.nome || servico.descricao || servico.nome_servico || "";
+    }
+
+    function obterPorte(obj) {
+      if (!obj) return "";
+      return (
+        obj.porte_referencia ||
+        obj.porte ||
+        obj.porte_pet ||
+        obj.porte_recomendado ||
+        obj.tamanho ||
+        ""
+      );
+    }
+
+    function obterPrecoServico(servico) {
+      const valor =
+        servico.venda ??
+        servico.preco_venda ??
+        servico.preco ??
+        servico.valor ??
+        servico.preco_base ??
+        servico.preco_padrao ??
+        0;
+
+      return parseNumero(valor);
+    }
+
+    function obterId(obj) {
+      return parseInt(obj && obj.id, 10);
+    }
+
+    function petsDoCliente(clienteId) {
+      return assinaturaState.pets.filter(function(pet) {
+        return parseInt(pet.cliente_id, 10) === parseInt(clienteId, 10);
+      });
+    }
+
+    async function buscarJSON(url) {
+      const response = await fetch(url, {
+        headers: authHeaders()
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(function() {
+          return {};
+        });
+        throw new Error(data.detail || "Erro ao carregar dados.");
+      }
+
+      return response.json();
+    }
+
+    async function carregarBases() {
+      const [clientesResp, petsResp, servicosResp] = await Promise.all([
+        buscarJSON("/api/clientes/"),
+        buscarJSON("/api/pets/"),
+        buscarJSON("/api/servicos/?tipo_servico=PETSHOP")
+      ]);
+
+      assinaturaState.clientes = Array.isArray(clientesResp) ? clientesResp : (clientesResp.items || clientesResp.data || []);
+      assinaturaState.pets = Array.isArray(petsResp) ? petsResp : (petsResp.items || petsResp.data || []);
+      assinaturaState.servicos = Array.isArray(servicosResp) ? servicosResp : (servicosResp.items || servicosResp.data || []);
+    }
+
+    function fecharLookups() {
+      document.querySelectorAll(".assinatura-lookup-results").forEach(function(el) {
+        el.classList.remove("show");
+        el.innerHTML = "";
+      });
+    }
+
+    function renderResultados(container, items, mapFn, onSelect) {
+      container.innerHTML = "";
+
+      if (!items.length) {
+        container.classList.remove("show");
+        return;
+      }
+
+      items.forEach(function(item) {
+        const el = document.createElement("div");
+        el.className = "assinatura-lookup-item";
+
+        const dados = mapFn(item);
+        el.innerHTML = `
+          <div class="assinatura-lookup-item-title">${dados.titulo}</div>
+          <div class="assinatura-lookup-item-subtitle">${dados.subtitulo}</div>
+        `;
+
+        el.addEventListener("click", function() {
+          onSelect(item);
+          container.classList.remove("show");
+          container.innerHTML = "";
+        });
+
+        container.appendChild(el);
+      });
+
+      container.classList.add("show");
+    }
+
+    function atualizarClienteSelecionado() {
+      const pill = document.getElementById("cliente-selecionado");
+
+      if (!assinaturaState.clienteSelecionado) {
+        pill.textContent = "";
+        pill.classList.add("assinatura-hidden");
+        return;
+      }
+
+      pill.textContent = "Cliente: " + obterNomeCliente(assinaturaState.clienteSelecionado);
+      pill.classList.remove("assinatura-hidden");
+    }
+
+    function atualizarPetSelecionado() {
+      const petPill = document.getElementById("pet-selecionado");
+      const portePill = document.getElementById("pet-porte-selecionado");
+
+      if (!assinaturaState.petSelecionado) {
+        petPill.textContent = "";
+        portePill.textContent = "";
+        petPill.classList.add("assinatura-hidden");
+        portePill.classList.add("assinatura-hidden");
+        return;
+      }
+
+      petPill.textContent = "Pet: " + obterNomePet(assinaturaState.petSelecionado);
+      petPill.classList.remove("assinatura-hidden");
+
+      const porte = obterPorte(assinaturaState.petSelecionado);
+      if (porte) {
+        portePill.textContent = "Porte: " + porte;
+        portePill.classList.remove("assinatura-hidden");
+      } else {
+        portePill.textContent = "";
+        portePill.classList.add("assinatura-hidden");
+      }
+    }
+
+    function selecionarCliente(cliente) {
+      assinaturaState.clienteSelecionado = cliente;
+      assinaturaState.petSelecionado = null;
+
+      document.getElementById("cliente-id").value = obterId(cliente) || "";
+      document.getElementById("cliente-busca").value = obterNomeCliente(cliente);
+
+      document.getElementById("pet-id").value = "";
+      document.getElementById("pet-busca").value = "";
+      document.getElementById("pet-busca").disabled = false;
+
+      atualizarClienteSelecionado();
+      atualizarPetSelecionado();
+
+      document.getElementById("lista-servicos").innerHTML = "";
+      recalcularTotais();
+    }
+
+    function selecionarPet(pet) {
+      assinaturaState.petSelecionado = pet;
+      document.getElementById("pet-id").value = obterId(pet) || "";
+      document.getElementById("pet-busca").value = obterNomePet(pet);
+      atualizarPetSelecionado();
+      revalidarServicosPorPorte();
+    }
+
+    function buscarClientesPorNome(termo) {
+      const q = normalizarTexto(termo);
+      if (!q) return [];
+
+      return assinaturaState.clientes.filter(function(cliente) {
+        return normalizarTexto(obterNomeCliente(cliente)).includes(q);
+      }).slice(0, 15);
+    }
+
+    function buscarPetsPorNome(termo) {
+      if (!assinaturaState.clienteSelecionado) return [];
+
+      const q = normalizarTexto(termo);
+      const pets = petsDoCliente(obterId(assinaturaState.clienteSelecionado));
+
+      if (!q) return pets.slice(0, 15);
+
+      return pets.filter(function(pet) {
+        return normalizarTexto(obterNomePet(pet)).includes(q);
+      }).slice(0, 15);
+    }
+
+    function servicoCompativelComPorte(servico) {
+      const pet = assinaturaState.petSelecionado;
+      if (!pet) return false;
+
+      const portePet = normalizarTexto(obterPorte(pet));
+      const porteServico = normalizarTexto(obterPorte(servico));
+
+      if (!portePet || !porteServico) {
+        return true;
+      }
+
+      return portePet === porteServico;
+    }
+
+    function buscarServicosPorNome(termo) {
+      const q = normalizarTexto(termo);
+
+      let base = assinaturaState.servicos.filter(function(servico) {
+        return servicoCompativelComPorte(servico);
+      });
+
+      if (!q) return base.slice(0, 15);
+
+      return base.filter(function(servico) {
+        return normalizarTexto(obterNomeServico(servico)).includes(q);
+      }).slice(0, 15);
+    }
+
     function recalcularItem(itemEl) {
       const quantidade = parseNumero(itemEl.querySelector(".servico-quantidade").value);
       const precoBase = parseNumero(itemEl.querySelector(".servico-preco-base").value);
@@ -540,38 +912,6 @@
       itemEl.querySelector(".resumo-final").textContent = formatarMoeda(final < 0 ? 0 : final);
 
       recalcularTotais();
-    }
-
-    function adicionarServico(item) {
-      const template = document.getElementById("template-servico-item");
-      const clone = template.content.cloneNode(true);
-      const elemento = clone.querySelector(".assinatura-servico-item");
-
-      if (item) {
-        elemento.querySelector(".servico-id").value = item.servico_id || "";
-        elemento.querySelector(".servico-nome").value = item.nome_servico || "";
-        elemento.querySelector(".servico-quantidade").value = item.quantidade_contratada || 1;
-        elemento.querySelector(".servico-preco-base").value = item.preco_unitario_base || 0;
-        elemento.querySelector(".servico-percentual-desconto").value = item.percentual_desconto || 0;
-      }
-
-      const campos = elemento.querySelectorAll(
-        ".servico-id, .servico-nome, .servico-quantidade, .servico-preco-base, .servico-percentual-desconto"
-      );
-
-      campos.forEach(function(campo) {
-        campo.addEventListener("input", function() {
-          recalcularItem(elemento);
-        });
-      });
-
-      elemento.querySelector(".btn-remover-servico").addEventListener("click", function() {
-        elemento.remove();
-        recalcularTotais();
-      });
-
-      document.getElementById("lista-servicos").appendChild(elemento);
-      recalcularItem(elemento);
     }
 
     function coletarItens() {
@@ -602,11 +942,8 @@
         const precoBase = parseNumero(item.preco_unitario_base);
         const percentual = parseNumero(item.percentual_desconto);
 
-        const subtotalBruto = quantidade * precoBase;
-        const subtotalDesconto = quantidade * (precoBase * (percentual / 100));
-
-        bruto += subtotalBruto;
-        desconto += subtotalDesconto;
+        bruto += quantidade * precoBase;
+        desconto += quantidade * (precoBase * (percentual / 100));
       });
 
       const final = bruto - desconto;
@@ -614,6 +951,197 @@
       document.getElementById("total-bruto").textContent = formatarMoeda(bruto);
       document.getElementById("total-desconto").textContent = formatarMoeda(desconto);
       document.getElementById("total-final").textContent = formatarMoeda(final < 0 ? 0 : final);
+    }
+
+    function atualizarPillServico(itemEl, servico) {
+      const pill = itemEl.querySelector(".servico-selecionado-pill");
+      const nome = obterNomeServico(servico);
+      const porte = obterPorte(servico);
+      const preco = obterPrecoServico(servico);
+
+      let texto = nome;
+      if (porte) {
+        texto += " • Porte " + porte;
+      }
+      texto += " • " + formatarMoeda(preco);
+
+      pill.textContent = texto;
+      pill.classList.remove("assinatura-hidden");
+    }
+
+    function selecionarServicoNoItem(itemEl, servico) {
+      if (!servicoCompativelComPorte(servico)) {
+        throw new Error("Este serviço não é compatível com o porte do pet selecionado.");
+      }
+
+      const preco = obterPrecoServico(servico);
+
+      itemEl.querySelector(".servico-id").value = obterId(servico) || "";
+      itemEl.querySelector(".servico-nome").value = obterNomeServico(servico) || "";
+      itemEl.querySelector(".servico-porte").value = obterPorte(servico) || "";
+      itemEl.querySelector(".servico-busca").value = obterNomeServico(servico) || "";
+      itemEl.querySelector(".servico-preco-base").value = Number(preco).toFixed(2);
+      itemEl.querySelector(".servico-percentual-desconto").value = "0,00";
+
+      atualizarPillServico(itemEl, servico);
+      recalcularItem(itemEl);
+    }
+
+    function configurarCampoPercentual(campo) {
+      campo.addEventListener("input", function() {
+        let valor = campo.value || "";
+        valor = valor.replace(/[^\d,.-]/g, "");
+
+        const primeiraVirgula = valor.indexOf(",");
+        if (primeiraVirgula !== -1) {
+          valor =
+            valor.slice(0, primeiraVirgula + 1) +
+            valor.slice(primeiraVirgula + 1).replace(/,/g, "");
+        }
+
+        campo.value = valor;
+      });
+
+      campo.addEventListener("blur", function() {
+        let percentual = parseNumero(campo.value);
+
+        if (percentual < 0) {
+          percentual = 0;
+        }
+
+        if (percentual > 100) {
+          percentual = 100;
+        }
+
+        campo.value = formatarPercentualInput(percentual);
+      });
+    }
+
+    function configurarBuscaServico(itemEl) {
+      const input = itemEl.querySelector(".servico-busca");
+      const resultados = itemEl.querySelector(".servico-resultados");
+
+      function render(lista) {
+        renderResultados(
+          resultados,
+          lista,
+          function(servico) {
+            return {
+              titulo: obterNomeServico(servico),
+              subtitulo: [
+                obterPorte(servico) ? ("Porte " + obterPorte(servico)) : null,
+                formatarMoeda(obterPrecoServico(servico))
+              ].filter(Boolean).join(" • ")
+            };
+          },
+          function(servico) {
+            try {
+              selecionarServicoNoItem(itemEl, servico);
+            } catch (error) {
+              definirAlerta("erro", error.message || "Erro ao selecionar serviço.");
+            }
+          }
+        );
+      }
+
+      input.addEventListener("input", function() {
+        if (!assinaturaState.petSelecionado) {
+          resultados.classList.remove("show");
+          resultados.innerHTML = "";
+          return;
+        }
+        render(buscarServicosPorNome(input.value));
+      });
+
+      input.addEventListener("focus", function() {
+        if (!assinaturaState.petSelecionado) {
+          return;
+        }
+        render(buscarServicosPorNome(input.value));
+      });
+    }
+
+    function adicionarServico(item) {
+      if (!assinaturaState.petSelecionado) {
+        definirAlerta("erro", "Selecione o cliente e o pet antes de adicionar serviços.");
+        return;
+      }
+
+      const template = document.getElementById("template-servico-item");
+      const clone = template.content.cloneNode(true);
+      const elemento = clone.querySelector(".assinatura-servico-item");
+
+      const percentualCampo = elemento.querySelector(".servico-percentual-desconto");
+      configurarCampoPercentual(percentualCampo);
+
+      const campos = elemento.querySelectorAll(
+        ".servico-quantidade, .servico-preco-base, .servico-percentual-desconto"
+      );
+
+      campos.forEach(function(campo) {
+        campo.addEventListener("input", function() {
+          recalcularItem(elemento);
+        });
+      });
+
+      elemento.querySelector(".btn-remover-servico").addEventListener("click", function() {
+        elemento.remove();
+        recalcularTotais();
+      });
+
+      configurarBuscaServico(elemento);
+      document.getElementById("lista-servicos").appendChild(elemento);
+
+      if (item) {
+        const servicoExistente = assinaturaState.servicos.find(function(servico) {
+          return parseInt(servico.id, 10) === parseInt(item.servico_id, 10);
+        });
+
+        if (servicoExistente) {
+          try {
+            selecionarServicoNoItem(elemento, servicoExistente);
+          } catch (_) {
+            elemento.querySelector(".servico-id").value = item.servico_id || "";
+            elemento.querySelector(".servico-nome").value = item.nome_servico || "";
+            elemento.querySelector(".servico-busca").value = item.nome_servico || "";
+            elemento.querySelector(".servico-preco-base").value = parseNumero(item.preco_unitario_base).toFixed(2);
+          }
+        } else {
+          elemento.querySelector(".servico-id").value = item.servico_id || "";
+          elemento.querySelector(".servico-nome").value = item.nome_servico || "";
+          elemento.querySelector(".servico-busca").value = item.nome_servico || "";
+          elemento.querySelector(".servico-preco-base").value = parseNumero(item.preco_unitario_base).toFixed(2);
+        }
+
+        elemento.querySelector(".servico-quantidade").value = item.quantidade_contratada || 1;
+        elemento.querySelector(".servico-percentual-desconto").value = formatarPercentualInput(item.percentual_desconto || 0);
+      } else {
+        elemento.querySelector(".servico-percentual-desconto").value = "0,00";
+      }
+
+      recalcularItem(elemento);
+    }
+
+    function revalidarServicosPorPorte() {
+      const portePet = normalizarTexto(obterPorte(assinaturaState.petSelecionado));
+
+      document.querySelectorAll(".assinatura-servico-item").forEach(function(itemEl) {
+        const servicoId = parseInt(itemEl.querySelector(".servico-id").value, 10);
+        if (!servicoId) return;
+
+        const servico = assinaturaState.servicos.find(function(s) {
+          return parseInt(s.id, 10) === servicoId;
+        });
+
+        if (!servico) return;
+
+        const porteServico = normalizarTexto(obterPorte(servico));
+        if (portePet && porteServico && portePet !== porteServico) {
+          itemEl.remove();
+        }
+      });
+
+      recalcularTotais();
     }
 
     function validarFormulario() {
@@ -624,11 +1152,11 @@
       const itens = coletarItens();
 
       if (!clienteId || clienteId < 1) {
-        throw new Error("Informe um cliente válido.");
+        throw new Error("Selecione um cliente válido.");
       }
 
       if (!petId || petId < 1) {
-        throw new Error("Informe um pet válido.");
+        throw new Error("Selecione um pet válido.");
       }
 
       if (!dataInicio) {
@@ -645,22 +1173,26 @@
 
       itens.forEach(function(item, index) {
         if (!item.servico_id || item.servico_id < 1) {
-          throw new Error("Informe um serviço válido no item " + (index + 1) + ".");
+          throw new Error("Selecione um serviço válido no item " + (index + 1) + ".");
         }
 
         if (!item.nome_servico) {
-          throw new Error("Informe o nome do serviço no item " + (index + 1) + ".");
+          throw new Error("Informe um serviço válido no item " + (index + 1) + ".");
         }
 
         if (!item.quantidade_contratada || item.quantidade_contratada < 1) {
           throw new Error("Informe uma quantidade válida no item " + (index + 1) + ".");
+        }
+
+        const percentual = parseNumero(item.percentual_desconto);
+        if (percentual < 0 || percentual > 100) {
+          throw new Error("O percentual de desconto do item " + (index + 1) + " deve estar entre 0 e 100.");
         }
       });
     }
 
     function montarPayloadCriacao() {
       return {
-        empresa_id: 1,
         cliente_id: parseInt(document.getElementById("cliente-id").value, 10),
         pet_id: parseInt(document.getElementById("pet-id").value, 10),
         data_inicio: document.getElementById("data-inicio").value,
@@ -693,8 +1225,6 @@
     }
 
     function preencherFormulario(assinatura) {
-      document.getElementById("cliente-id").value = assinatura.cliente_id || "";
-      document.getElementById("pet-id").value = assinatura.pet_id || "";
       document.getElementById("data-inicio").value = assinatura.data_inicio || "";
       document.getElementById("data-fim").value = assinatura.data_fim || "";
       document.getElementById("dia-fechamento-ciclo").value = assinatura.dia_fechamento_ciclo || 28;
@@ -705,14 +1235,32 @@
       document.getElementById("observacoes").value = assinatura.observacoes || "";
       document.getElementById("contrato-externo-id").value = assinatura.contrato_externo_id || "";
 
+      const cliente = assinaturaState.clientes.find(function(c) {
+        return parseInt(c.id, 10) === parseInt(assinatura.cliente_id, 10);
+      });
+
+      if (cliente) {
+        selecionarCliente(cliente);
+      } else {
+        document.getElementById("cliente-id").value = assinatura.cliente_id || "";
+      }
+
+      const pet = assinaturaState.pets.find(function(p) {
+        return parseInt(p.id, 10) === parseInt(assinatura.pet_id, 10);
+      });
+
+      if (pet) {
+        selecionarPet(pet);
+      } else {
+        document.getElementById("pet-id").value = assinatura.pet_id || "";
+      }
+
       document.getElementById("lista-servicos").innerHTML = "";
 
       if (assinatura.itens && assinatura.itens.length) {
         assinatura.itens.forEach(function(item) {
           adicionarServico(item);
         });
-      } else {
-        adicionarServico();
       }
 
       recalcularTotais();
@@ -721,7 +1269,6 @@
     async function carregarAssinaturaEdicao() {
       if (!assinaturaId) {
         document.getElementById("data-inicio").value = hojeISO();
-        adicionarServico();
         return;
       }
 
@@ -731,9 +1278,7 @@
 
       try {
         const response = await fetch("/assinaturas/" + assinaturaId, {
-          headers: {
-            "Authorization": "Bearer " + obterToken()
-          }
+          headers: authHeaders()
         });
 
         const data = await response.json().catch(function() {
@@ -765,10 +1310,9 @@
 
         const response = await fetch(url, {
           method: method,
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + obterToken()
-          },
+          headers: authHeaders({
+            "Content-Type": "application/json"
+          }),
           body: JSON.stringify(payload)
         });
 
@@ -805,9 +1349,7 @@
 
         const response = await fetch("/assinaturas/" + assinaturaId + "/cancelar", {
           method: "POST",
-          headers: {
-            "Authorization": "Bearer " + obterToken()
-          }
+          headers: authHeaders()
         });
 
         const data = await response.json().catch(function() {
@@ -824,6 +1366,70 @@
       }
     }
 
+    function bindBuscaCliente() {
+      const input = document.getElementById("cliente-busca");
+      const resultados = document.getElementById("cliente-resultados");
+
+      function render(lista) {
+        renderResultados(
+          resultados,
+          lista,
+          function(cliente) {
+            return {
+              titulo: obterNomeCliente(cliente),
+              subtitulo: "Selecione o cliente"
+            };
+          },
+          function(cliente) {
+            selecionarCliente(cliente);
+          }
+        );
+      }
+
+      input.addEventListener("input", function() {
+        render(buscarClientesPorNome(input.value));
+      });
+
+      input.addEventListener("focus", function() {
+        render(buscarClientesPorNome(input.value));
+      });
+    }
+
+    function bindBuscaPet() {
+      const input = document.getElementById("pet-busca");
+      const resultados = document.getElementById("pet-resultados");
+
+      function render(lista) {
+        renderResultados(
+          resultados,
+          lista,
+          function(pet) {
+            return {
+              titulo: obterNomePet(pet),
+              subtitulo: obterPorte(pet) ? ("Porte " + obterPorte(pet)) : "Selecione o pet"
+            };
+          },
+          function(pet) {
+            selecionarPet(pet);
+          }
+        );
+      }
+
+      input.addEventListener("input", function() {
+        render(buscarPetsPorNome(input.value));
+      });
+
+      input.addEventListener("focus", function() {
+        render(buscarPetsPorNome(input.value));
+      });
+    }
+
+    document.addEventListener("click", function(event) {
+      if (!event.target.closest(".assinatura-lookup-wrap")) {
+        fecharLookups();
+      }
+    });
+
     document.getElementById("btn-adicionar-servico").addEventListener("click", function() {
       adicionarServico();
     });
@@ -831,7 +1437,25 @@
     document.getElementById("form-assinatura").addEventListener("submit", salvarAssinatura);
     document.getElementById("btn-cancelar-assinatura").addEventListener("click", cancelarAssinatura);
 
-    carregarAssinaturaEdicao();
+    async function init() {
+      try {
+        const token = obterToken();
+
+        if (!token) {
+          definirAlerta("erro", "Sessão não encontrada. Faça login novamente.");
+          return;
+        }
+
+        await carregarBases();
+        bindBuscaCliente();
+        bindBuscaPet();
+        await carregarAssinaturaEdicao();
+      } catch (error) {
+        definirAlerta("erro", error.message || "Erro ao carregar tela.");
+      }
+    }
+
+    init();
   </script>
 </section>
 {% endblock %}

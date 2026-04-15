@@ -115,16 +115,68 @@ def _buscar_servico_empresa(
     return servico
 
 
+def _normalizar_texto(valor: str | None) -> str:
+    return (valor or "").strip().lower()
+
+
+def _obter_porte_pet(pet: Pet) -> str:
+    return (
+        getattr(pet, "porte", None)
+        or getattr(pet, "porte_pet", None)
+        or getattr(pet, "tamanho", None)
+        or ""
+    )
+
+
+def _obter_porte_servico(servico: Servico) -> str:
+    return (
+        getattr(servico, "porte_referencia", None)
+        or getattr(servico, "porte", None)
+        or ""
+    )
+
+
+def _obter_preco_servico(servico: Servico) -> Decimal:
+    valor = (
+        getattr(servico, "venda", None)
+        or getattr(servico, "preco_venda", None)
+        or getattr(servico, "preco", None)
+        or getattr(servico, "valor", None)
+        or getattr(servico, "preco_base", None)
+        or 0
+    )
+    return Decimal(str(valor))
+
+
+def _validar_servico_compativel_com_pet(
+    pet: Pet,
+    servico: Servico,
+    nome_servico: str,
+) -> None:
+    porte_pet = _normalizar_texto(_obter_porte_pet(pet))
+    porte_servico = _normalizar_texto(_obter_porte_servico(servico))
+
+    if porte_pet and porte_servico and porte_pet != porte_servico:
+        raise ValueError(
+            f"O serviço '{nome_servico}' não é compatível com o porte do pet."
+        )
+
+
 def _criar_item_assinatura(
     db: Session,
     assinatura: AssinaturaPet,
     empresa_id: int,
     item_data,
+    pet: Pet,
 ) -> AssinaturaPetItem:
     servico = _buscar_servico_empresa(db, empresa_id, item_data.servico_id)
 
     nome_servico = item_data.nome_servico.strip() if item_data.nome_servico else servico.nome
-    preco_base = Decimal(str(item_data.preco_unitario_base))
+    _validar_servico_compativel_com_pet(pet, servico, nome_servico)
+
+    preco_informado = Decimal(str(item_data.preco_unitario_base))
+    preco_cadastrado = _obter_preco_servico(servico)
+    preco_base = preco_informado if preco_informado > 0 else preco_cadastrado
     percentual = Decimal(str(item_data.percentual_desconto))
 
     item = AssinaturaPetItem(
@@ -147,7 +199,7 @@ def criar_assinatura(
     db: Session,
     data: AssinaturaPetCreate,
 ) -> AssinaturaPet:
-    _validar_pet_do_cliente(
+    pet = _validar_pet_do_cliente(
         db=db,
         empresa_id=data.empresa_id,
         cliente_id=data.cliente_id,
@@ -181,11 +233,12 @@ def criar_assinatura(
     db.flush()
 
     for item_data in data.itens:
-        _criar_item_assinatura(
+      _criar_item_assinatura(
             db=db,
             assinatura=assinatura,
             empresa_id=data.empresa_id,
             item_data=item_data,
+            pet=pet,
         )
 
     db.flush()

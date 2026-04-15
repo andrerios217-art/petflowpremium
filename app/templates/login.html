@@ -82,7 +82,12 @@
         "petflow_token",
         "petflow_tipo_usuario",
         "petflow_nome",
-        "petflow_permissoes"
+        "petflow_permissoes",
+        "token",
+        "access_token",
+        "tipo_usuario",
+        "nome",
+        "permissoes"
       ];
 
       for (const key of keys) {
@@ -94,6 +99,20 @@
           sessionStorage.removeItem(key);
         } catch (error) {}
       }
+    }
+
+    function salvarEmStorage(storage, token, tipoUsuario, nome, permissoes) {
+      storage.setItem("petflow_token", token);
+      storage.setItem("token", token);
+      storage.setItem("access_token", token);
+
+      storage.setItem("petflow_tipo_usuario", tipoUsuario);
+      storage.setItem("petflow_nome", nome);
+      storage.setItem("petflow_permissoes", permissoes);
+
+      storage.setItem("tipo_usuario", tipoUsuario);
+      storage.setItem("nome", nome);
+      storage.setItem("permissoes", permissoes);
     }
 
     function salvarCredenciaisPetflow(data, remember) {
@@ -109,10 +128,7 @@
       limparCredenciaisPetflow();
 
       const storage = remember ? localStorage : sessionStorage;
-      storage.setItem("petflow_token", token);
-      storage.setItem("petflow_tipo_usuario", tipoUsuario);
-      storage.setItem("petflow_nome", nome);
-      storage.setItem("petflow_permissoes", permissoes);
+      salvarEmStorage(storage, token, tipoUsuario, nome, permissoes);
     }
 
     document.getElementById("login-form").addEventListener("submit", async function (e) {

@@ -24,6 +24,7 @@ from app.schemas.assinatura import (
 router = APIRouter(prefix="/assinaturas", tags=["assinaturas"])
 
 
+@router.get("", response_model=list[AssinaturaPetOut], include_in_schema=False)
 @router.get("/", response_model=list[AssinaturaPetOut])
 def listar_assinaturas_route(
     status: str | None = Query(default=None),
@@ -58,20 +59,31 @@ def obter_assinatura_route(
     return assinatura
 
 
+@router.post("", response_model=AssinaturaOperacaoResponse, include_in_schema=False)
 @router.post("/", response_model=AssinaturaOperacaoResponse)
 def criar_assinatura_route(
     payload: AssinaturaPetCreate,
     db: Session = Depends(get_db),
     empresa_id: int = Depends(get_empresa_id_atual),
 ):
-    if payload.empresa_id != empresa_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Empresa da assinatura difere da empresa do usuário logado.",
+    try:
+        payload_com_empresa = AssinaturaPetCreate(
+            empresa_id=empresa_id,
+            cliente_id=payload.cliente_id,
+            pet_id=payload.pet_id,
+            data_inicio=payload.data_inicio,
+            data_fim=payload.data_fim,
+            dia_fechamento_ciclo=payload.dia_fechamento_ciclo,
+            usar_limite_ate_dia_28=payload.usar_limite_ate_dia_28,
+            nao_cumulativa=payload.nao_cumulativa,
+            ativa_renovacao=payload.ativa_renovacao,
+            origem=payload.origem,
+            observacoes=payload.observacoes,
+            contrato_externo_id=payload.contrato_externo_id,
+            itens=payload.itens,
         )
 
-    try:
-        assinatura = criar_assinatura(db=db, data=payload)
+        assinatura = criar_assinatura(db=db, data=payload_com_empresa)
         return AssinaturaOperacaoResponse(
             ok=True,
             mensagem="Assinatura criada com sucesso.",
