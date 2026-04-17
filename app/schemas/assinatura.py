@@ -58,6 +58,7 @@ class AssinaturaPetItemOut(BaseModel):
 
 
 class AssinaturaPetBase(BaseModel):
+    empresa_id: int | None = None
     cliente_id: int
     pet_id: int
     data_inicio: date

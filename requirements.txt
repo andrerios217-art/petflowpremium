@@ -13,3 +13,4 @@ email-validator
 alembic
 pytest
 httpx
+openpyxl

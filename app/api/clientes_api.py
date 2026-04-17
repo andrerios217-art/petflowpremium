@@ -15,9 +15,10 @@ router = APIRouter(prefix="/api/clientes", tags=["clientes"])
 @router.get("/", response_model=list[ClienteOut])
 def listar(
     q: str | None = Query(default=None),
-    db: Session = Depends(get_db)
+    filtro_assinatura: str = Query(default="todos"),
+    db: Session = Depends(get_db),
 ):
-    return cliente_crud.list_all(db, q=q)
+    return cliente_crud.list_all(db, q=q, filtro_assinatura=filtro_assinatura)
 
 
 @router.get("/validar-duplicidade")
@@ -26,14 +27,14 @@ def validar_duplicidade(
     email: str | None = Query(default=None),
     telefone: str | None = Query(default=None),
     cliente_id: int | None = Query(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     return cliente_crud.validar_duplicidade(
         db=db,
         cpf=cpf,
         email=email,
         telefone=telefone,
-        cliente_id=cliente_id
+        cliente_id=cliente_id,
     )
 
 
@@ -83,7 +84,7 @@ def obter_cliente(cliente_id: int, db: Session = Depends(get_db)):
                 "ativo": pet.ativo,
             }
             for pet in pets
-        ]
+        ],
     }
 
 
@@ -108,7 +109,7 @@ def criar_completo(payload: ClienteCompletoCreate, db: Session = Depends(get_db)
         db=db,
         empresa_id=payload.cliente.empresa_id,
         cliente_id=cliente.id,
-        data=payload.endereco.model_dump()
+        data=payload.endereco.model_dump(),
     )
 
     pets = []
@@ -123,7 +124,7 @@ def criar_completo(payload: ClienteCompletoCreate, db: Session = Depends(get_db)
         "cliente_id": cliente.id,
         "endereco_id": endereco.id,
         "pets_ids": [pet.id for pet in pets],
-        "message": "Cadastro completo realizado com sucesso."
+        "message": "Cadastro completo realizado com sucesso.",
     }
 
 
@@ -141,7 +142,7 @@ def editar_cliente(cliente_id: int, payload: dict, db: Session = Depends(get_db)
 
     return {
         "message": "Cliente atualizado com sucesso.",
-        "cliente_id": cliente_atualizado.id
+        "cliente_id": cliente_atualizado.id,
     }
 
 

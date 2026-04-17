@@ -19,6 +19,10 @@ class ClienteOut(BaseModel):
     telefone: str | None = None
     telefone_fixo: str | None = None
     ativo: bool
+    is_assinante: bool = False
+    total_assinaturas_ativas: int = 0
+    total_pets_com_assinatura: int = 0
+    consumo_assinatura_resumo: str | None = None
 
     class Config:
         from_attributes = True

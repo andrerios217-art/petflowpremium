@@ -4,7 +4,7 @@
 <section class="page-header">
   <div>
     <h1>Clientes</h1>
-    <p>Gestão de tutores, endereços e pets vinculados.</p>
+    <p>Gestão de tutores, endereços, pets e identificação rápida de assinantes.</p>
   </div>
   <div class="header-actions">
     <a href="/clientes/novo" class="primary-btn no-underline">Novo Cliente</a>
@@ -12,49 +12,349 @@
 </section>
 
 <section class="glass-card">
-  <div class="section-topbar">
-    <input type="text" id="busca-clientes" placeholder="Buscar por nome, CPF, e-mail ou telefone" class="search-input" />
+  <div class="section-topbar clientes-toolbar">
+    <input
+      type="text"
+      id="busca-clientes"
+      placeholder="Buscar por nome, CPF, e-mail ou telefone"
+      class="search-input"
+    />
+
+    <select id="filtro-assinatura" class="search-input select-filtro-assinatura">
+      <option value="todos">Todos</option>
+      <option value="assinantes">Assinantes</option>
+      <option value="nao_assinantes">Não assinantes</option>
+    </select>
   </div>
 
   <div class="table-wrap">
-    <table class="premium-table">
+    <table class="premium-table tabela-clientes">
       <thead>
         <tr>
           <th>Nome</th>
           <th>CPF</th>
           <th>E-mail</th>
           <th>Telefone</th>
+          <th>Assinatura</th>
           <th>Status</th>
           <th class="actions-col">Ações</th>
         </tr>
       </thead>
       <tbody id="clientes-tbody">
         <tr>
-          <td colspan="6">Carregando clientes...</td>
+          <td colspan="7">Carregando clientes...</td>
         </tr>
       </tbody>
     </table>
   </div>
 </section>
 
+<style>
+  .clientes-toolbar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .clientes-toolbar .search-input {
+    min-width: 280px;
+  }
+
+  .clientes-toolbar #busca-clientes {
+    flex: 1;
+  }
+
+  .select-filtro-assinatura {
+    max-width: 220px;
+  }
+
+  .tabela-clientes tbody tr.cliente-assinante {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.02));
+    box-shadow: inset 4px 0 0 #10b981;
+  }
+
+  .tabela-clientes tbody tr.cliente-assinante:hover {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04));
+  }
+
+  .tabela-clientes tbody tr.cliente-nao-assinante:hover {
+    background: rgba(148, 163, 184, 0.05);
+  }
+
+  .cliente-nome {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cliente-nome-principal {
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .cliente-subtag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: max-content;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .cliente-subtag.assinante {
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+  }
+
+  .cliente-subtag.nao-assinante {
+    background: rgba(148, 163, 184, 0.14);
+    color: #64748b;
+  }
+
+  .assinatura-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 260px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(16, 185, 129, 0.16);
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.05));
+  }
+
+  .assinatura-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .badge-assinatura {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .badge-assinatura.ativa {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    color: white;
+    box-shadow: 0 6px 14px rgba(16, 185, 129, 0.24);
+  }
+
+  .badge-assinatura.inativa {
+    background: rgba(148, 163, 184, 0.14);
+    color: #64748b;
+  }
+
+  .assinatura-dados {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .assinatura-mini-card {
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba(16, 185, 129, 0.10);
+  }
+
+  .assinatura-mini-card .rotulo {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 3px;
+  }
+
+  .assinatura-mini-card .valor {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .consumo-area {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .consumo-linha {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: #334155;
+    font-weight: 700;
+  }
+
+  .barra-consumo {
+    width: 100%;
+    height: 9px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.08);
+  }
+
+  .barra-consumo-preenchida {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    transition: width 0.2s ease;
+  }
+
+  .texto-consumo {
+    font-size: 12px;
+    color: #475569;
+    font-weight: 700;
+  }
+
+  .assinatura-vazia {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: max-content;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  @media (max-width: 1100px) {
+    .assinatura-box {
+      min-width: 220px;
+    }
+  }
+</style>
+
 <script>
-  async function carregarClientes(q = "") {
-    const response = await fetch(`/api/clientes?q=${encodeURIComponent(q)}`);
+  function escapeHtml(value) {
+    return String(value ?? "-")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function extrairConsumo(resumo) {
+    if (!resumo) {
+      return { consumida: 0, contratada: 0, percentual: 0, texto: "-" };
+    }
+
+    const match = resumo.match(/(\d+)\s*\/\s*(\d+)/);
+    if (!match) {
+      return { consumida: 0, contratada: 0, percentual: 0, texto: resumo };
+    }
+
+    const consumida = Number(match[1]);
+    const contratada = Number(match[2]);
+    const percentual = contratada > 0 ? Math.min((consumida / contratada) * 100, 100) : 0;
+
+    return {
+      consumida,
+      contratada,
+      percentual,
+      texto: `${consumida}/${contratada} consumidos`
+    };
+  }
+
+  function renderAssinatura(cliente) {
+    if (!cliente.is_assinante) {
+      return `
+        <div class="assinatura-vazia">
+          <span>⚪</span>
+          <span>Não assinante</span>
+        </div>
+      `;
+    }
+
+    const totalAssinaturas = Number(cliente.total_assinaturas_ativas || 0);
+    const totalPets = Number(cliente.total_pets_com_assinatura || 0);
+    const infoConsumo = extrairConsumo(cliente.consumo_assinatura_resumo);
+    const percentual = infoConsumo.percentual.toFixed(0);
+
+    const labelPets = totalPets === 1 ? "pet" : "pets";
+    const labelAssinaturas = totalAssinaturas === 1 ? "assinatura ativa" : "assinaturas ativas";
+
+    return `
+      <div class="assinatura-box">
+        <div class="assinatura-topo">
+          <span class="badge-assinatura ativa">👑 Assinante</span>
+          <span style="font-size:12px; font-weight:700; color:#047857;">${totalAssinaturas} ${labelAssinaturas}</span>
+        </div>
+
+        <div class="assinatura-dados">
+          <div class="assinatura-mini-card">
+            <span class="rotulo">Assinaturas</span>
+            <span class="valor">${totalAssinaturas}</span>
+          </div>
+          <div class="assinatura-mini-card">
+            <span class="rotulo">Pets</span>
+            <span class="valor">${totalPets} ${labelPets}</span>
+          </div>
+        </div>
+
+        <div class="consumo-area">
+          <div class="consumo-linha">
+            <span>Consumo do pacote</span>
+            <span>${percentual}%</span>
+          </div>
+
+          <div class="barra-consumo">
+            <div class="barra-consumo-preenchida" style="width:${percentual}%"></div>
+          </div>
+
+          <div class="texto-consumo">${escapeHtml(infoConsumo.texto)}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function carregarClientes() {
+    const q = document.getElementById("busca-clientes").value;
+    const filtroAssinatura = document.getElementById("filtro-assinatura").value;
+
+    const response = await fetch(
+      `/api/clientes?q=${encodeURIComponent(q)}&filtro_assinatura=${encodeURIComponent(filtroAssinatura)}`
+    );
     const data = await response.json();
 
     const tbody = document.getElementById("clientes-tbody");
 
     if (!data.length) {
-      tbody.innerHTML = `<tr><td colspan="6">Nenhum cliente encontrado.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7">Nenhum cliente encontrado.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = data.map(cliente => `
-      <tr>
-        <td>${cliente.nome ?? "-"}</td>
-        <td>${cliente.cpf ?? "-"}</td>
-        <td>${cliente.email ?? "-"}</td>
-        <td>${cliente.telefone ?? "-"}</td>
+      <tr class="${cliente.is_assinante ? 'cliente-assinante' : 'cliente-nao-assinante'}">
+        <td>
+          <div class="cliente-nome">
+            <span class="cliente-nome-principal">${escapeHtml(cliente.nome)}</span>
+            <span class="cliente-subtag ${cliente.is_assinante ? 'assinante' : 'nao-assinante'}">
+              ${cliente.is_assinante ? '👑 Assinante' : '⚪ Não assinante'}
+            </span>
+          </div>
+        </td>
+        <td>${escapeHtml(cliente.cpf ?? "-")}</td>
+        <td>${escapeHtml(cliente.email ?? "-")}</td>
+        <td>${escapeHtml(cliente.telefone ?? "-")}</td>
+        <td>${renderAssinatura(cliente)}</td>
         <td>
           <label class="switch">
             <input type="checkbox" ${cliente.ativo ? "checked" : ""} onchange="toggleCliente(${cliente.id})">
@@ -72,12 +372,11 @@
     await fetch(`/api/clientes/${clienteId}/toggle`, {
       method: "PATCH"
     });
-    carregarClientes(document.getElementById("busca-clientes").value);
+    carregarClientes();
   }
 
-  document.getElementById("busca-clientes").addEventListener("input", function () {
-    carregarClientes(this.value);
-  });
+  document.getElementById("busca-clientes").addEventListener("input", carregarClientes);
+  document.getElementById("filtro-assinatura").addEventListener("change", carregarClientes);
 
   carregarClientes();
 </script>
