@@ -32,6 +32,7 @@
     }
 
     .recibo-card {
+        position: relative;
         width: 100%;
         max-width: 980px;
         background: #ffffff;
@@ -39,6 +40,40 @@
         border: 1px solid rgba(0, 0, 0, 0.05);
         box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
         overflow: hidden;
+        isolation: isolate;
+    }
+
+    .recibo-watermark {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    .recibo-watermark.show {
+        display: flex;
+    }
+
+    .recibo-watermark img {
+        width: 68%;
+        max-width: 520px;
+        max-height: 68%;
+        object-fit: contain;
+        opacity: 0.07;
+        filter: grayscale(100%);
+        transform: rotate(-18deg);
+        user-select: none;
+        -webkit-user-drag: none;
+    }
+
+    .recibo-header,
+    .recibo-body {
+        position: relative;
+        z-index: 1;
     }
 
     .recibo-header {
@@ -233,6 +268,11 @@
         .recibo-assinaturas {
             gap: 32px;
         }
+
+        .recibo-watermark img {
+            width: 82%;
+            max-width: none;
+        }
     }
 
     @media print {
@@ -286,6 +326,19 @@
             box-shadow: none !important;
             border-radius: 0 !important;
             overflow: visible !important;
+        }
+
+        .recibo-watermark {
+            display: flex !important;
+        }
+
+        .recibo-watermark img {
+            width: 66% !important;
+            max-width: 118mm !important;
+            max-height: 170mm !important;
+            opacity: 0.055 !important;
+            filter: grayscale(100%) !important;
+            transform: rotate(-18deg) !important;
         }
 
         .recibo-header {
@@ -424,6 +477,10 @@
             </div>
 
             <div id="print-area" class="recibo-card">
+                <div id="recibo-watermark" class="recibo-watermark" aria-hidden="true">
+                    <img id="recibo-watermark-image" src="" alt="Marca d'água da empresa">
+                </div>
+
                 <div class="recibo-header">
                     <span class="recibo-kicker">Recibo de Comissão</span>
                     <h1>Comprovante de Fechamento</h1>
@@ -529,7 +586,7 @@ async function carregarDemonstrativo(fechamentoId) {
             throw new Error(data.detail || data.message || "Erro ao carregar demonstrativo.");
         }
 
-        preencherDocumento(data);
+        await preencherDocumento(data);
 
         loading.style.display = "none";
         content.style.display = "block";
@@ -553,7 +610,7 @@ function mostrarErroCarregamento(mensagem) {
     }
 }
 
-function preencherDocumento(data) {
+async function preencherDocumento(data) {
     document.getElementById("doc-funcionario").textContent = data.funcionario_nome || "-";
     document.getElementById("doc-cpf").textContent = data.funcionario_cpf || "-";
     document.getElementById("doc-competencia").textContent = formatarCompetencia(data.competencia);
@@ -567,6 +624,82 @@ function preencherDocumento(data) {
 
     document.getElementById("assinatura-gestor-meta").textContent =
         (data.responsavel_aprovacao || "Gestor responsável") + " • Data: " + (data.data_fechamento || "-");
+
+    await carregarMarcaDaguaEmpresa(data.empresa_id);
+}
+
+function obterHeadersAutenticados(extra = {}) {
+    const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("jwt") ||
+        "";
+
+    const headers = { ...extra };
+
+    if (token) {
+        headers.Authorization = "Bearer " + token;
+    }
+
+    return headers;
+}
+
+async function carregarMarcaDaguaEmpresa(empresaId) {
+    if (!empresaId) {
+        ocultarMarcaDagua();
+        return;
+    }
+
+    try {
+        const response = await fetch("/empresas/" + empresaId, {
+            headers: obterHeadersAutenticados({
+                Accept: "application/json"
+            })
+        });
+
+        if (!response.ok) {
+            ocultarMarcaDagua();
+            return;
+        }
+
+        const empresa = await response.json();
+        aplicarMarcaDagua(empresa && empresa.logo_url ? empresa.logo_url : "");
+    } catch (error) {
+        ocultarMarcaDagua();
+    }
+}
+
+function aplicarMarcaDagua(logoUrl) {
+    const watermark = document.getElementById("recibo-watermark");
+    const image = document.getElementById("recibo-watermark-image");
+
+    if (!watermark || !image || !logoUrl) {
+        ocultarMarcaDagua();
+        return;
+    }
+
+    image.onload = function () {
+        watermark.classList.add("show");
+    };
+
+    image.onerror = function () {
+        ocultarMarcaDagua();
+    };
+
+    image.src = logoUrl;
+}
+
+function ocultarMarcaDagua() {
+    const watermark = document.getElementById("recibo-watermark");
+    const image = document.getElementById("recibo-watermark-image");
+
+    if (watermark) {
+        watermark.classList.remove("show");
+    }
+
+    if (image) {
+        image.removeAttribute("src");
+    }
 }
 
 function formatarMoeda(valor) {

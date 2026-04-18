@@ -3,141 +3,1426 @@
 {% block content %}
 <link rel="stylesheet" href="/static/css/configuracoes_comissao.css" />
 
-<section class="commission-page">
-  <div class="commission-hero">
-    <div class="commission-hero-text">
-      <span class="commission-kicker">Configurações • Comissão</span>
-      <h1>Comissão de Banho e Tosa</h1>
-      <p>
-        Configure a pontuação por etapa, as faixas de pagamento em reais e as
-        regras operacionais da loja com visual premium e validação automática.
-      </p>
-    </div>
+<style>
+  .settings-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
 
-    <div class="commission-hero-stats">
-      <div class="commission-stat-card">
-        <span class="commission-stat-label">Etapas comissionáveis</span>
-        <strong>Banho • Tosa • Tosa higiênica • Finalização</strong>
-      </div>
+  .settings-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  }
 
-      <div class="commission-stat-card">
-        <span class="commission-stat-label">Regra financeira</span>
-        <strong>Faixas de pontos → valor fixo</strong>
-      </div>
-    </div>
-  </div>
+  .settings-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
 
-  <div class="commission-grid">
-    <section class="commission-card">
-      <div class="commission-card-header">
-        <div>
-          <h2>Pontuação por Etapa</h2>
-          <p>Defina quantos pontos cada etapa entrega ao funcionário que iniciou o atendimento.</p>
-        </div>
-      </div>
+  .settings-header h1,
+  .settings-header h2 {
+    margin: 0 0 8px;
+    color: #111827;
+  }
 
-      <div class="commission-form-grid commission-form-grid-4">
-        <label class="commission-field">
-          <span>Banho</span>
-          <input type="number" id="pontos_banho" class="commission-input" min="0" step="1" value="0" />
-        </label>
+  .settings-header p {
+    margin: 0;
+    color: #6b7280;
+  }
 
-        <label class="commission-field">
-          <span>Tosa</span>
-          <input type="number" id="pontos_tosa" class="commission-input" min="0" step="1" value="0" />
-        </label>
+  .settings-kicker {
+    display: inline-block;
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #2563eb;
+  }
 
-        <label class="commission-field">
-          <span>Tosa higiênica</span>
-          <input type="number" id="pontos_tosa_higienica" class="commission-input" min="0" step="1" value="0" />
-        </label>
+  .settings-toolbar {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) auto;
+    gap: 12px;
+    margin-top: 20px;
+  }
 
-        <label class="commission-field">
-          <span>Finalização</span>
-          <input type="number" id="pontos_finalizacao" class="commission-input" min="0" step="1" value="0" />
-        </label>
-      </div>
+  .settings-search {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #111827;
+    padding: 0 14px;
+    outline: none;
+  }
 
-      <div class="commission-info-box">
-        <strong>Regra operacional fixa</strong>
-        <p>
-          Os pontos sempre pertencem ao profissional que <strong>iniciou</strong> a etapa.
-          A captura ocorre no encerramento da etapa no sistema.
-        </p>
-      </div>
-    </section>
+  .settings-search:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
 
-    <section class="commission-card">
-      <div class="commission-card-header">
-        <div>
-          <h2>Regras Operacionais</h2>
-          <p>Defina os dados básicos usados no acompanhamento e fechamento mensal.</p>
-        </div>
-      </div>
+  .settings-primary-btn {
+    min-height: 44px;
+    border-radius: 10px;
+    padding: 0 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.16s ease;
+    background: #2563eb;
+    color: #ffffff;
+    border: 1px solid #2563eb;
+  }
 
-      <div class="commission-form-grid commission-form-grid-2">
-        <label class="commission-field">
-          <span>Dias trabalhados no mês</span>
-          <input type="number" id="dias_trabalhados_mes" class="commission-input" min="1" step="1" value="26" />
-        </label>
+  .settings-primary-btn:hover {
+    transform: translateY(-1px);
+  }
 
-        <label class="commission-field">
-          <span>Responsável pela aprovação</span>
-          <input type="text" id="responsavel_aprovacao" class="commission-input" placeholder="Ex.: Gerente da unidade" />
-        </label>
-      </div>
+  .settings-primary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
 
-      <div class="commission-info-box soft">
-        <strong>Auditoria</strong>
-        <p>
-          O responsável poderá auditar e aprovar os valores captados pelo sistema,
-          sem editar manualmente os pontos já registrados.
-        </p>
-      </div>
-    </section>
-  </div>
+  .settings-secondary-btn {
+    min-height: 44px;
+    border-radius: 10px;
+    padding: 0 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.16s ease;
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+  }
 
-  <section class="commission-card commission-card-full">
-    <div class="commission-card-header commission-card-header-space">
+  .settings-secondary-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .settings-secondary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .settings-alert {
+    display: none;
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .settings-alert.show {
+    display: block;
+  }
+
+  .settings-alert.success {
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+  }
+
+  .settings-alert.error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+  }
+
+  .settings-alert.info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  .permission-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .permission-summary-card {
+    border-radius: 14px;
+    padding: 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+  }
+
+  .permission-summary-card span {
+    display: block;
+    color: #6b7280;
+    font-size: 0.82rem;
+    margin-bottom: 6px;
+  }
+
+  .permission-summary-card strong {
+    font-size: 1.45rem;
+    color: #111827;
+  }
+
+  .logo-card {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 18px;
+    align-items: start;
+    margin-top: 20px;
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: #f9fafb;
+  }
+
+  .logo-preview-box {
+    width: 220px;
+    height: 220px;
+    border-radius: 16px;
+    border: 1px dashed #cbd5e1;
+    background:
+      linear-gradient(45deg, #f8fafc 25%, #eef2f7 25%, #eef2f7 50%, #f8fafc 50%, #f8fafc 75%, #eef2f7 75%, #eef2f7 100%);
+    background-size: 22px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .logo-preview-box img {
+    max-width: 85%;
+    max-height: 85%;
+    object-fit: contain;
+    opacity: 0.95;
+  }
+
+  .logo-preview-placeholder {
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.92rem;
+    padding: 16px;
+    line-height: 1.45;
+  }
+
+  .logo-panel h3 {
+    margin: 0 0 8px;
+    color: #111827;
+    font-size: 1.05rem;
+  }
+
+  .logo-panel p {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.55;
+  }
+
+  .logo-meta {
+    margin-top: 14px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .logo-meta-item {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .logo-meta-item span {
+    display: block;
+    font-size: 0.78rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 5px;
+  }
+
+  .logo-meta-item strong {
+    color: #111827;
+    word-break: break-word;
+  }
+
+  .logo-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  .logo-help {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #6b7280;
+  }
+
+  .permission-results {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .permission-result-item {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: 0.16s ease;
+    text-align: left;
+  }
+
+  .permission-result-item:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
+  }
+
+  .permission-result-main {
+    min-width: 0;
+  }
+
+  .permission-result-name {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .permission-result-meta {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .permission-status {
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .permission-status.active {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+
+  .permission-status.inactive {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  .permission-empty {
+    margin-top: 20px;
+    border-radius: 12px;
+    padding: 28px 18px;
+    text-align: center;
+    border: 1px dashed #d1d5db;
+    color: #6b7280;
+    background: #ffffff;
+  }
+
+  .permission-hint {
+    margin-top: 16px;
+    color: #6b7280;
+    font-size: 0.94rem;
+  }
+
+  .permission-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .permission-modal.show {
+    display: flex;
+  }
+
+  .permission-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.42);
+  }
+
+  .permission-modal-dialog {
+    position: relative;
+    width: min(920px, 100%);
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+    padding: 24px;
+  }
+
+  .permission-modal-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 18px;
+  }
+
+  .permission-modal-title {
+    margin: 0;
+    color: #111827;
+    font-size: 1.2rem;
+    font-weight: 800;
+  }
+
+  .permission-modal-subtitle {
+    margin: 6px 0 0;
+    color: #6b7280;
+    line-height: 1.45;
+  }
+
+  .permission-close-btn {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #374151;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+
+  .permission-modal-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .permission-modal-info-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .permission-modal-info-card span {
+    display: block;
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .permission-modal-info-card strong {
+    color: #111827;
+    font-size: 0.98rem;
+    word-break: break-word;
+  }
+
+  .permission-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .permission-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+  }
+
+  .permission-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #16a34a;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .permission-item label {
+    cursor: pointer;
+    color: #111827;
+    font-size: 0.93rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .permission-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+
+  .permission-secondary-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .permission-mini-btn,
+  .permission-save-btn {
+    min-height: 42px;
+    border-radius: 10px;
+    cursor: pointer;
+    padding: 0 14px;
+    font-weight: 600;
+  }
+
+  .permission-mini-btn {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+  }
+
+  .permission-save-btn {
+    background: #16a34a;
+    color: #ffffff;
+    border: 1px solid #16a34a;
+  }
+
+  .permission-mini-btn:disabled,
+  .permission-save-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 900px) {
+    .settings-toolbar {
+      grid-template-columns: 1fr;
+    }
+
+    .logo-card {
+      grid-template-columns: 1fr;
+    }
+
+    .logo-preview-box {
+      width: 100%;
+      max-width: 220px;
+    }
+
+    .permission-result-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .permission-list {
+      grid-template-columns: 1fr;
+    }
+
+    .permission-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .permission-secondary-actions {
+      width: 100%;
+    }
+
+    .permission-secondary-actions button,
+    .permission-save-btn {
+      width: 100%;
+    }
+
+    .permission-modal-dialog {
+      padding: 18px;
+    }
+  }
+</style>
+
+<section class="settings-shell">
+  <section class="settings-card">
+    <div class="settings-header">
       <div>
-        <h2>Faixas de Comissão</h2>
+        <span class="settings-kicker">Configurações • Marca da empresa</span>
+        <h1>Logo institucional</h1>
         <p>
-          Configure as faixas de pontuação e o valor fixo em reais para cada intervalo.
+          Defina o logo da empresa que será reaproveitado como marca visual nos documentos do sistema.
         </p>
       </div>
-
-      <button type="button" class="btn btn-primary commission-add-btn" id="btn-add-faixa">
-        + Adicionar faixa
-      </button>
     </div>
 
-    <div class="commission-range-head">
-      <div>De</div>
-      <div>Até</div>
-      <div>Faixa aberta</div>
-      <div>Valor (R$)</div>
-      <div>Ação</div>
-    </div>
+    <div id="settings-logo-alert" class="settings-alert info"></div>
 
-    <div id="faixas-container" class="commission-range-list"></div>
+    <div class="logo-card">
+      <div class="logo-preview-box" id="logo-preview-box">
+        <div class="logo-preview-placeholder" id="logo-preview-placeholder">
+          Nenhum logo configurado
+        </div>
+        <img id="logo-preview-image" src="" alt="Logo da empresa" style="display:none;">
+      </div>
 
-    <div id="faixa-warning" class="commission-warning hidden"></div>
+      <div class="logo-panel">
+        <h3>Upload do logo</h3>
+        <p>
+          Envie um arquivo PNG, JPG, JPEG, WEBP ou SVG. Esse logo será o padrão visual da empresa
+          e vai ser reaproveitado depois na receita veterinária e no demonstrativo de comissão.
+        </p>
 
-    <div class="commission-preview-wrap">
-      <div class="commission-preview-card">
-        <span class="commission-preview-label">Prévia da regra</span>
-        <div id="commission-preview" class="commission-preview-content">
-          Nenhuma faixa configurada.
+        <div class="logo-meta">
+          <div class="logo-meta-item">
+            <span>Empresa vinculada</span>
+            <strong id="logo-empresa-id">-</strong>
+          </div>
+
+          <div class="logo-meta-item">
+            <span>URL salva</span>
+            <strong id="logo-url-salva">Nenhuma</strong>
+          </div>
+        </div>
+
+        <div class="logo-actions">
+          <input type="file" id="logo-file-input" accept=".png,.jpg,.jpeg,.webp,.svg" style="display:none;">
+          <button type="button" class="settings-primary-btn" id="btn-escolher-logo">
+            Escolher logo
+          </button>
+          <button type="button" class="settings-secondary-btn" id="btn-recarregar-logo">
+            Recarregar logo
+          </button>
+        </div>
+
+        <div class="logo-help">
+          Recomendação crítica: usar um logo com fundo transparente. Para marca d’água isso fica muito melhor
+          do que imagem com fundo branco chapado.
         </div>
       </div>
     </div>
   </section>
 
-  <div class="commission-actions">
-    <button type="button" class="btn btn-secondary" id="btn-reset">Resetar</button>
-    <button type="button" class="btn btn-success" id="btn-salvar">Salvar configuração</button>
-  </div>
+  <section class="settings-card">
+    <div class="settings-header">
+      <div>
+        <span class="settings-kicker">Configurações • Acessos</span>
+        <h1>Permissões por funcionário</h1>
+        <p>
+          Busque o funcionário e abra a janela de configuração apenas quando precisar editar os acessos.
+        </p>
+      </div>
+    </div>
+
+    <div class="permission-summary">
+      <div class="permission-summary-card">
+        <span>Total de funcionários</span>
+        <strong id="summary-total">0</strong>
+      </div>
+      <div class="permission-summary-card">
+        <span>Funcionários ativos</span>
+        <strong id="summary-ativos">0</strong>
+      </div>
+      <div class="permission-summary-card">
+        <span>Com acesso a configurações</span>
+        <strong id="summary-config">0</strong>
+      </div>
+      <div class="permission-summary-card">
+        <span>Com acesso ao PDV</span>
+        <strong id="summary-pdv">0</strong>
+      </div>
+    </div>
+
+    <div class="settings-toolbar">
+      <input
+        type="text"
+        id="settings-search-funcionario"
+        class="settings-search"
+        placeholder="Buscar por nome, e-mail, CPF, telefone ou função"
+      />
+      <button type="button" class="settings-primary-btn" id="btn-recarregar-permissoes">
+        Recarregar
+      </button>
+    </div>
+
+    <div id="settings-permissions-alert" class="settings-alert info"></div>
+
+    <div class="permission-hint">
+      Digite para localizar o funcionário e clique no resultado para abrir a configuração.
+    </div>
+
+    <div id="permission-results" class="permission-results"></div>
+
+    <div id="permissions-empty" class="permission-empty" style="display:none;">
+      Nenhum funcionário encontrado para o filtro informado.
+    </div>
+  </section>
+
+  <section class="commission-page">
+    <div class="commission-hero">
+      <div class="commission-hero-text">
+        <span class="commission-kicker">Configurações • Comissão</span>
+        <h1>Comissão de Banho e Tosa</h1>
+        <p>
+          Configure a pontuação por etapa, as faixas de pagamento em reais e as
+          regras operacionais da loja com visual premium e validação automática.
+        </p>
+      </div>
+
+      <div class="commission-hero-stats">
+        <div class="commission-stat-card">
+          <span class="commission-stat-label">Etapas comissionáveis</span>
+          <strong>Banho • Tosa • Tosa higiênica • Finalização</strong>
+        </div>
+
+        <div class="commission-stat-card">
+          <span class="commission-stat-label">Regra financeira</span>
+          <strong>Faixas de pontos → valor fixo</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="commission-grid">
+      <section class="commission-card">
+        <div class="commission-card-header">
+          <div>
+            <h2>Pontuação por Etapa</h2>
+            <p>Defina quantos pontos cada etapa entrega ao funcionário que iniciou o atendimento.</p>
+          </div>
+        </div>
+
+        <div class="commission-form-grid commission-form-grid-4">
+          <label class="commission-field">
+            <span>Banho</span>
+            <input type="number" id="pontos_banho" class="commission-input" min="0" step="1" value="0" />
+          </label>
+
+          <label class="commission-field">
+            <span>Tosa</span>
+            <input type="number" id="pontos_tosa" class="commission-input" min="0" step="1" value="0" />
+          </label>
+
+          <label class="commission-field">
+            <span>Tosa higiênica</span>
+            <input type="number" id="pontos_tosa_higienica" class="commission-input" min="0" step="1" value="0" />
+          </label>
+
+          <label class="commission-field">
+            <span>Finalização</span>
+            <input type="number" id="pontos_finalizacao" class="commission-input" min="0" step="1" value="0" />
+          </label>
+        </div>
+
+        <div class="commission-info-box">
+          <strong>Regra operacional fixa</strong>
+          <p>
+            Os pontos sempre pertencem ao profissional que <strong>iniciou</strong> a etapa.
+            A captura ocorre no encerramento da etapa no sistema.
+          </p>
+        </div>
+      </section>
+
+      <section class="commission-card">
+        <div class="commission-card-header">
+          <div>
+            <h2>Regras Operacionais</h2>
+            <p>Defina os dados básicos usados no acompanhamento e fechamento mensal.</p>
+          </div>
+        </div>
+
+        <div class="commission-form-grid commission-form-grid-2">
+          <label class="commission-field">
+            <span>Dias trabalhados no mês</span>
+            <input type="number" id="dias_trabalhados_mes" class="commission-input" min="1" step="1" value="26" />
+          </label>
+
+          <label class="commission-field">
+            <span>Responsável pela aprovação</span>
+            <input type="text" id="responsavel_aprovacao" class="commission-input" placeholder="Ex.: Gerente da unidade" />
+          </label>
+        </div>
+
+        <div class="commission-info-box soft">
+          <strong>Auditoria</strong>
+          <p>
+            O responsável poderá auditar e aprovar os valores captados pelo sistema,
+            sem editar manualmente os pontos já registrados.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <section class="commission-card commission-card-full">
+      <div class="commission-card-header commission-card-header-space">
+        <div>
+          <h2>Faixas de Comissão</h2>
+          <p>Configure as faixas de pontuação e o valor fixo em reais para cada intervalo.</p>
+        </div>
+
+        <button type="button" class="btn btn-primary commission-add-btn" id="btn-add-faixa">
+          + Adicionar faixa
+        </button>
+      </div>
+
+      <div class="commission-range-head">
+        <div>De</div>
+        <div>Até</div>
+        <div>Faixa aberta</div>
+        <div>Valor (R$)</div>
+        <div>Ação</div>
+      </div>
+
+      <div id="faixas-container" class="commission-range-list"></div>
+      <div id="faixa-warning" class="commission-warning hidden"></div>
+
+      <div class="commission-preview-wrap">
+        <div class="commission-preview-card">
+          <span class="commission-preview-label">Prévia da regra</span>
+          <div id="commission-preview" class="commission-preview-content">
+            Nenhuma faixa configurada.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="commission-actions">
+      <button type="button" class="btn btn-secondary" id="btn-reset">Resetar</button>
+      <button type="button" class="btn btn-success" id="btn-salvar">Salvar configuração</button>
+    </div>
+  </section>
 </section>
+
+<div id="permission-modal" class="permission-modal" aria-hidden="true">
+  <div class="permission-modal-backdrop" data-close-modal="true"></div>
+
+  <div class="permission-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="permission-modal-title">
+    <div class="permission-modal-header">
+      <div>
+        <h2 id="permission-modal-title" class="permission-modal-title">Permissões do funcionário</h2>
+        <p id="permission-modal-subtitle" class="permission-modal-subtitle"></p>
+      </div>
+
+      <button type="button" class="permission-close-btn" id="permission-close-btn" aria-label="Fechar">
+        ×
+      </button>
+    </div>
+
+    <div class="permission-modal-info">
+      <div class="permission-modal-info-card">
+        <span>Nome</span>
+        <strong id="modal-funcionario-nome">-</strong>
+      </div>
+
+      <div class="permission-modal-info-card">
+        <span>Função</span>
+        <strong id="modal-funcionario-funcao">-</strong>
+      </div>
+
+      <div class="permission-modal-info-card">
+        <span>E-mail</span>
+        <strong id="modal-funcionario-email">-</strong>
+      </div>
+
+      <div class="permission-modal-info-card">
+        <span>Status</span>
+        <strong id="modal-funcionario-status">-</strong>
+      </div>
+    </div>
+
+    <div id="modal-permission-list" class="permission-list"></div>
+
+    <div class="permission-actions">
+      <div class="permission-secondary-actions">
+        <button type="button" class="permission-mini-btn" id="modal-marcar-todos">
+          Marcar todos
+        </button>
+        <button type="button" class="permission-mini-btn" id="modal-limpar-todos">
+          Limpar todos
+        </button>
+      </div>
+
+      <button type="button" class="permission-save-btn" id="modal-salvar-permissoes">
+        Salvar permissões
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PERMISSION_FIELDS = [
+    ["acesso_dashboard", "Dashboard"],
+    ["acesso_clientes", "Clientes"],
+    ["acesso_pets", "Pets"],
+    ["acesso_servicos", "Serviços"],
+    ["acesso_funcionarios", "Funcionários"],
+    ["acesso_agenda", "Agenda"],
+    ["acesso_producao", "Produção"],
+    ["acesso_pdv", "PDV"],
+    ["acesso_estoque", "Estoque"],
+    ["acesso_financeiro", "Financeiro"],
+    ["acesso_crm", "CRM"],
+    ["acesso_relatorios", "Relatórios"],
+    ["acesso_configuracoes", "Configurações"]
+  ];
+
+  const statePermissoes = {
+    funcionarios: [],
+    filtro: "",
+    funcionarioSelecionadoId: null,
+    empresaId: null,
+    empresaAtual: null
+  };
+
+  function getTokenConfiguracoes() {
+    return (
+      localStorage.getItem("token") ||
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("jwt") ||
+      ""
+    );
+  }
+
+  function getHeadersConfiguracoes(extra = {}) {
+    const token = getTokenConfiguracoes();
+    const headers = { ...extra };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return headers;
+  }
+
+  function showPermissaoAlert(message, type = "info") {
+    const el = document.getElementById("settings-permissions-alert");
+    if (!el) return;
+    el.textContent = message;
+    el.className = `settings-alert ${type} show`;
+  }
+
+  function clearPermissaoAlert() {
+    const el = document.getElementById("settings-permissions-alert");
+    if (!el) return;
+    el.textContent = "";
+    el.className = "settings-alert info";
+  }
+
+  function showLogoAlert(message, type = "info") {
+    const el = document.getElementById("settings-logo-alert");
+    if (!el) return;
+    el.textContent = message;
+    el.className = `settings-alert ${type} show`;
+  }
+
+  function sanitize(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function normalizarFuncionario(funcionario) {
+    const normalizado = { ...funcionario };
+
+    PERMISSION_FIELDS.forEach(([field]) => {
+      normalizado[field] = Boolean(funcionario[field]);
+    });
+
+    normalizado.ativo = Boolean(funcionario.ativo);
+    return normalizado;
+  }
+
+  function funcionarioMatches(funcionario, filtro) {
+    if (!filtro) return true;
+
+    const base = [
+      funcionario.nome,
+      funcionario.email,
+      funcionario.cpf,
+      funcionario.telefone,
+      funcionario.funcao
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return base.includes(filtro);
+  }
+
+  function atualizarResumo() {
+    const total = statePermissoes.funcionarios.length;
+    const ativos = statePermissoes.funcionarios.filter((f) => f.ativo).length;
+    const config = statePermissoes.funcionarios.filter((f) => f.acesso_configuracoes).length;
+    const pdv = statePermissoes.funcionarios.filter((f) => f.acesso_pdv).length;
+
+    document.getElementById("summary-total").textContent = String(total);
+    document.getElementById("summary-ativos").textContent = String(ativos);
+    document.getElementById("summary-config").textContent = String(config);
+    document.getElementById("summary-pdv").textContent = String(pdv);
+  }
+
+  function getFuncionarioById(funcionarioId) {
+    return statePermissoes.funcionarios.find((f) => Number(f.id) === Number(funcionarioId));
+  }
+
+  function renderResultadosBusca() {
+    const container = document.getElementById("permission-results");
+    const empty = document.getElementById("permissions-empty");
+    const filtro = statePermissoes.filtro.trim().toLowerCase();
+
+    let itens = [];
+
+    if (filtro) {
+      itens = statePermissoes.funcionarios.filter((f) => funcionarioMatches(f, filtro));
+    }
+
+    if (!filtro) {
+      container.innerHTML = "";
+      empty.style.display = "none";
+      return;
+    }
+
+    if (!itens.length) {
+      container.innerHTML = "";
+      empty.style.display = "block";
+      return;
+    }
+
+    empty.style.display = "none";
+
+    container.innerHTML = itens
+      .map((funcionario) => {
+        return `
+          <button
+            type="button"
+            class="permission-result-item"
+            data-open-funcionario="${funcionario.id}"
+          >
+            <div class="permission-result-main">
+              <h3 class="permission-result-name">${sanitize(funcionario.nome || "Sem nome")}</h3>
+              <p class="permission-result-meta">
+                ${sanitize(funcionario.funcao || "Sem função")}
+                • ${sanitize(funcionario.email || "Sem e-mail")}
+                • Empresa ID: ${sanitize(funcionario.empresa_id ?? "-")}
+              </p>
+            </div>
+
+            <span class="permission-status ${funcionario.ativo ? "active" : "inactive"}">
+              ${funcionario.ativo ? "Ativo" : "Inativo"}
+            </span>
+          </button>
+        `;
+      })
+      .join("");
+  }
+
+  function preencherModalFuncionario(funcionario) {
+    document.getElementById("modal-funcionario-nome").textContent = funcionario.nome || "-";
+    document.getElementById("modal-funcionario-funcao").textContent = funcionario.funcao || "-";
+    document.getElementById("modal-funcionario-email").textContent = funcionario.email || "-";
+    document.getElementById("modal-funcionario-status").textContent = funcionario.ativo ? "Ativo" : "Inativo";
+    document.getElementById("permission-modal-title").textContent = `Permissões de ${funcionario.nome || "Funcionário"}`;
+    document.getElementById("permission-modal-subtitle").textContent =
+      "Altere apenas os acessos desse funcionário e salve ao final.";
+
+    const list = document.getElementById("modal-permission-list");
+    list.innerHTML = PERMISSION_FIELDS.map(([field, label]) => {
+      const inputId = `modal-func-${funcionario.id}-${field}`;
+      return `
+        <div class="permission-item">
+          <input
+            type="checkbox"
+            id="${inputId}"
+            data-modal-field="${field}"
+            ${funcionario[field] ? "checked" : ""}
+          />
+          <label for="${inputId}">${sanitize(label)}</label>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function abrirModalFuncionario(funcionarioId) {
+    const funcionario = getFuncionarioById(funcionarioId);
+    if (!funcionario) {
+      showPermissaoAlert("Funcionário não encontrado.", "error");
+      return;
+    }
+
+    statePermissoes.funcionarioSelecionadoId = Number(funcionarioId);
+    preencherModalFuncionario(funcionario);
+
+    const modal = document.getElementById("permission-modal");
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function fecharModalFuncionario() {
+    const modal = document.getElementById("permission-modal");
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+    statePermissoes.funcionarioSelecionadoId = null;
+  }
+
+  function atualizarFuncionarioNoEstado(funcionarioAtualizado) {
+    statePermissoes.funcionarios = statePermissoes.funcionarios.map((item) =>
+      Number(item.id) === Number(funcionarioAtualizado.id)
+        ? normalizarFuncionario(funcionarioAtualizado)
+        : item
+    );
+    atualizarResumo();
+    renderResultadosBusca();
+  }
+
+  function montarPayloadFuncionarioModal() {
+    const funcionarioId = statePermissoes.funcionarioSelecionadoId;
+    const base = getFuncionarioById(funcionarioId);
+
+    if (!base) return null;
+
+    const payload = {
+      nome: base.nome,
+      cpf: base.cpf,
+      email: base.email,
+      telefone: base.telefone,
+      funcao: base.funcao,
+      crmv: base.crmv || "",
+      acesso_dashboard: false,
+      acesso_clientes: false,
+      acesso_pets: false,
+      acesso_servicos: false,
+      acesso_funcionarios: false,
+      acesso_agenda: false,
+      acesso_producao: false,
+      acesso_pdv: false,
+      acesso_estoque: false,
+      acesso_financeiro: false,
+      acesso_crm: false,
+      acesso_relatorios: false,
+      acesso_configuracoes: false
+    };
+
+    PERMISSION_FIELDS.forEach(([field]) => {
+      const checkbox = document.querySelector(`input[data-modal-field="${field}"]`);
+      payload[field] = Boolean(checkbox?.checked);
+    });
+
+    return { funcionarioId, payload };
+  }
+
+  function setModalLoading(loading) {
+    const btnSalvar = document.getElementById("modal-salvar-permissoes");
+    const btnMarcar = document.getElementById("modal-marcar-todos");
+    const btnLimpar = document.getElementById("modal-limpar-todos");
+    const btnFechar = document.getElementById("permission-close-btn");
+
+    btnSalvar.disabled = loading;
+    btnMarcar.disabled = loading;
+    btnLimpar.disabled = loading;
+    btnFechar.disabled = loading;
+
+    document.querySelectorAll('#modal-permission-list input[type="checkbox"]').forEach((el) => {
+      el.disabled = loading;
+    });
+  }
+
+  async function salvarPermissoesModal() {
+    const data = montarPayloadFuncionarioModal();
+
+    if (!data || !data.payload) {
+      showPermissaoAlert("Funcionário não encontrado no estado da tela.", "error");
+      return;
+    }
+
+    const { funcionarioId, payload } = data;
+
+    try {
+      setModalLoading(true);
+      clearPermissaoAlert();
+
+      const response = await fetch(`/api/funcionarios/${funcionarioId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getHeadersConfiguracoes()
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        let detail = "Não foi possível salvar as permissões.";
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+
+      const base = getFuncionarioById(funcionarioId);
+      atualizarFuncionarioNoEstado({
+        ...base,
+        ...payload
+      });
+
+      showPermissaoAlert(`Permissões de ${base.nome} salvas com sucesso.`, "success");
+      fecharModalFuncionario();
+    } catch (error) {
+      showPermissaoAlert(error.message || "Erro ao salvar permissões.", "error");
+    } finally {
+      setModalLoading(false);
+    }
+  }
+
+  function marcarTodosModal(marcado) {
+    document.querySelectorAll('#modal-permission-list input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.checked = marcado;
+    });
+  }
+
+  function descobrirEmpresaId() {
+    const ids = [...new Set(
+      statePermissoes.funcionarios
+        .map((item) => Number(item.empresa_id))
+        .filter((item) => Number.isFinite(item) && item > 0)
+    )];
+
+    if (ids.length === 1) {
+      return ids[0];
+    }
+
+    if (ids.length > 1) {
+      return ids[0];
+    }
+
+    return null;
+  }
+
+  function renderLogoEmpresa() {
+    const empresa = statePermissoes.empresaAtual;
+    const img = document.getElementById("logo-preview-image");
+    const placeholder = document.getElementById("logo-preview-placeholder");
+    const empresaIdEl = document.getElementById("logo-empresa-id");
+    const logoUrlEl = document.getElementById("logo-url-salva");
+
+    empresaIdEl.textContent = empresa?.id ? String(empresa.id) : "-";
+    logoUrlEl.textContent = empresa?.logo_url || "Nenhuma";
+
+    if (empresa?.logo_url) {
+      img.src = empresa.logo_url;
+      img.style.display = "block";
+      placeholder.style.display = "none";
+    } else {
+      img.src = "";
+      img.style.display = "none";
+      placeholder.style.display = "block";
+    }
+  }
+
+  async function carregarLogoEmpresa() {
+    try {
+      let empresaId = statePermissoes.empresaId || descobrirEmpresaId();
+
+      if (!empresaId) {
+        const responseLista = await fetch("/empresas/", {
+          headers: getHeadersConfiguracoes()
+        });
+
+        if (responseLista.ok) {
+          const lista = await responseLista.json();
+          if (Array.isArray(lista) && lista.length === 1) {
+            empresaId = Number(lista[0].id);
+          }
+        }
+      }
+
+      if (!empresaId) {
+        showLogoAlert("Não foi possível identificar a empresa atual para configurar o logo.", "error");
+        return;
+      }
+
+      statePermissoes.empresaId = empresaId;
+      showLogoAlert("Carregando configuração do logo...", "info");
+
+      const response = await fetch(`/empresas/${empresaId}`, {
+        headers: getHeadersConfiguracoes()
+      });
+
+      if (!response.ok) {
+        let detail = "Não foi possível carregar o logo da empresa.";
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+
+      statePermissoes.empresaAtual = await response.json();
+      renderLogoEmpresa();
+      showLogoAlert("Logo da empresa carregado com sucesso.", "success");
+    } catch (error) {
+      showLogoAlert(error.message || "Erro ao carregar logo da empresa.", "error");
+    }
+  }
+
+  async function uploadLogoEmpresa(file) {
+    if (!file) return;
+
+    if (!statePermissoes.empresaId) {
+      showLogoAlert("Empresa atual não identificada para upload do logo.", "error");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("arquivo", file);
+
+    try {
+      document.getElementById("btn-escolher-logo").disabled = true;
+      document.getElementById("btn-recarregar-logo").disabled = true;
+      showLogoAlert("Enviando logo da empresa...", "info");
+
+      const response = await fetch(`/empresas/${statePermissoes.empresaId}/logo`, {
+        method: "POST",
+        headers: getHeadersConfiguracoes(),
+        body: formData
+      });
+
+      if (!response.ok) {
+        let detail = "Não foi possível enviar o logo.";
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+
+      statePermissoes.empresaAtual = await response.json();
+      renderLogoEmpresa();
+      showLogoAlert("Logo salvo com sucesso.", "success");
+    } catch (error) {
+      showLogoAlert(error.message || "Erro ao salvar logo da empresa.", "error");
+    } finally {
+      document.getElementById("btn-escolher-logo").disabled = false;
+      document.getElementById("btn-recarregar-logo").disabled = false;
+      document.getElementById("logo-file-input").value = "";
+    }
+  }
+
+  async function carregarPermissoes() {
+    try {
+      document.getElementById("btn-recarregar-permissoes").disabled = true;
+      showPermissaoAlert("Carregando permissões dos funcionários...", "info");
+
+      const response = await fetch("/api/funcionarios/?apenas_ativos=false", {
+        headers: {
+          Accept: "application/json",
+          ...getHeadersConfiguracoes()
+        }
+      });
+
+      if (!response.ok) {
+        let detail = "Não foi possível carregar os funcionários.";
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+
+      const data = await response.json();
+      statePermissoes.funcionarios = Array.isArray(data)
+        ? data.map(normalizarFuncionario)
+        : [];
+
+      statePermissoes.empresaId = descobrirEmpresaId();
+
+      atualizarResumo();
+      renderResultadosBusca();
+      showPermissaoAlert("Permissões carregadas com sucesso.", "success");
+
+      await carregarLogoEmpresa();
+    } catch (error) {
+      statePermissoes.funcionarios = [];
+      atualizarResumo();
+      renderResultadosBusca();
+      showPermissaoAlert(error.message || "Erro ao carregar permissões.", "error");
+    } finally {
+      document.getElementById("btn-recarregar-permissoes").disabled = false;
+    }
+  }
+
+  document.getElementById("settings-search-funcionario")?.addEventListener("input", (event) => {
+    statePermissoes.filtro = event.target.value || "";
+    renderResultadosBusca();
+  });
+
+  document.getElementById("btn-recarregar-permissoes")?.addEventListener("click", carregarPermissoes);
+
+  document.getElementById("permission-results")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-open-funcionario]");
+    if (!button) return;
+
+    const funcionarioId = Number(button.dataset.openFuncionario);
+    if (!funcionarioId) return;
+
+    abrirModalFuncionario(funcionarioId);
+  });
+
+  document.getElementById("permission-close-btn")?.addEventListener("click", fecharModalFuncionario);
+
+  document.getElementById("permission-modal")?.addEventListener("click", (event) => {
+    const close = event.target.closest("[data-close-modal='true']");
+    if (close) {
+      fecharModalFuncionario();
+    }
+  });
+
+  document.getElementById("modal-marcar-todos")?.addEventListener("click", () => {
+    marcarTodosModal(true);
+  });
+
+  document.getElementById("modal-limpar-todos")?.addEventListener("click", () => {
+    marcarTodosModal(false);
+  });
+
+  document.getElementById("modal-salvar-permissoes")?.addEventListener("click", salvarPermissoesModal);
+
+  document.getElementById("btn-escolher-logo")?.addEventListener("click", () => {
+    document.getElementById("logo-file-input")?.click();
+  });
+
+  document.getElementById("logo-file-input")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    await uploadLogoEmpresa(file);
+  });
+
+  document.getElementById("btn-recarregar-logo")?.addEventListener("click", carregarLogoEmpresa);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      const modal = document.getElementById("permission-modal");
+      if (modal.classList.contains("show")) {
+        fecharModalFuncionario();
+      }
+    }
+  });
+
+  carregarPermissoes();
+</script>
 
 <script src="/static/js/configuracoes_comissao.js"></script>
 {% endblock %}
