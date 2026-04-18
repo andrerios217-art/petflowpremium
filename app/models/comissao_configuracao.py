@@ -15,6 +15,7 @@ class ComissaoConfiguracao(Base):
 
     pontos_banho = Column(Integer, nullable=False, default=0)
     pontos_tosa = Column(Integer, nullable=False, default=0)
+    pontos_tosa_higienica = Column(Integer, nullable=False, default=0)
     pontos_finalizacao = Column(Integer, nullable=False, default=0)
 
     dias_trabalhados_mes = Column(Integer, nullable=False, default=26)

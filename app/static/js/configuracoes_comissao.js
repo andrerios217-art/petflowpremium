@@ -15,8 +15,33 @@
     });
     document.getElementById("btn-salvar")?.addEventListener("click", salvarConfiguracao);
 
-    document.getElementById("faixas-container")?.addEventListener("input", sincronizarFaixasDoDOM);
-    document.getElementById("faixas-container")?.addEventListener("change", sincronizarFaixasDoDOM);
+    document.getElementById("faixas-container")?.addEventListener("input", (event) => {
+      const inputValor = event.target.closest(".faixa-valor");
+      if (inputValor) {
+        aplicarMascaraMoeda(inputValor);
+      }
+      sincronizarFaixasDoDOM();
+    });
+
+    document.getElementById("faixas-container")?.addEventListener("change", (event) => {
+      const checkboxAberta = event.target.closest(".faixa-max-aberta");
+      if (checkboxAberta) {
+        const row = checkboxAberta.closest(".commission-range-row");
+        const inputMax = row?.querySelector(".faixa-max");
+        if (inputMax) {
+          if (checkboxAberta.checked) {
+            inputMax.value = "";
+            inputMax.disabled = true;
+            inputMax.placeholder = "∞";
+          } else {
+            inputMax.disabled = false;
+            inputMax.placeholder = "Até";
+          }
+        }
+      }
+      sincronizarFaixasDoDOM();
+      renderFaixas();
+    });
 
     document.getElementById("faixas-container")?.addEventListener("click", (event) => {
       const botaoRemover = event.target.closest("[data-action='remover-faixa']");
@@ -24,6 +49,19 @@
 
       const index = Number(botaoRemover.dataset.index);
       removerFaixa(index);
+    });
+
+    [
+      "pontos_banho",
+      "pontos_tosa",
+      "pontos_tosa_higienica",
+      "pontos_finalizacao",
+      "dias_trabalhados_mes",
+      "responsavel_aprovacao",
+    ].forEach((id) => {
+      document.getElementById(id)?.addEventListener("input", () => {
+        atualizarPreview();
+      });
     });
   }
 
@@ -82,6 +120,7 @@
 
       document.getElementById("pontos_banho").value = Number(data.pontos_banho || 0);
       document.getElementById("pontos_tosa").value = Number(data.pontos_tosa || 0);
+      document.getElementById("pontos_tosa_higienica").value = Number(data.pontos_tosa_higienica || 0);
       document.getElementById("pontos_finalizacao").value = Number(data.pontos_finalizacao || 0);
       document.getElementById("dias_trabalhados_mes").value = Number(data.dias_trabalhados_mes || 26);
       document.getElementById("responsavel_aprovacao").value = data.responsavel_aprovacao || "";
@@ -111,7 +150,7 @@
     }
   }
 
-  function criarFaixa(pontosMin = 0, pontosMax = null, valorReais = 0) {
+  function criarFaixa(pontosMin = 0, pontosMax = 0, valorReais = 0) {
     return {
       pontos_min: Number(pontosMin || 0),
       pontos_max:
@@ -136,7 +175,7 @@
       novoMin = Number(ultima.pontos_max) + 1;
     }
 
-    faixas.push(criarFaixa(novoMin, null, 0));
+    faixas.push(criarFaixa(novoMin, novoMin, 0));
     renderFaixas();
     atualizarPreview();
   }
@@ -193,12 +232,12 @@
             </label>
 
             <input
-              type="number"
+              type="text"
+              inputmode="decimal"
               class="commission-input faixa-valor"
-              min="0"
-              step="0.01"
-              value="${Number(faixa.valor_reais || 0)}"
+              value="${formatCurrencyInput(faixa.valor_reais)}"
               data-index="${index}"
+              placeholder="R$ 0,00"
             />
 
             <button
@@ -228,7 +267,7 @@
       return {
         pontos_min: Number(inputMin?.value || 0),
         pontos_max: aberta ? null : Number(inputMax?.value || 0),
-        valor_reais: Number(inputValor?.value || 0),
+        valor_reais: parseCurrencyInput(inputValor?.value || ""),
       };
     });
 
@@ -316,7 +355,21 @@
     const preview = document.getElementById("commission-preview");
     if (!preview) return;
 
-    const linhas = [...faixas]
+    const pontosBanho = Number(document.getElementById("pontos_banho")?.value || 0);
+    const pontosTosa = Number(document.getElementById("pontos_tosa")?.value || 0);
+    const pontosTosaHigienica = Number(document.getElementById("pontos_tosa_higienica")?.value || 0);
+    const pontosFinalizacao = Number(document.getElementById("pontos_finalizacao")?.value || 0);
+
+    const resumoEtapas = `
+      <span class="commission-preview-line">
+        <strong>Banho:</strong> ${pontosBanho} ponto(s) •
+        <strong>Tosa:</strong> ${pontosTosa} ponto(s) •
+        <strong>Tosa higiênica:</strong> ${pontosTosaHigienica} ponto(s) •
+        <strong>Finalização:</strong> ${pontosFinalizacao} ponto(s)
+      </span>
+    `;
+
+    const linhasFaixas = [...faixas]
       .sort((a, b) => Number(a.pontos_min || 0) - Number(b.pontos_min || 0))
       .map((faixa) => {
         const maxLabel = faixa.pontos_max === null ? "∞" : faixa.pontos_max;
@@ -327,7 +380,7 @@
         `;
       });
 
-    preview.innerHTML = linhas.length ? linhas.join("") : "Nenhuma faixa configurada.";
+    preview.innerHTML = [resumoEtapas, ...linhasFaixas].join("");
   }
 
   function mostrarAviso(message) {
@@ -354,6 +407,7 @@
       empresa_id: resolveEmpresaId(),
       pontos_banho: Number(document.getElementById("pontos_banho")?.value || 0),
       pontos_tosa: Number(document.getElementById("pontos_tosa")?.value || 0),
+      pontos_tosa_higienica: Number(document.getElementById("pontos_tosa_higienica")?.value || 0),
       pontos_finalizacao: Number(document.getElementById("pontos_finalizacao")?.value || 0),
       dias_trabalhados_mes: Number(document.getElementById("dias_trabalhados_mes")?.value || 26),
       responsavel_aprovacao: document.getElementById("responsavel_aprovacao")?.value?.trim() || null,
@@ -397,6 +451,21 @@
       style: "currency",
       currency: "BRL",
     });
+  }
+
+  function parseCurrencyInput(value) {
+    const digits = String(value || "").replace(/\D/g, "");
+    return Number(digits || 0) / 100;
+  }
+
+  function formatCurrencyInput(value) {
+    return formatCurrency(Number(value || 0));
+  }
+
+  function aplicarMascaraMoeda(input) {
+    if (!input) return;
+    const valor = parseCurrencyInput(input.value);
+    input.value = formatCurrencyInput(valor);
   }
 
   function showToast(message, type = "success") {

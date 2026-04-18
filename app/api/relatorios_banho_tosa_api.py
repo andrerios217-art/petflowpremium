@@ -41,6 +41,7 @@ COLUNAS_RELATORIO = [
     "Banho",
     "Finalização do Banho",
     "Pré-Tosa",
+    "Tosa higiênica",
     "Tosa",
     "Finalização da Tosa",
     "Horário de Finalização",
@@ -151,6 +152,15 @@ def _ordem_servico(agendamento: Agendamento) -> str:
     return ", ".join(nomes) if nomes else "N/A"
 
 
+def _agendamento_tem_banho_completo(agendamento: Agendamento) -> bool:
+    for item in getattr(agendamento, "servicos_agendamento", []) or []:
+        servico = getattr(item, "servico", None)
+        nome = (getattr(servico, "nome", None) or "").strip().lower()
+        if "banho completo" in nome:
+            return True
+    return False
+
+
 def _historicos_ordenados(producao: Producao | None):
     if not producao:
         return []
@@ -233,7 +243,11 @@ def _montar_linha(agendamento: Agendamento, consumos_por_agendamento: set[int]) 
     producao = getattr(agendamento, "producao", None)
     etapas = _mapear_historicos_por_etapa(producao)
 
-    responsavel_tosa = _nome_primeiro_responsavel(etapas, "TOSA")
+    responsavel_tosa_etapa = _nome_primeiro_responsavel(etapas, "TOSA")
+    banho_completo = _agendamento_tem_banho_completo(agendamento)
+
+    responsavel_tosa_higienica = responsavel_tosa_etapa if banho_completo else "N/A"
+    responsavel_tosa = "N/A" if banho_completo else responsavel_tosa_etapa
 
     return [
         _formatar_data(getattr(agendamento, "data", None)),
@@ -252,8 +266,9 @@ def _montar_linha(agendamento: Agendamento, consumos_por_agendamento: set[int]) 
         _nome_primeiro_responsavel(etapas, "BANHO"),
         _nome_primeiro_responsavel(etapas, "FINALIZACAO_BANHO"),
         _nome_primeiro_responsavel(etapas, "PRE_TOSA"),
+        responsavel_tosa_higienica,
         responsavel_tosa,
-        responsavel_tosa,
+        responsavel_tosa_etapa,
         _horario_finalizacao(producao),
         _intercorrencia(agendamento, producao),
     ]
@@ -327,8 +342,9 @@ def _ajustar_larguras(ws):
         "P": 24,
         "Q": 24,
         "R": 24,
-        "S": 22,
-        "T": 16,
+        "S": 24,
+        "T": 22,
+        "U": 16,
     }
 
     for coluna, largura in larguras.items():
@@ -357,7 +373,7 @@ def _montar_planilha(linhas: list[list[str]]) -> BytesIO:
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
         for idx, cell in enumerate(row, start=1):
-            if idx in {1, 2, 11, 12, 19, 20}:
+            if idx in {1, 2, 11, 12, 20, 21}:
                 cell.alignment = center
             else:
                 cell.alignment = left

@@ -3,58 +3,510 @@
 {% block content %}
 <link rel="stylesheet" href="/static/css/relatorios_comissao.css">
 
+<style>
+    .recibo-page {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        align-items: center;
+    }
+
+    .recibo-actions {
+        width: 100%;
+        max-width: 980px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .recibo-empty {
+        width: 100%;
+        max-width: 980px;
+        text-align: center;
+        padding: 36px 20px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px dashed rgba(0, 0, 0, 0.08);
+        color: #78859b;
+    }
+
+    .recibo-card {
+        width: 100%;
+        max-width: 980px;
+        background: #ffffff;
+        border-radius: 26px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+    }
+
+    .recibo-header {
+        padding: 42px 56px 28px;
+        text-align: center;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        background:
+            radial-gradient(circle at top left, rgba(49, 76, 115, 0.08), transparent 34%),
+            radial-gradient(circle at top right, rgba(35, 50, 74, 0.08), transparent 34%),
+            #ffffff;
+    }
+
+    .recibo-kicker {
+        display: block;
+        margin-bottom: 10px;
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .recibo-header h1 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    .recibo-header p {
+        margin: 12px auto 0;
+        max-width: 720px;
+        color: #475569;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .recibo-body {
+        padding: 34px 56px 42px;
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+    }
+
+    .recibo-meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 44px;
+        row-gap: 18px;
+    }
+
+    .recibo-linha {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .recibo-label {
+        color: #64748b;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .recibo-value {
+        color: #0f172a;
+        font-size: 1.08rem;
+        font-weight: 700;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    .recibo-linha-full {
+        grid-column: 1 / -1;
+    }
+
+    .recibo-divisor {
+        height: 1px;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(15, 23, 42, 0.14) 15%,
+            rgba(15, 23, 42, 0.14) 85%,
+            transparent 100%
+        );
+    }
+
+    .recibo-resumo {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 36px;
+        align-items: end;
+        text-align: center;
+    }
+
+    .recibo-resumo-bloco {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .recibo-resumo-label {
+        color: #64748b;
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .recibo-resumo-valor {
+        color: #0f172a;
+        font-size: 2.1rem;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+    }
+
+    .recibo-resumo-valor.is-money {
+        color: #166534;
+    }
+
+    .recibo-texto {
+        max-width: 820px;
+        margin: 0 auto;
+        text-align: center;
+        color: #334155;
+        font-size: 1rem;
+        line-height: 1.75;
+    }
+
+    .recibo-assinaturas {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 64px;
+        align-items: end;
+        margin-top: 8px;
+    }
+
+    .assinatura-box {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 120px;
+        justify-content: flex-end;
+        text-align: center;
+    }
+
+    .assinatura-linha {
+        width: 100%;
+        border-top: 2px solid #1f2937;
+    }
+
+    .assinatura-label {
+        color: #0f172a;
+        font-size: 0.96rem;
+        font-weight: 800;
+    }
+
+    .assinatura-sub {
+        color: #64748b;
+        font-size: 0.88rem;
+        line-height: 1.45;
+    }
+
+    @media (max-width: 900px) {
+        .recibo-card,
+        .recibo-actions,
+        .recibo-empty {
+            max-width: 100%;
+        }
+
+        .recibo-header,
+        .recibo-body {
+            padding-left: 22px;
+            padding-right: 22px;
+        }
+
+        .recibo-meta,
+        .recibo-resumo,
+        .recibo-assinaturas {
+            grid-template-columns: 1fr;
+        }
+
+        .recibo-resumo {
+            gap: 18px;
+        }
+
+        .recibo-assinaturas {
+            gap: 32px;
+        }
+    }
+
+    @media print {
+        @page {
+            size: A4 portrait;
+            margin: 12mm;
+        }
+
+        html, body {
+            background: #ffffff !important;
+            width: 210mm;
+            height: 297mm;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body * {
+            visibility: hidden;
+        }
+
+        #print-area, #print-area * {
+            visibility: visible;
+        }
+
+        #print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 186mm;
+            margin: 0 auto;
+            padding: 0;
+        }
+
+        .recibo-actions,
+        .demonstrativo-header,
+        .sidebar,
+        .topbar,
+        nav,
+        footer {
+            display: none !important;
+        }
+
+        .recibo-page {
+            display: block !important;
+        }
+
+        .recibo-card {
+            width: 100% !important;
+            max-width: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            overflow: visible !important;
+        }
+
+        .recibo-header {
+            padding: 0 0 16px 0 !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+            background: #ffffff !important;
+            text-align: center !important;
+        }
+
+        .recibo-kicker {
+            margin-bottom: 8px !important;
+            font-size: 9pt !important;
+            color: #475569 !important;
+            letter-spacing: 0.16em !important;
+        }
+
+        .recibo-header h1 {
+            font-size: 20pt !important;
+            margin: 0 !important;
+            color: #0f172a !important;
+        }
+
+        .recibo-header p {
+            margin: 8px auto 0 !important;
+            max-width: 100% !important;
+            font-size: 10pt !important;
+            color: #475569 !important;
+            line-height: 1.5 !important;
+        }
+
+        .recibo-body {
+            padding: 18px 0 0 0 !important;
+            gap: 18px !important;
+        }
+
+        .recibo-meta {
+            grid-template-columns: 1fr 1fr !important;
+            column-gap: 26px !important;
+            row-gap: 12px !important;
+        }
+
+        .recibo-label {
+            font-size: 8pt !important;
+            letter-spacing: 0.1em !important;
+            color: #64748b !important;
+        }
+
+        .recibo-value {
+            font-size: 10.5pt !important;
+            color: #111827 !important;
+            line-height: 1.35 !important;
+        }
+
+        .recibo-divisor {
+            background: #dbe3ee !important;
+            height: 1px !important;
+        }
+
+        .recibo-resumo {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 18px !important;
+        }
+
+        .recibo-resumo-label {
+            font-size: 8.4pt !important;
+            color: #64748b !important;
+        }
+
+        .recibo-resumo-valor {
+            font-size: 18pt !important;
+            color: #111827 !important;
+        }
+
+        .recibo-resumo-valor.is-money {
+            color: #166534 !important;
+        }
+
+        .recibo-texto {
+            max-width: 100% !important;
+            font-size: 10pt !important;
+            line-height: 1.6 !important;
+            color: #334155 !important;
+        }
+
+        .recibo-assinaturas {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 34px !important;
+            margin-top: 10px !important;
+        }
+
+        .assinatura-box {
+            min-height: 86px !important;
+            gap: 6px !important;
+        }
+
+        .assinatura-linha {
+            border-top: 1.5px solid #111827 !important;
+        }
+
+        .assinatura-label {
+            font-size: 9.6pt !important;
+            color: #111827 !important;
+        }
+
+        .assinatura-sub {
+            font-size: 8pt !important;
+            color: #475569 !important;
+            line-height: 1.35 !important;
+        }
+    }
+</style>
+
 <div class="demonstrativo-page">
-    <div class="demonstrativo-header">
+    <div class="demonstrativo-header no-print">
         <div class="demonstrativo-header-content">
             <h1>Demonstrativo de Comissão</h1>
-            <p>Resumo fechado da competência com detalhamento por etapa e auditoria do cálculo final.</p>
+            <p>Visualização no sistema. Para assinatura e arquivo, use a versão centralizada de impressão abaixo.</p>
         </div>
 
         <div class="demonstrativo-header-meta">
             <span class="demonstrativo-chip">Competência Fechada</span>
-            <span class="demonstrativo-chip">Snapshot Auditável</span>
+            <span class="demonstrativo-chip">Recibo para Assinatura</span>
         </div>
     </div>
 
-    <div id="demonstrativo-loading" class="demonstrativo-empty">
+    <div id="demonstrativo-loading" class="recibo-empty">
         Carregando demonstrativo...
     </div>
 
     <div id="demonstrativo-content" style="display: none;">
-        <div class="demonstrativo-kpis">
-            <div class="demonstrativo-kpi">
-                <div class="demonstrativo-kpi-label">Funcionário</div>
-                <div id="kpi-funcionario" class="demonstrativo-kpi-value">-</div>
-                <div id="kpi-competencia-helper" class="demonstrativo-kpi-helper">Competência: -</div>
+        <div class="recibo-page">
+            <div class="recibo-actions">
+                <button type="button" class="btn btn-primary" onclick="window.print()">
+                    Imprimir / Salvar em PDF
+                </button>
             </div>
 
-            <div class="demonstrativo-kpi">
-                <div class="demonstrativo-kpi-label">Pontos Totais</div>
-                <div id="kpi-pontos" class="demonstrativo-kpi-value">0</div>
-                <div class="demonstrativo-kpi-helper">Total consolidado no fechamento mensal.</div>
+            <div id="print-area" class="recibo-card">
+                <div class="recibo-header">
+                    <span class="recibo-kicker">Recibo de Comissão</span>
+                    <h1>Comprovante de Fechamento</h1>
+                    <p>
+                        Documento resumido para conferência, ciência e assinatura do funcionário e do gestor responsável.
+                    </p>
+                </div>
+
+                <div class="recibo-body">
+                    <div class="recibo-meta">
+                        <div class="recibo-linha">
+                            <span class="recibo-label">Funcionário</span>
+                            <div id="doc-funcionario" class="recibo-value">-</div>
+                        </div>
+
+                        <div class="recibo-linha">
+                            <span class="recibo-label">CPF</span>
+                            <div id="doc-cpf" class="recibo-value">-</div>
+                        </div>
+
+                        <div class="recibo-linha">
+                            <span class="recibo-label">Competência</span>
+                            <div id="doc-competencia" class="recibo-value">-</div>
+                        </div>
+
+                        <div class="recibo-linha">
+                            <span class="recibo-label">Data do fechamento</span>
+                            <div id="doc-data-fechamento" class="recibo-value">-</div>
+                        </div>
+
+                        <div class="recibo-linha recibo-linha-full">
+                            <span class="recibo-label">Responsável pela aprovação</span>
+                            <div id="doc-responsavel-aprovacao" class="recibo-value">-</div>
+                        </div>
+                    </div>
+
+                    <div class="recibo-divisor"></div>
+
+                    <div class="recibo-resumo">
+                        <div class="recibo-resumo-bloco">
+                            <span class="recibo-resumo-label">Pontuação Total</span>
+                            <div id="doc-pontos" class="recibo-resumo-valor">0 pts</div>
+                        </div>
+
+                        <div class="recibo-resumo-bloco">
+                            <span class="recibo-resumo-label">Valor Final</span>
+                            <div id="doc-valor" class="recibo-resumo-valor is-money">R$ 0,00</div>
+                        </div>
+                    </div>
+
+                    <div class="recibo-divisor"></div>
+
+                    <div class="recibo-texto">
+                        Declaro que tive ciência do fechamento da comissão referente à competência acima,
+                        conforme apuração realizada no sistema na data informada neste documento.
+                    </div>
+
+                    <div class="recibo-assinaturas">
+                        <div class="assinatura-box">
+                            <div class="assinatura-linha"></div>
+                            <div class="assinatura-label">Assinatura do Funcionário</div>
+                            <div id="assinatura-funcionario-meta" class="assinatura-sub">-</div>
+                        </div>
+
+                        <div class="assinatura-box">
+                            <div class="assinatura-linha"></div>
+                            <div class="assinatura-label">Assinatura do Gestor</div>
+                            <div id="assinatura-gestor-meta" class="assinatura-sub">-</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <div class="demonstrativo-kpi">
-                <div class="demonstrativo-kpi-label">Valor Final</div>
-                <div id="kpi-valor" class="demonstrativo-kpi-value is-money">R$ 0,00</div>
-                <div id="kpi-faixa" class="demonstrativo-kpi-helper">Faixa aplicada: -</div>
-            </div>
-        </div>
-
-        <div class="demonstrativo-section">
-            <h2 class="demonstrativo-section-title">Detalhamento por Etapa</h2>
-            <div id="demonstrativo-etapas"></div>
-        </div>
-
-        <div class="demonstrativo-footer-note">
-            Este demonstrativo utiliza exclusivamente dados já fechados da comissão mensal. Após o fechamento, os valores permanecem travados para garantir segurança, rastreabilidade e consistência na auditoria.
         </div>
     </div>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    const fechamentoId = {{ fechamento_id|tojson }};
+    const fechamentoId = parseInt("{{ fechamento_id }}", 10);
+    if (!Number.isFinite(fechamentoId) || fechamentoId <= 0) {
+        mostrarErroCarregamento("Fechamento inválido para carregar o demonstrativo.");
+        return;
+    }
     carregarDemonstrativo(fechamentoId);
 });
 
@@ -77,97 +529,44 @@ async function carregarDemonstrativo(fechamentoId) {
             throw new Error(data.detail || data.message || "Erro ao carregar demonstrativo.");
         }
 
-        preencherCabecalho(data);
-        preencherEtapas(data.detalhamento_por_etapa || []);
+        preencherDocumento(data);
 
         loading.style.display = "none";
         content.style.display = "block";
     } catch (error) {
+        mostrarErroCarregamento(error.message || "Erro ao carregar dados.");
+    }
+}
+
+function mostrarErroCarregamento(mensagem) {
+    const loading = document.getElementById("demonstrativo-loading");
+    const content = document.getElementById("demonstrativo-content");
+
+    if (content) {
+        content.style.display = "none";
+    }
+
+    if (loading) {
         loading.innerHTML =
             "<strong>Não foi possível carregar o demonstrativo.</strong><br>" +
-            "<span>" + escapeHtml(error.message || "Erro ao carregar dados.") + "</span>";
+            "<span>" + escapeHtml(mensagem) + "</span>";
     }
 }
 
-function preencherCabecalho(data) {
-    document.getElementById("kpi-funcionario").textContent = data.funcionario_nome || "-";
-    document.getElementById("kpi-competencia-helper").textContent = "Competência: " + formatarCompetencia(data.competencia);
-    document.getElementById("kpi-pontos").textContent = Number(data.pontos_totais || 0);
-    document.getElementById("kpi-valor").textContent = formatarMoeda(data.valor_final || 0);
-    document.getElementById("kpi-faixa").textContent = "Faixa aplicada: " + (data.faixa_aplicada || "-");
-}
+function preencherDocumento(data) {
+    document.getElementById("doc-funcionario").textContent = data.funcionario_nome || "-";
+    document.getElementById("doc-cpf").textContent = data.funcionario_cpf || "-";
+    document.getElementById("doc-competencia").textContent = formatarCompetencia(data.competencia);
+    document.getElementById("doc-data-fechamento").textContent = data.data_fechamento || "-";
+    document.getElementById("doc-responsavel-aprovacao").textContent = data.responsavel_aprovacao || "Gestor responsável";
+    document.getElementById("doc-pontos").textContent = Number(data.pontos_totais || 0) + " pts";
+    document.getElementById("doc-valor").textContent = formatarMoeda(data.valor_final || 0);
 
-function preencherEtapas(etapas) {
-    const container = document.getElementById("demonstrativo-etapas");
-    container.innerHTML = "";
+    document.getElementById("assinatura-funcionario-meta").textContent =
+        (data.funcionario_nome || "-") + " • CPF: " + (data.funcionario_cpf || "-");
 
-    if (!etapas.length) {
-        container.innerHTML = '<div class="demonstrativo-empty">Nenhum item encontrado para este fechamento.</div>';
-        return;
-    }
-
-    for (let i = 0; i < etapas.length; i++) {
-        const etapa = etapas[i];
-        const card = document.createElement("div");
-        card.className = "demonstrativo-etapa-card";
-
-        let linhas = "";
-
-        const itens = etapa.itens || [];
-        for (let j = 0; j < itens.length; j++) {
-            const item = itens[j];
-
-            linhas +=
-                "<tr>" +
-                    "<td>" +
-                        '<div class="demonstrativo-col-main">' +
-                            '<span class="demonstrativo-col-title">' + escapeHtml(item.descricao || "Lançamento de comissão") + "</span>" +
-                            '<span class="demonstrativo-col-meta">Status: ' + escapeHtml(item.status || "-") + "</span>" +
-                        "</div>" +
-                    "</td>" +
-                    "<td>" + escapeHtml(item.cliente_nome || "-") + "</td>" +
-                    "<td>" + escapeHtml(item.pet_nome || "-") + "</td>" +
-                    "<td>" + formatarMoeda(item.valor_base || 0) + "</td>" +
-                    "<td>" + Number(item.pontos || 0) + " pts</td>" +
-                    "<td>" + formatarMoeda(item.valor_comissao || 0) + "</td>" +
-                "</tr>";
-        }
-
-        card.innerHTML =
-            '<div class="demonstrativo-etapa-header">' +
-                '<div class="demonstrativo-etapa-title-wrap">' +
-                    '<h3 class="demonstrativo-etapa-title">' + escapeHtml(etapa.etapa || "Sem etapa") + "</h3>" +
-                    '<span class="demonstrativo-etapa-subtitle">' + Number(etapa.quantidade_itens || 0) + " item(ns) nesta etapa</span>" +
-                "</div>" +
-                '<div class="demonstrativo-etapa-totais">' +
-                    '<div class="demonstrativo-mini-kpi">' +
-                        '<span class="demonstrativo-mini-kpi-label">Pontos</span>' +
-                        "<strong>" + Number(etapa.pontos_total || 0) + " pts</strong>" +
-                    "</div>" +
-                    '<div class="demonstrativo-mini-kpi is-money">' +
-                        '<span class="demonstrativo-mini-kpi-label">Valor</span>' +
-                        "<strong>" + formatarMoeda(etapa.valor_total || 0) + "</strong>" +
-                    "</div>" +
-                "</div>" +
-            "</div>" +
-            '<div class="demonstrativo-table-wrap">' +
-                '<table class="demonstrativo-table">' +
-                    "<thead>" +
-                        "<tr>" +
-                            "<th>Descrição</th>" +
-                            "<th>Cliente</th>" +
-                            "<th>Pet</th>" +
-                            "<th>Valor Base</th>" +
-                            "<th>Pontos</th>" +
-                            "<th>Comissão</th>" +
-                        "</tr>" +
-                    "</thead>" +
-                    "<tbody>" + linhas + "</tbody>" +
-                "</table>" +
-            "</div>";
-
-        container.appendChild(card);
-    }
+    document.getElementById("assinatura-gestor-meta").textContent =
+        (data.responsavel_aprovacao || "Gestor responsável") + " • Data: " + (data.data_fechamento || "-");
 }
 
 function formatarMoeda(valor) {
@@ -195,11 +594,11 @@ function formatarCompetencia(valor) {
 
 function escapeHtml(valor) {
     return String(valor == null ? "" : valor)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 </script>
 {% endblock %}

@@ -28,6 +28,7 @@ class ComissaoConfiguracaoUpsert(BaseModel):
     empresa_id: int = Field(..., ge=1)
     pontos_banho: int = Field(default=0, ge=0)
     pontos_tosa: int = Field(default=0, ge=0)
+    pontos_tosa_higienica: int = Field(default=0, ge=0)
     pontos_finalizacao: int = Field(default=0, ge=0)
     dias_trabalhados_mes: int = Field(default=26, ge=1)
     responsavel_aprovacao: Optional[str] = None
@@ -39,6 +40,7 @@ class ComissaoConfiguracaoOut(BaseModel):
     empresa_id: int
     pontos_banho: int = 0
     pontos_tosa: int = 0
+    pontos_tosa_higienica: int = 0
     pontos_finalizacao: int = 0
     dias_trabalhados_mes: int = 26
     responsavel_aprovacao: Optional[str] = None

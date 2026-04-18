@@ -62,7 +62,6 @@ app.include_router(pdv_router)
 app.include_router(caixa_router)
 app.include_router(cashback_router)
 app.include_router(precificacao_api.router)
-app.include_router(assinaturas_router)
 app.include_router(relatorios_banho_tosa_router)
 
 
@@ -240,3 +239,6 @@ def assinaturas_edit_page(request: Request, assinatura_id: int):
         "assinaturas_form.html",
         {"request": request, "assinatura_id": assinatura_id},
     )
+
+
+app.include_router(assinaturas_router)

@@ -94,6 +94,7 @@ def _serializar_configuracao(config: ComissaoConfiguracao):
         "empresa_id": config.empresa_id,
         "pontos_banho": config.pontos_banho,
         "pontos_tosa": config.pontos_tosa,
+        "pontos_tosa_higienica": getattr(config, "pontos_tosa_higienica", 0),
         "pontos_finalizacao": config.pontos_finalizacao,
         "dias_trabalhados_mes": config.dias_trabalhados_mes,
         "responsavel_aprovacao": config.responsavel_aprovacao,
@@ -200,6 +201,16 @@ def _to_float(valor) -> float:
     return float(valor)
 
 
+def _formatar_data_documento(valor) -> str | None:
+    if not valor:
+        return None
+    if isinstance(valor, datetime):
+        return valor.strftime("%d/%m/%Y")
+    if hasattr(valor, "strftime"):
+        return valor.strftime("%d/%m/%Y")
+    return str(valor)
+
+
 def _detalhar_fechamento(
     db: Session,
     fechamento: ComissaoFechamento,
@@ -278,11 +289,15 @@ def _detalhar_fechamento(
     etapas = list(detalhamento_por_etapa.values())
     etapas.sort(key=lambda item: item["etapa"])
 
+    data_fechamento = getattr(fechamento, "aprovado_em", None) or getattr(fechamento, "created_at", None)
+
     return {
         "fechamento_id": fechamento.id,
         "empresa_id": fechamento.empresa_id,
         "funcionario_id": fechamento.funcionario_id,
         "funcionario_nome": funcionario.nome if funcionario else None,
+        "funcionario_cpf": getattr(funcionario, "cpf", None) if funcionario else None,
+        "funcionario_funcao": getattr(funcionario, "funcao", None) if funcionario else None,
         "competencia": fechamento.competencia.isoformat() if fechamento.competencia else None,
         "status": fechamento.status,
         "pontos_totais": pontos_totais,
@@ -290,6 +305,8 @@ def _detalhar_fechamento(
         "valor_final": float(valor_final),
         "aprovado_por": getattr(fechamento, "aprovado_por", None),
         "aprovado_em": fechamento.aprovado_em.isoformat() if getattr(fechamento, "aprovado_em", None) else None,
+        "data_fechamento": _formatar_data_documento(data_fechamento),
+        "responsavel_aprovacao": getattr(config, "responsavel_aprovacao", None) if config else None,
         "detalhamento_por_etapa": etapas,
     }
 
@@ -310,6 +327,7 @@ def obter_configuracao_comissao(
             "empresa_id": empresa_id,
             "pontos_banho": 0,
             "pontos_tosa": 0,
+            "pontos_tosa_higienica": 0,
             "pontos_finalizacao": 0,
             "dias_trabalhados_mes": 26,
             "responsavel_aprovacao": None,
@@ -347,6 +365,7 @@ def salvar_configuracao_comissao(
 
     config.pontos_banho = payload.pontos_banho
     config.pontos_tosa = payload.pontos_tosa
+    config.pontos_tosa_higienica = payload.pontos_tosa_higienica
     config.pontos_finalizacao = payload.pontos_finalizacao
     config.dias_trabalhados_mes = payload.dias_trabalhados_mes
     config.responsavel_aprovacao = payload.responsavel_aprovacao

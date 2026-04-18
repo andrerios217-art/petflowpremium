@@ -1,15 +1,19 @@
+from collections import Counter
 from datetime import datetime, timezone, date
-from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.producao import Producao
+from app.crud.assinatura import registrar_consumo_assinatura
 from app.models.agendamento import Agendamento
 from app.models.agendamento_servico import AgendamentoServico
-from app.models.producao_historico import ProducaoHistorico
+from app.models.assinatura_pet import AssinaturaPet
+from app.models.assinatura_pet_consumo import AssinaturaPetConsumo
 from app.models.comissao_configuracao import ComissaoConfiguracao
 from app.models.comissao_lancamento import ComissaoLancamento
+from app.models.producao import Producao
+from app.models.producao_historico import ProducaoHistorico
+from app.schemas.assinatura import AssinaturaPetConsumoCreate
 
 COLUNAS_VALIDAS = [
     "PRE_BANHO",
@@ -53,6 +57,14 @@ def agendamento_tem_tosa(agendamento: Agendamento) -> bool:
     for item in agendamento.servicos_agendamento:
         nome = (item.servico.nome or "").strip().lower() if item.servico else ""
         if "tosa" in nome:
+            return True
+    return False
+
+
+def agendamento_tem_banho_completo(agendamento: Agendamento) -> bool:
+    for item in agendamento.servicos_agendamento:
+        nome = (item.servico.nome or "").strip().lower() if item.servico else ""
+        if "banho completo" in nome:
             return True
     return False
 
@@ -296,7 +308,11 @@ def proxima_coluna_automatica(
         return "FINALIZACAO_BANHO"
 
     if coluna_atual == "FINALIZACAO_BANHO":
-        return "TOSA" if agendamento_tem_tosa(agendamento) else "FINALIZAR"
+        if agendamento_tem_banho_completo(agendamento):
+            return "TOSA"
+        if agendamento_tem_tosa(agendamento):
+            return "TOSA"
+        return "FINALIZAR"
 
     if coluna_atual == "TOSA":
         return "FINALIZAR"
@@ -314,7 +330,16 @@ def proximo_destino_preview(ordem: Producao) -> Optional[str]:
 
 
 def _etapa_eh_comissionavel(etapa: Optional[str]) -> bool:
-    return StringStatus(etapa) in {"BANHO", "TOSA", "FINALIZACAO_BANHO"}
+    return StringStatus(etapa) in {"BANHO", "TOSA", "TOSA_HIGIENICA", "FINALIZACAO_BANHO"}
+
+
+def _etapa_comissao_para_lancamento(ordem: Producao, etapa: str) -> str:
+    etapa_normalizada = StringStatus(etapa)
+
+    if etapa_normalizada == "TOSA" and ordem.agendamento and agendamento_tem_banho_completo(ordem.agendamento):
+        return "TOSA_HIGIENICA"
+
+    return etapa_normalizada
 
 
 def _obter_competencia(ordem: Producao) -> date:
@@ -341,6 +366,8 @@ def _pontos_da_etapa(config: Optional[ComissaoConfiguracao], etapa: str) -> int:
         return int(config.pontos_banho or 0)
     if etapa_normalizada == "TOSA":
         return int(config.pontos_tosa or 0)
+    if etapa_normalizada == "TOSA_HIGIENICA":
+        return int(getattr(config, "pontos_tosa_higienica", 0) or 0)
     if etapa_normalizada == "FINALIZACAO_BANHO":
         return int(config.pontos_finalizacao or 0)
     return 0
@@ -352,7 +379,9 @@ def _capturar_comissao_etapa(
     etapa: str,
     historico_finalizado: Optional[ProducaoHistorico],
 ):
-    if not _etapa_eh_comissionavel(etapa):
+    etapa_lancamento = _etapa_comissao_para_lancamento(ordem, etapa)
+
+    if not _etapa_eh_comissionavel(etapa_lancamento):
         return None
     if not historico_finalizado:
         return None
@@ -363,13 +392,13 @@ def _capturar_comissao_etapa(
 
     empresa_id = getattr(ordem.agendamento, "empresa_id", None) if ordem.agendamento else None
     config = _buscar_configuracao_comissao(db, empresa_id)
-    pontos = _pontos_da_etapa(config, etapa)
+    pontos = _pontos_da_etapa(config, etapa_lancamento)
 
     lancamento_existente = (
         db.query(ComissaoLancamento)
         .filter(
             ComissaoLancamento.producao_id == ordem.id,
-            ComissaoLancamento.etapa == StringStatus(etapa),
+            ComissaoLancamento.etapa == etapa_lancamento,
         )
         .first()
     )
@@ -382,13 +411,164 @@ def _capturar_comissao_etapa(
         producao_id=ordem.id,
         agendamento_id=ordem.agendamento_id,
         funcionario_id=funcionario_dono,
-        etapa=StringStatus(etapa),
+        etapa=etapa_lancamento,
         pontos=int(pontos),
         status="CAPTURADO",
         competencia=_obter_competencia(ordem),
     )
     db.add(lancamento)
     return lancamento
+
+
+def _buscar_assinatura_ativa_do_pet(db: Session, ordem: Producao) -> Optional[AssinaturaPet]:
+    agendamento = ordem.agendamento
+    if not agendamento:
+        return None
+
+    return (
+        db.query(AssinaturaPet)
+        .options(joinedload(AssinaturaPet.itens))
+        .filter(
+            AssinaturaPet.empresa_id == agendamento.empresa_id,
+            AssinaturaPet.cliente_id == agendamento.cliente_id,
+            AssinaturaPet.pet_id == agendamento.pet_id,
+            AssinaturaPet.status == "ATIVA",
+        )
+        .order_by(AssinaturaPet.id.desc())
+        .first()
+    )
+
+
+def _servicos_do_agendamento(ordem: Producao) -> list[AgendamentoServico]:
+    if not ordem.agendamento:
+        return []
+    return list(getattr(ordem.agendamento, "servicos_agendamento", []) or [])
+
+
+def _contar_consumos_existentes_por_servico(
+    db: Session,
+    empresa_id: int,
+    agendamento_id: int,
+) -> Counter:
+    rows = (
+        db.query(
+            AssinaturaPetConsumo.servico_id,
+            AssinaturaPetConsumo.quantidade,
+        )
+        .filter(
+            AssinaturaPetConsumo.empresa_id == empresa_id,
+            AssinaturaPetConsumo.agendamento_id == agendamento_id,
+            AssinaturaPetConsumo.status.in_(["PENDENTE", "CONFIRMADO"]),
+        )
+        .all()
+    )
+
+    contador = Counter()
+    for servico_id, quantidade in rows:
+        if servico_id:
+            contador[servico_id] += int(quantidade or 0)
+    return contador
+
+
+def _mapear_itens_disponiveis_assinatura(assinatura: AssinaturaPet) -> dict[int, list]:
+    itens_por_servico: dict[int, list] = {}
+
+    for item in list(getattr(assinatura, "itens", []) or []):
+        if not item or not item.ativo:
+            continue
+        if item.quantidade_disponivel <= 0:
+            continue
+        itens_por_servico.setdefault(item.servico_id, []).append(item)
+
+    for servico_id in itens_por_servico:
+        itens_por_servico[servico_id].sort(key=lambda item: item.id)
+
+    return itens_por_servico
+
+
+def _registrar_consumos_assinatura_na_finalizacao(
+    db: Session,
+    ordem: Producao,
+) -> tuple[bool, int]:
+    agendamento = ordem.agendamento
+    if not agendamento:
+        return False, 0
+
+    assinatura = _buscar_assinatura_ativa_do_pet(db, ordem)
+    if not assinatura:
+        return False, 0
+
+    servicos_agendamento = _servicos_do_agendamento(ordem)
+    if not servicos_agendamento:
+        return False, 0
+
+    itens_disponiveis = _mapear_itens_disponiveis_assinatura(assinatura)
+    if not itens_disponiveis:
+        return False, 0
+
+    existentes_por_servico = _contar_consumos_existentes_por_servico(
+        db=db,
+        empresa_id=agendamento.empresa_id,
+        agendamento_id=agendamento.id,
+    )
+
+    necessidade_por_servico = Counter()
+    for item_agendamento in servicos_agendamento:
+        if item_agendamento.servico_id:
+            necessidade_por_servico[item_agendamento.servico_id] += 1
+
+    for servico_id, quantidade_existente in existentes_por_servico.items():
+        if servico_id in necessidade_por_servico:
+            necessidade_por_servico[servico_id] = max(
+                necessidade_por_servico[servico_id] - quantidade_existente,
+                0,
+            )
+
+    if not necessidade_por_servico:
+        return True, 0
+
+    todos_cobertos = True
+    total_registrado = 0
+
+    for servico_id, quantidade_necessaria in necessidade_por_servico.items():
+        if quantidade_necessaria <= 0:
+            continue
+
+        itens_para_servico = itens_disponiveis.get(servico_id, [])
+        disponibilidade_total = sum(item.quantidade_disponivel for item in itens_para_servico)
+
+        if disponibilidade_total < quantidade_necessaria:
+            todos_cobertos = False
+            continue
+
+        restante = quantidade_necessaria
+        for item_assinatura in itens_para_servico:
+            while restante > 0 and item_assinatura.quantidade_disponivel > 0:
+                payload = AssinaturaPetConsumoCreate(
+                    assinatura_id=assinatura.id,
+                    assinatura_item_id=item_assinatura.id,
+                    empresa_id=agendamento.empresa_id,
+                    cliente_id=agendamento.cliente_id,
+                    pet_id=agendamento.pet_id,
+                    servico_id=servico_id,
+                    data_consumo=agendamento.data,
+                    quantidade=1,
+                    origem="AGENDAMENTO",
+                    status="CONFIRMADO",
+                    agendamento_id=agendamento.id,
+                    observacoes=f"Consumo automático na finalização da produção {ordem.id}.",
+                )
+                registrar_consumo_assinatura(db=db, data=payload)
+                total_registrado += 1
+                restante -= 1
+
+            if restante <= 0:
+                break
+
+        if restante > 0:
+            todos_cobertos = False
+
+    return todos_cobertos, total_registrado
 
 
 def mover_para_proxima_etapa(
@@ -472,17 +652,36 @@ def mover_para_proxima_etapa(
         )
         _capturar_comissao_etapa(db=db, ordem=ordem, etapa=etapa_atual, historico_finalizado=historico_finalizado)
 
+        todos_servicos_cobertos, consumos_registrados = _registrar_consumos_assinatura_na_finalizacao(
+            db=db,
+            ordem=ordem,
+        )
+
         ordem.finalizado = True
         ordem.etapa_status = "CONCLUIDO"
         ordem.agendamento.status = "FINALIZADO"
 
-        # Integração PDV: produção finalizada aguarda cobrança no PDV
-        if hasattr(ordem, "aguardando_pdv"):
-            ordem.aguardando_pdv = True
-        if hasattr(ordem, "enviado_pdv"):
-            ordem.enviado_pdv = False
-        if hasattr(ordem, "enviado_pdv_em"):
-            ordem.enviado_pdv_em = None
+        observacao_assinatura = None
+        if consumos_registrados > 0:
+            observacao_assinatura = (
+                f"Consumo automático de assinatura registrado na finalização: {consumos_registrados} item(ns)."
+            )
+            ordem.observacoes = _mesclar_texto_existente(ordem.observacoes, observacao_assinatura)
+
+        if todos_servicos_cobertos:
+            if hasattr(ordem, "aguardando_pdv"):
+                ordem.aguardando_pdv = False
+            if hasattr(ordem, "enviado_pdv"):
+                ordem.enviado_pdv = False
+            if hasattr(ordem, "enviado_pdv_em"):
+                ordem.enviado_pdv_em = None
+        else:
+            if hasattr(ordem, "aguardando_pdv"):
+                ordem.aguardando_pdv = True
+            if hasattr(ordem, "enviado_pdv"):
+                ordem.enviado_pdv = False
+            if hasattr(ordem, "enviado_pdv_em"):
+                ordem.enviado_pdv_em = None
 
     else:
         historico_finalizado = _finalizar_historico_etapa(
