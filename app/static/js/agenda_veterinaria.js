@@ -189,6 +189,18 @@
                 return;
             }
 
+            const btnVerReceita = event.target.closest("[data-action='ver-receita-finalizada']");
+            if (btnVerReceita) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const atendimentoClinicoId = Number(btnVerReceita.dataset.atendimentoClinicoId || 0);
+                const agendamentoId = Number(btnVerReceita.dataset.agendamentoId || 0);
+
+                abrirReceitaFinalizada(atendimentoClinicoId, agendamentoId);
+                return;
+            }
+
             const btnVerHistorico = event.target.closest("[data-action='historico-rapido']");
             if (btnVerHistorico) {
                 event.preventDefault();
@@ -216,7 +228,7 @@
 
                 abrirModalAtendimentoClinico();
                 renderHistoricoVazio(
-                    "Carregando histórico...",
+                    "Carregando histórico.",
                     "Buscando consultas anteriores, anamnese, intercorrências e timeline do pet."
                 );
                 abrirHistoricoPetPorId(petId);
@@ -400,11 +412,32 @@
         return status || "-";
     }
 
+    function resolverAtendimentoClinicoIdDoAgendamento(item) {
+        const candidatos = [
+            item?.atendimento_clinico_id,
+            item?.atendimento_id,
+            item?.clinico_id,
+            item?.consulta_id,
+            item?.atendimento?.id,
+            item?.consulta?.id,
+        ];
+
+        for (const valor of candidatos) {
+            const numero = Number(valor || 0);
+            if (Number.isInteger(numero) && numero > 0) {
+                return numero;
+            }
+        }
+
+        return 0;
+    }
+
     function renderCardAgendamento(item) {
         const dataHora = item.data_agendamento ? formatDateTime(item.data_agendamento) : "-";
         const servicos = Array.isArray(item.servicos) ? item.servicos : [];
         const status = String(item.status || "AGUARDANDO");
         const finalizado = agendamentoEstaFinalizado(status);
+        const atendimentoClinicoId = resolverAtendimentoClinicoIdDoAgendamento(item);
 
         return `
             <article class="agenda-vet-card agenda-card ${corStatusVet(item)}" data-agendamento-id="${Number(item.id || 0)}">
@@ -422,15 +455,31 @@
                 </div>
 
                 <div class="agenda-vet-card-actions">
-                    <button
-                        type="button"
-                        class="btn btn-primary"
-                        data-action="iniciar-atendimento"
-                        data-agendamento-id="${Number(item.id || 0)}"
-                        data-status="${escapeHtml(status)}"
-                    >
-                        ${finalizado ? "Atendimento Salvo" : "Iniciar Atendimento"}
-                    </button>
+                    ${
+                        finalizado
+                            ? `
+                                <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    data-action="ver-receita-finalizada"
+                                    data-agendamento-id="${Number(item.id || 0)}"
+                                    data-atendimento-clinico-id="${Number(atendimentoClinicoId || 0)}"
+                                >
+                                    Ver Receita
+                                </button>
+                            `
+                            : `
+                                <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    data-action="iniciar-atendimento"
+                                    data-agendamento-id="${Number(item.id || 0)}"
+                                    data-status="${escapeHtml(status)}"
+                                >
+                                    Iniciar Atendimento
+                                </button>
+                            `
+                    }
 
                     <button
                         type="button"
@@ -814,6 +863,26 @@
             console.error(error);
             showToast(error.message || "Erro ao iniciar atendimento.", "error");
         }
+    }
+
+    function abrirReceitaFinalizada(atendimentoClinicoId, agendamentoId) {
+        if (Number(atendimentoClinicoId || 0) > 0) {
+            window.open(`/api/clinico/${Number(atendimentoClinicoId)}/receita/imprimir`, "_blank");
+            return;
+        }
+
+        const itemAgenda = state.agenda.find((item) => Number(item.id) === Number(agendamentoId || 0));
+        const atendimentoIdDerivado = resolverAtendimentoClinicoIdDoAgendamento(itemAgenda);
+
+        if (Number(atendimentoIdDerivado || 0) > 0) {
+            window.open(`/api/clinico/${Number(atendimentoIdDerivado)}/receita/imprimir`, "_blank");
+            return;
+        }
+
+        showToast(
+            "A receita deste atendimento ainda não está vinculada no retorno da agenda. Se precisar, inclua o atendimento_clinico_id na API da semana.",
+            "error"
+        );
     }
 
     async function iniciarAtendimentoClinicoBackend(agendamentoId) {

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db
 from app.models.agendamento import Agendamento
 from app.models.agendamento_servico import AgendamentoServico
+from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.cliente import Cliente
 from app.models.funcionario import Funcionario
 from app.models.pet import Pet
@@ -138,6 +139,26 @@ def _buscar_funcionario(db: Session, funcionario_id: Optional[int]):
     return db.query(Funcionario).filter(Funcionario.id == funcionario_id).first()
 
 
+def _buscar_atendimento_clinico_id_por_agendamento(db: Session, agendamento_id: Optional[int]) -> Optional[int]:
+    if not agendamento_id:
+        return None
+
+    atendimento = (
+        db.query(AtendimentoClinico.id)
+        .filter(AtendimentoClinico.agendamento_id == agendamento_id)
+        .order_by(AtendimentoClinico.id.desc())
+        .first()
+    )
+
+    if not atendimento:
+        return None
+
+    if isinstance(atendimento, tuple):
+        return atendimento[0]
+
+    return getattr(atendimento, "id", None)
+
+
 def _agendamento_veterinario_finalizado(agendamento: Optional[Agendamento]) -> bool:
     if not agendamento:
         return False
@@ -151,6 +172,10 @@ def _serialize_agendamento(db: Session, agendamento: Agendamento):
     pet = _buscar_pet(db, getattr(agendamento, "pet_id", None))
     funcionario = _buscar_funcionario(db, getattr(agendamento, "funcionario_id", None))
     servicos = _buscar_servicos_do_agendamento(db, getattr(agendamento, "id", None))
+    atendimento_clinico_id = _buscar_atendimento_clinico_id_por_agendamento(
+        db,
+        getattr(agendamento, "id", None),
+    )
 
     valor_total = 0.0
     for servico in servicos:
@@ -169,6 +194,7 @@ def _serialize_agendamento(db: Session, agendamento: Agendamento):
         "observacoes": getattr(agendamento, "observacoes", "") or "",
         "tem_intercorrencia": bool(getattr(agendamento, "tem_intercorrencia", False)),
         "valor_total": valor_total,
+        "atendimento_clinico_id": atendimento_clinico_id,
         "cliente": {
             "id": getattr(cliente, "id", None) if cliente else None,
             "nome": getattr(cliente, "nome", "") if cliente else "",
