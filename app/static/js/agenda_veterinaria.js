@@ -163,15 +163,9 @@
         }
 
         document.addEventListener("click", (event) => {
-            const diaColuna = event.target.closest("[data-action='abrir-agendamento-dia']");
-            if (diaColuna) {
-                const data = diaColuna.dataset.data || "";
-                abrirModalAgendamentoVet(data);
-                return;
-            }
-
             const btnNovoNoDia = event.target.closest("[data-action='novo-agendamento-dia']");
             if (btnNovoNoDia) {
+                event.preventDefault();
                 event.stopPropagation();
                 const data = btnNovoNoDia.dataset.data || "";
                 abrirModalAgendamentoVet(data);
@@ -180,6 +174,9 @@
 
             const btnIniciar = event.target.closest("[data-action='iniciar-atendimento']");
             if (btnIniciar) {
+                event.preventDefault();
+                event.stopPropagation();
+
                 const agendamentoId = Number(btnIniciar.dataset.agendamentoId);
                 const status = String(btnIniciar.dataset.status || "").trim();
 
@@ -194,12 +191,16 @@
 
             const btnVerHistorico = event.target.closest("[data-action='historico-rapido']");
             if (btnVerHistorico) {
+                event.preventDefault();
+                event.stopPropagation();
+
                 const petId = Number(btnVerHistorico.dataset.petId);
                 const card = btnVerHistorico.closest(".agenda-vet-card");
                 const agendamentoIdAttr =
                     btnVerHistorico.dataset.agendamentoId ||
                     card?.dataset?.agendamentoId ||
                     "";
+
                 const agendamentoId = Number(agendamentoIdAttr || 0);
 
                 if (agendamentoId) {
@@ -224,6 +225,8 @@
 
             const btnRemoverServico = event.target.closest("[data-action='remover-servico-vet']");
             if (btnRemoverServico) {
+                event.preventDefault();
+                event.stopPropagation();
                 const servicoId = Number(btnRemoverServico.dataset.servicoId);
                 removerServicoVetSelecionado(servicoId);
             }
@@ -320,7 +323,7 @@
                     .join("");
 
                 return `
-                    <section class="agenda-vet-day-column" data-action="abrir-agendamento-dia" data-data="${escapeHtml(dia.data || "")}">
+                    <section class="agenda-vet-day-column" data-data="${escapeHtml(dia.data || "")}">
                         <header class="agenda-vet-day-header">
                             <div>
                                 <h3>${escapeHtml(dia.dia_semana || "")}</h3>
@@ -379,6 +382,24 @@
         return base.includes(termo);
     }
 
+    function corStatusVet(item) {
+        const valor = String(item?.status || "").trim().toUpperCase();
+
+        if (valor === "AGUARDANDO") return "status-aguardando";
+        if (valor === "EM_ATENDIMENTO") return "status-andamento";
+        if (valor === "FINALIZADO") return "status-finalizado";
+        return "status-aguardando";
+    }
+
+    function textoStatusVet(status) {
+        const valor = String(status || "").trim().toUpperCase();
+
+        if (valor === "AGUARDANDO") return "Agendado";
+        if (valor === "EM_ATENDIMENTO") return "Em atendimento";
+        if (valor === "FINALIZADO") return "Concluído";
+        return status || "-";
+    }
+
     function renderCardAgendamento(item) {
         const dataHora = item.data_agendamento ? formatDateTime(item.data_agendamento) : "-";
         const servicos = Array.isArray(item.servicos) ? item.servicos : [];
@@ -386,17 +407,16 @@
         const finalizado = agendamentoEstaFinalizado(status);
 
         return `
-            <article class="agenda-vet-card" data-agendamento-id="${Number(item.id || 0)}">
-                <div class="agenda-vet-card-head">
-                    <h4>${escapeHtml(item.pet?.nome || "Pet não informado")}</h4>
-                    <span class="agenda-vet-badge-status">${escapeHtml(status)}</span>
+            <article class="agenda-vet-card agenda-card ${corStatusVet(item)}" data-agendamento-id="${Number(item.id || 0)}">
+                <div class="agenda-vet-card-head agenda-card-top">
+                    <h4 class="agenda-card-title">${escapeHtml(item.pet?.nome || "Pet não informado")}</h4>
+                    <span class="agenda-vet-badge-status agenda-card-status">${escapeHtml(textoStatusVet(status))}</span>
                 </div>
 
                 <div class="agenda-vet-card-body">
                     <p><strong>Tutor:</strong> ${escapeHtml(item.cliente?.nome || "Tutor não informado")}</p>
                     <p><strong>Horário:</strong> ${escapeHtml(dataHora)}</p>
                     <p><strong>Responsável:</strong> ${escapeHtml(item.funcionario?.nome || "Não definido")}</p>
-                    <p><strong>Prioridade:</strong> ${escapeHtml(item.prioridade || "NORMAL")}</p>
                     <p><strong>Serviços:</strong> ${servicos.length ? servicos.map((servico) => escapeHtml(servico.nome || "")).join(", ") : "Sem serviços"}</p>
                     ${item.observacoes ? `<p><strong>Observações:</strong> ${escapeHtml(item.observacoes)}</p>` : ""}
                 </div>

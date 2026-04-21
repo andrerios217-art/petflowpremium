@@ -76,6 +76,7 @@ def imprimir_receita_veterinaria(
     contexto = montar_contexto_receita_impressao(db, atendimento_id)
 
     return templates.TemplateResponse(
+        request,
         "receita_veterinaria.html",
         {
             "request": request,

@@ -1,0 +1,94 @@
+.agenda-vet-card.agenda-card.status-aguardando {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #78350f;
+}
+
+.agenda-vet-card.agenda-card.status-aguardando .agenda-card-title,
+.agenda-vet-card.agenda-card.status-aguardando .agenda-card-status,
+.agenda-vet-card.agenda-card.status-aguardando p,
+.agenda-vet-card.agenda-card.status-aguardando strong,
+.agenda-vet-card.agenda-card.status-aguardando h4,
+.agenda-vet-card.agenda-card.status-aguardando span {
+  color: #78350f;
+}
+
+.agenda-vet-card.agenda-card.status-andamento {
+  background: #dcfce7;
+  border: 1px solid #22c55e;
+  color: #166534;
+}
+
+.agenda-vet-card.agenda-card.status-andamento .agenda-card-title,
+.agenda-vet-card.agenda-card.status-andamento .agenda-card-status,
+.agenda-vet-card.agenda-card.status-andamento p,
+.agenda-vet-card.agenda-card.status-andamento strong,
+.agenda-vet-card.agenda-card.status-andamento h4,
+.agenda-vet-card.agenda-card.status-andamento span {
+  color: #166534;
+}
+
+.agenda-vet-card.agenda-card.status-finalizado {
+  background: #166534;
+  border: 1px solid #166534;
+  color: #ffffff;
+}
+
+.agenda-vet-card.agenda-card.status-finalizado .agenda-card-title,
+.agenda-vet-card.agenda-card.status-finalizado .agenda-card-status,
+.agenda-vet-card.agenda-card.status-finalizado p,
+.agenda-vet-card.agenda-card.status-finalizado strong,
+.agenda-vet-card.agenda-card.status-finalizado h4,
+.agenda-vet-card.agenda-card.status-finalizado span {
+  color: #ffffff;
+}
+
+.agenda-vet-card.agenda-card {
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.agenda-vet-card .agenda-vet-card-actions .btn {
+  border-radius: 10px;
+}
+
+#agendaVetGrid .agenda-vet-card.status-aguardando,
+#agendaVetGrid .agenda-vet-card.agenda-card.status-aguardando {
+  background: #fef3c7 !important;
+  border: 1px solid #f59e0b !important;
+  color: #78350f !important;
+}
+
+#agendaVetGrid .agenda-vet-card.status-aguardando *,
+#agendaVetGrid .agenda-vet-card.agenda-card.status-aguardando * {
+  color: #78350f !important;
+}
+
+#agendaVetGrid .agenda-vet-card.status-andamento,
+#agendaVetGrid .agenda-vet-card.agenda-card.status-andamento {
+  background: #dcfce7 !important;
+  border: 1px solid #22c55e !important;
+  color: #166534 !important;
+}
+
+#agendaVetGrid .agenda-vet-card.status-andamento *,
+#agendaVetGrid .agenda-vet-card.agenda-card.status-andamento * {
+  color: #166534 !important;
+}
+
+#agendaVetGrid .agenda-vet-card.status-finalizado,
+#agendaVetGrid .agenda-vet-card.agenda-card.status-finalizado {
+  background: #166534 !important;
+  border: 1px solid #166534 !important;
+  color: #ffffff !important;
+}
+
+#agendaVetGrid .agenda-vet-card.status-finalizado *,
+#agendaVetGrid .agenda-vet-card.agenda-card.status-finalizado * {
+  color: #ffffff !important;
+}
+
+#agendaVetGrid .agenda-vet-card {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+}

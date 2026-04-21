@@ -54,7 +54,10 @@
     margin-top: 20px;
   }
 
-  .settings-search {
+  .settings-search,
+  .settings-input,
+  .settings-select,
+  .settings-textarea {
     width: 100%;
     min-height: 44px;
     border: 1px solid #d1d5db;
@@ -63,9 +66,19 @@
     color: #111827;
     padding: 0 14px;
     outline: none;
+    font: inherit;
   }
 
-  .settings-search:focus {
+  .settings-textarea {
+    min-height: 96px;
+    padding: 12px 14px;
+    resize: vertical;
+  }
+
+  .settings-search:focus,
+  .settings-input:focus,
+  .settings-select:focus,
+  .settings-textarea:focus {
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
   }
@@ -109,6 +122,28 @@
   }
 
   .settings-secondary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .settings-success-btn {
+    min-height: 44px;
+    border-radius: 10px;
+    padding: 0 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.16s ease;
+    background: #16a34a;
+    color: #ffffff;
+    border: 1px solid #16a34a;
+  }
+
+  .settings-success-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .settings-success-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;
     transform: none;
@@ -170,7 +205,7 @@
     color: #111827;
   }
 
-  .logo-card {
+  .company-card {
     display: grid;
     grid-template-columns: 220px 1fr;
     gap: 18px;
@@ -211,13 +246,13 @@
     line-height: 1.45;
   }
 
-  .logo-panel h3 {
+  .company-panel h3 {
     margin: 0 0 8px;
     color: #111827;
     font-size: 1.05rem;
   }
 
-  .logo-panel p {
+  .company-panel p {
     margin: 0;
     color: #6b7280;
     line-height: 1.55;
@@ -261,6 +296,84 @@
     margin-top: 10px;
     font-size: 0.9rem;
     color: #6b7280;
+  }
+
+  .company-form-wrap {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .company-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .company-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .company-field label {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #374151;
+  }
+
+  .company-field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .company-inline-small-btn {
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 9px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #374151;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.16s ease;
+  }
+
+  .company-inline-small-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .company-inline-small-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .span-12 { grid-column: span 12; }
+  .span-8 { grid-column: span 8; }
+  .span-6 { grid-column: span 6; }
+  .span-4 { grid-column: span 4; }
+  .span-3 { grid-column: span 3; }
+  .span-2 { grid-column: span 2; }
+
+  .company-inline-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .company-note {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e3a8a;
+    line-height: 1.55;
   }
 
   .permission-results {
@@ -518,13 +631,26 @@
       grid-template-columns: 1fr;
     }
 
-    .logo-card {
+    .company-card {
       grid-template-columns: 1fr;
     }
 
     .logo-preview-box {
       width: 100%;
       max-width: 220px;
+    }
+
+    .company-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .span-12,
+    .span-8,
+    .span-6,
+    .span-4,
+    .span-3,
+    .span-2 {
+      grid-column: auto;
     }
 
     .permission-result-item {
@@ -553,6 +679,11 @@
     .permission-modal-dialog {
       padding: 18px;
     }
+
+    .company-field-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
   }
 </style>
 
@@ -560,30 +691,24 @@
   <section class="settings-card">
     <div class="settings-header">
       <div>
-        <span class="settings-kicker">Configurações • Marca da empresa</span>
-        <h1>Logo institucional</h1>
+        <span class="settings-kicker">Configurações • Empresa</span>
+        <h1>Dados da empresa</h1>
         <p>
-          Defina o logo da empresa que será reaproveitado como marca visual nos documentos do sistema.
+          Configure CNPJ, dados cadastrais, endereço operacional da loja e logo institucional.
         </p>
       </div>
     </div>
 
     <div id="settings-logo-alert" class="settings-alert info"></div>
 
-    <div class="logo-card">
-      <div class="logo-preview-box" id="logo-preview-box">
-        <div class="logo-preview-placeholder" id="logo-preview-placeholder">
-          Nenhum logo configurado
+    <div class="company-card">
+      <div>
+        <div class="logo-preview-box" id="logo-preview-box">
+          <div class="logo-preview-placeholder" id="logo-preview-placeholder">
+            Nenhum logo configurado
+          </div>
+          <img id="logo-preview-image" src="" alt="Logo da empresa" style="display:none;">
         </div>
-        <img id="logo-preview-image" src="" alt="Logo da empresa" style="display:none;">
-      </div>
-
-      <div class="logo-panel">
-        <h3>Upload do logo</h3>
-        <p>
-          Envie um arquivo PNG, JPG, JPEG, WEBP ou SVG. Esse logo será o padrão visual da empresa
-          e vai ser reaproveitado depois na receita veterinária e no demonstrativo de comissão.
-        </p>
 
         <div class="logo-meta">
           <div class="logo-meta-item">
@@ -608,8 +733,114 @@
         </div>
 
         <div class="logo-help">
-          Recomendação crítica: usar um logo com fundo transparente. Para marca d’água isso fica muito melhor
-          do que imagem com fundo branco chapado.
+          Recomendação crítica: usar um logo com fundo transparente. Para marca d’água isso fica muito melhor.
+        </div>
+      </div>
+
+      <div class="company-panel">
+        <h3>Cadastro da empresa</h3>
+        <p>
+          Busque os dados pelo CNPJ e ajuste manualmente o endereço da loja, que pode ser diferente do endereço cadastral.
+        </p>
+
+        <div class="company-form-wrap">
+          <div class="company-grid">
+            <div class="company-field span-4">
+              <label for="empresa-cnpj">CNPJ</label>
+              <input type="text" id="empresa-cnpj" class="settings-input" placeholder="00.000.000/0000-00">
+            </div>
+
+            <div class="company-field span-4">
+              <label for="empresa-nome">Nome exibido no sistema</label>
+              <input type="text" id="empresa-nome" class="settings-input" placeholder="Nome da loja">
+            </div>
+
+            <div class="company-field span-4" style="align-self:end;">
+              <div class="company-inline-actions">
+                <button type="button" class="settings-secondary-btn" id="btn-buscar-cnpj">
+                  Buscar CNPJ
+                </button>
+                <button type="button" class="settings-success-btn" id="btn-salvar-empresa">
+                  Salvar dados
+                </button>
+              </div>
+            </div>
+
+            <div class="company-field span-6">
+              <label for="empresa-razao-social">Razão social</label>
+              <input type="text" id="empresa-razao-social" class="settings-input" placeholder="Razão social">
+            </div>
+
+            <div class="company-field span-6">
+              <label for="empresa-nome-fantasia">Nome fantasia</label>
+              <input type="text" id="empresa-nome-fantasia" class="settings-input" placeholder="Nome fantasia">
+            </div>
+
+            <div class="company-field span-4">
+              <label for="empresa-telefone">Telefone</label>
+              <input type="text" id="empresa-telefone" class="settings-input" placeholder="Telefone">
+            </div>
+
+            <div class="company-field span-4">
+              <label for="empresa-email">E-mail</label>
+              <input type="text" id="empresa-email" class="settings-input" placeholder="E-mail">
+            </div>
+
+            <div class="company-field span-4">
+              <label for="empresa-cep">CEP cadastral</label>
+              <input type="text" id="empresa-cep" class="settings-input" placeholder="00000-000">
+            </div>
+
+            <div class="company-field span-6">
+              <label for="empresa-logradouro">Logradouro cadastral</label>
+              <input type="text" id="empresa-logradouro" class="settings-input" placeholder="Rua, avenida, etc.">
+            </div>
+
+            <div class="company-field span-2">
+              <label for="empresa-numero">Número</label>
+              <input type="text" id="empresa-numero" class="settings-input" placeholder="Número">
+            </div>
+
+            <div class="company-field span-4">
+              <label for="empresa-complemento">Complemento</label>
+              <input type="text" id="empresa-complemento" class="settings-input" placeholder="Complemento">
+            </div>
+
+            <div class="company-field span-4">
+              <label for="empresa-bairro">Bairro</label>
+              <input type="text" id="empresa-bairro" class="settings-input" placeholder="Bairro">
+            </div>
+
+            <div class="company-field span-4">
+              <label for="empresa-cidade">Cidade</label>
+              <input type="text" id="empresa-cidade" class="settings-input" placeholder="Cidade">
+            </div>
+
+            <div class="company-field span-2">
+              <label for="empresa-uf">UF</label>
+              <input type="text" id="empresa-uf" class="settings-input" maxlength="2" placeholder="UF">
+            </div>
+
+            <div class="company-field span-12">
+              <div class="company-field-header">
+                <label for="empresa-endereco-loja">Endereço da loja exibido na receita</label>
+                <button type="button" class="company-inline-small-btn" id="btn-usar-endereco-cadastro">
+                  Usar endereço do cadastro
+                </button>
+              </div>
+
+              <textarea
+                id="empresa-endereco-loja"
+                class="settings-textarea"
+                placeholder="Digite o endereço operacional da loja. Esse endereço poderá ser diferente do endereço cadastral do CNPJ."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="company-note">
+            O endereço da loja pode ser diferente do endereço do CNPJ. Para receita veterinária, especialmente em uso controlado,
+            o ideal é exibir o endereço real de operação da unidade.
+          </div>
         </div>
       </div>
     </div>
@@ -1212,8 +1443,116 @@
     return null;
   }
 
-  function renderLogoEmpresa() {
-    const empresa = statePermissoes.empresaAtual;
+  function formatarCnpjInput(valor) {
+    const digits = String(valor || "").replace(/\D/g, "").slice(0, 14);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+    if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+    if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+  }
+
+  function formatarCepInput(valor) {
+    const digits = String(valor || "").replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 5) return digits;
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  }
+
+  function getEmpresaFieldValue(id) {
+    const el = document.getElementById(id);
+    return el ? (el.value || "").trim() : "";
+  }
+
+  function setEmpresaFieldValue(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = value || "";
+  }
+
+  function preencherFormularioEmpresa(empresa) {
+    setEmpresaFieldValue("empresa-cnpj", empresa?.cnpj || "");
+    setEmpresaFieldValue("empresa-nome", empresa?.nome || "");
+    setEmpresaFieldValue("empresa-razao-social", empresa?.razao_social || "");
+    setEmpresaFieldValue("empresa-nome-fantasia", empresa?.nome_fantasia || "");
+    setEmpresaFieldValue("empresa-telefone", empresa?.telefone || "");
+    setEmpresaFieldValue("empresa-email", empresa?.email || "");
+    setEmpresaFieldValue("empresa-cep", empresa?.cep || "");
+    setEmpresaFieldValue("empresa-logradouro", empresa?.logradouro || "");
+    setEmpresaFieldValue("empresa-numero", empresa?.numero || "");
+    setEmpresaFieldValue("empresa-complemento", empresa?.complemento || "");
+    setEmpresaFieldValue("empresa-bairro", empresa?.bairro || "");
+    setEmpresaFieldValue("empresa-cidade", empresa?.cidade || "");
+    setEmpresaFieldValue("empresa-uf", empresa?.uf || "");
+    setEmpresaFieldValue("empresa-endereco-loja", empresa?.endereco_loja || "");
+  }
+
+  function montarPayloadEmpresa() {
+    return {
+      nome: getEmpresaFieldValue("empresa-nome"),
+      cnpj: getEmpresaFieldValue("empresa-cnpj"),
+      razao_social: getEmpresaFieldValue("empresa-razao-social") || null,
+      nome_fantasia: getEmpresaFieldValue("empresa-nome-fantasia") || null,
+      telefone: getEmpresaFieldValue("empresa-telefone") || null,
+      email: getEmpresaFieldValue("empresa-email") || null,
+      cep: getEmpresaFieldValue("empresa-cep") || null,
+      logradouro: getEmpresaFieldValue("empresa-logradouro") || null,
+      numero: getEmpresaFieldValue("empresa-numero") || null,
+      complemento: getEmpresaFieldValue("empresa-complemento") || null,
+      bairro: getEmpresaFieldValue("empresa-bairro") || null,
+      cidade: getEmpresaFieldValue("empresa-cidade") || null,
+      uf: getEmpresaFieldValue("empresa-uf") || null,
+      endereco_loja: getEmpresaFieldValue("empresa-endereco-loja") || null,
+      logo_url: statePermissoes.empresaAtual?.logo_url || null
+    };
+  }
+
+  function montarEnderecoCadastro() {
+    const logradouro = getEmpresaFieldValue("empresa-logradouro");
+    const numero = getEmpresaFieldValue("empresa-numero");
+    const complemento = getEmpresaFieldValue("empresa-complemento");
+    const bairro = getEmpresaFieldValue("empresa-bairro");
+    const cidade = getEmpresaFieldValue("empresa-cidade");
+    const uf = getEmpresaFieldValue("empresa-uf");
+    const cep = getEmpresaFieldValue("empresa-cep");
+
+    const linha1 = [logradouro, numero].filter(Boolean).join(", ");
+    const linha2 = [complemento, bairro].filter(Boolean).join(" - ");
+    const cidadeUf = [cidade, uf].filter(Boolean).join(" / ");
+
+    const partes = [linha1, linha2, cidadeUf, cep].filter(Boolean);
+    return partes.join("\n").trim();
+  }
+
+  function usarEnderecoCadastro() {
+    const enderecoMontado = montarEnderecoCadastro();
+
+    if (!enderecoMontado) {
+      showLogoAlert("Preencha o endereço cadastral antes de usar esse atalho.", "error");
+      return;
+    }
+
+    setEmpresaFieldValue("empresa-endereco-loja", enderecoMontado);
+    showLogoAlert("Endereço cadastral copiado para o campo da loja. Revise e salve.", "success");
+  }
+
+  function setEmpresaLoading(loading) {
+    const ids = [
+      "btn-buscar-cnpj",
+      "btn-salvar-empresa",
+      "btn-escolher-logo",
+      "btn-recarregar-logo",
+      "btn-usar-endereco-cadastro"
+    ];
+
+    ids.forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = loading;
+    });
+  }
+
+  function renderEmpresaVisual(empresa) {
+    statePermissoes.empresaAtual = empresa || null;
+
     const img = document.getElementById("logo-preview-image");
     const placeholder = document.getElementById("logo-preview-placeholder");
     const empresaIdEl = document.getElementById("logo-empresa-id");
@@ -1231,9 +1570,11 @@
       img.style.display = "none";
       placeholder.style.display = "block";
     }
+
+    preencherFormularioEmpresa(empresa || {});
   }
 
-  async function carregarLogoEmpresa() {
+  async function carregarEmpresaConfiguracoes() {
     try {
       let empresaId = statePermissoes.empresaId || descobrirEmpresaId();
 
@@ -1251,19 +1592,19 @@
       }
 
       if (!empresaId) {
-        showLogoAlert("Não foi possível identificar a empresa atual para configurar o logo.", "error");
+        showLogoAlert("Não foi possível identificar a empresa atual para configurar os dados.", "error");
         return;
       }
 
       statePermissoes.empresaId = empresaId;
-      showLogoAlert("Carregando configuração do logo...", "info");
+      showLogoAlert("Carregando dados da empresa...", "info");
 
       const response = await fetch(`/empresas/${empresaId}`, {
         headers: getHeadersConfiguracoes()
       });
 
       if (!response.ok) {
-        let detail = "Não foi possível carregar o logo da empresa.";
+        let detail = "Não foi possível carregar os dados da empresa.";
         try {
           const errorData = await response.json();
           detail = errorData.detail || detail;
@@ -1271,11 +1612,108 @@
         throw new Error(detail);
       }
 
-      statePermissoes.empresaAtual = await response.json();
-      renderLogoEmpresa();
-      showLogoAlert("Logo da empresa carregado com sucesso.", "success");
+      const empresa = await response.json();
+      renderEmpresaVisual(empresa);
+      showLogoAlert("Dados da empresa carregados com sucesso.", "success");
     } catch (error) {
-      showLogoAlert(error.message || "Erro ao carregar logo da empresa.", "error");
+      showLogoAlert(error.message || "Erro ao carregar dados da empresa.", "error");
+    }
+  }
+
+  async function buscarDadosCnpj() {
+    const cnpjInformado = getEmpresaFieldValue("empresa-cnpj");
+    const cnpjNumerico = String(cnpjInformado || "").replace(/\D/g, "");
+
+    if (!cnpjNumerico || cnpjNumerico.length !== 14) {
+      showLogoAlert("Informe um CNPJ válido com 14 dígitos antes de buscar.", "error");
+      return;
+    }
+
+    try {
+      setEmpresaLoading(true);
+      showLogoAlert("Consultando dados do CNPJ...", "info");
+
+      const response = await fetch(`/empresas/buscar-cnpj/${cnpjNumerico}`, {
+        headers: getHeadersConfiguracoes({ Accept: "application/json" })
+      });
+
+      if (!response.ok) {
+        let detail = "Não foi possível consultar o CNPJ.";
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+
+      const data = await response.json();
+
+      setEmpresaFieldValue("empresa-cnpj", data.cnpj || formatarCnpjInput(cnpjNumerico));
+      if (!getEmpresaFieldValue("empresa-nome")) {
+        setEmpresaFieldValue("empresa-nome", data.nome || data.nome_fantasia || data.razao_social || "");
+      }
+      setEmpresaFieldValue("empresa-razao-social", data.razao_social || "");
+      setEmpresaFieldValue("empresa-nome-fantasia", data.nome_fantasia || "");
+      setEmpresaFieldValue("empresa-telefone", data.telefone || "");
+      setEmpresaFieldValue("empresa-email", data.email || "");
+      setEmpresaFieldValue("empresa-cep", data.cep || "");
+      setEmpresaFieldValue("empresa-logradouro", data.logradouro || "");
+      setEmpresaFieldValue("empresa-numero", data.numero || "");
+      setEmpresaFieldValue("empresa-complemento", data.complemento || "");
+      setEmpresaFieldValue("empresa-bairro", data.bairro || "");
+      setEmpresaFieldValue("empresa-cidade", data.cidade || "");
+      setEmpresaFieldValue("empresa-uf", data.uf || "");
+
+      showLogoAlert("Dados do CNPJ preenchidos. Revise e salve.", "success");
+    } catch (error) {
+      showLogoAlert(error.message || "Erro ao consultar CNPJ.", "error");
+    } finally {
+      setEmpresaLoading(false);
+    }
+  }
+
+  async function salvarEmpresa() {
+    if (!statePermissoes.empresaId) {
+      showLogoAlert("Empresa atual não identificada para salvar.", "error");
+      return;
+    }
+
+    const payload = montarPayloadEmpresa();
+
+    if (!payload.nome) {
+      showLogoAlert("Informe o nome exibido da empresa.", "error");
+      return;
+    }
+
+    try {
+      setEmpresaLoading(true);
+      showLogoAlert("Salvando dados da empresa...", "info");
+
+      const response = await fetch(`/empresas/${statePermissoes.empresaId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getHeadersConfiguracoes()
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        let detail = "Não foi possível salvar os dados da empresa.";
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+
+      const empresa = await response.json();
+      renderEmpresaVisual(empresa);
+      showLogoAlert("Dados da empresa salvos com sucesso.", "success");
+    } catch (error) {
+      showLogoAlert(error.message || "Erro ao salvar dados da empresa.", "error");
+    } finally {
+      setEmpresaLoading(false);
     }
   }
 
@@ -1291,8 +1729,7 @@
     formData.append("arquivo", file);
 
     try {
-      document.getElementById("btn-escolher-logo").disabled = true;
-      document.getElementById("btn-recarregar-logo").disabled = true;
+      setEmpresaLoading(true);
       showLogoAlert("Enviando logo da empresa...", "info");
 
       const response = await fetch(`/empresas/${statePermissoes.empresaId}/logo`, {
@@ -1310,14 +1747,13 @@
         throw new Error(detail);
       }
 
-      statePermissoes.empresaAtual = await response.json();
-      renderLogoEmpresa();
+      const empresa = await response.json();
+      renderEmpresaVisual(empresa);
       showLogoAlert("Logo salvo com sucesso.", "success");
     } catch (error) {
       showLogoAlert(error.message || "Erro ao salvar logo da empresa.", "error");
     } finally {
-      document.getElementById("btn-escolher-logo").disabled = false;
-      document.getElementById("btn-recarregar-logo").disabled = false;
+      setEmpresaLoading(false);
       document.getElementById("logo-file-input").value = "";
     }
   }
@@ -1354,7 +1790,7 @@
       renderResultadosBusca();
       showPermissaoAlert("Permissões carregadas com sucesso.", "success");
 
-      await carregarLogoEmpresa();
+      await carregarEmpresaConfiguracoes();
     } catch (error) {
       statePermissoes.funcionarios = [];
       atualizarResumo();
@@ -1364,6 +1800,22 @@
       document.getElementById("btn-recarregar-permissoes").disabled = false;
     }
   }
+
+  document.getElementById("empresa-cnpj")?.addEventListener("input", (event) => {
+    event.target.value = formatarCnpjInput(event.target.value);
+  });
+
+  document.getElementById("empresa-cep")?.addEventListener("input", (event) => {
+    event.target.value = formatarCepInput(event.target.value);
+  });
+
+  document.getElementById("empresa-uf")?.addEventListener("input", (event) => {
+    event.target.value = String(event.target.value || "").toUpperCase().slice(0, 2);
+  });
+
+  document.getElementById("btn-buscar-cnpj")?.addEventListener("click", buscarDadosCnpj);
+  document.getElementById("btn-salvar-empresa")?.addEventListener("click", salvarEmpresa);
+  document.getElementById("btn-usar-endereco-cadastro")?.addEventListener("click", usarEnderecoCadastro);
 
   document.getElementById("settings-search-funcionario")?.addEventListener("input", (event) => {
     statePermissoes.filtro = event.target.value || "";
@@ -1410,7 +1862,7 @@
     await uploadLogoEmpresa(file);
   });
 
-  document.getElementById("btn-recarregar-logo")?.addEventListener("click", carregarLogoEmpresa);
+  document.getElementById("btn-recarregar-logo")?.addEventListener("click", carregarEmpresaConfiguracoes);
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {

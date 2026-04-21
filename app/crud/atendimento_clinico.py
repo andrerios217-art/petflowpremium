@@ -46,6 +46,30 @@ def _resolver_logo_empresa(empresa):
     return None
 
 
+def _resolver_endereco_empresa_receita(empresa):
+    if not empresa:
+        return ""
+
+    endereco_loja = _valor_texto_limpo(getattr(empresa, "endereco_loja", None))
+    if endereco_loja:
+        return endereco_loja
+
+    logradouro = _valor_texto_limpo(getattr(empresa, "logradouro", None))
+    numero = _valor_texto_limpo(getattr(empresa, "numero", None))
+    complemento = _valor_texto_limpo(getattr(empresa, "complemento", None))
+    bairro = _valor_texto_limpo(getattr(empresa, "bairro", None))
+    cidade = _valor_texto_limpo(getattr(empresa, "cidade", None))
+    uf = _valor_texto_limpo(getattr(empresa, "uf", None))
+    cep = _valor_texto_limpo(getattr(empresa, "cep", None))
+
+    linha1 = ", ".join([parte for parte in [logradouro, numero] if parte])
+    linha2 = " - ".join([parte for parte in [complemento, bairro] if parte])
+    linha3 = " / ".join([parte for parte in [cidade, uf] if parte])
+
+    partes = [parte for parte in [linha1, linha2, linha3, cep] if parte]
+    return "\n".join(partes).strip()
+
+
 def _montar_texto_exame(exame):
     nome = _valor_texto_limpo(getattr(exame, "nome", None))
     tipo = _valor_texto_limpo(getattr(exame, "tipo", None))
@@ -624,11 +648,13 @@ def montar_contexto_receita_impressao(db: Session, atendimento_id: int) -> dict:
     veterinario_crmv = _valor_texto_limpo(getattr(veterinario, "crmv", None))
     veterinario_telefone = _valor_texto_limpo(getattr(veterinario, "telefone", None))
     empresa_logo_url = _resolver_logo_empresa(empresa)
+    empresa_endereco_receita = _resolver_endereco_empresa_receita(empresa)
 
     return {
         "atendimento": atendimento,
         "empresa": empresa,
         "empresa_logo_url": empresa_logo_url,
+        "empresa_endereco_receita": empresa_endereco_receita,
         "pet": pet,
         "cliente": cliente,
         "veterinario": veterinario,

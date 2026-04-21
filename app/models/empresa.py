@@ -13,7 +13,24 @@ class Empresa(Base):
     nome = Column(String(150), nullable=False)
     cnpj = Column(String(18), nullable=True)
 
-    # 🔥 NOVO: logo configurável por loja
+    razao_social = Column(String(180), nullable=True)
+    nome_fantasia = Column(String(180), nullable=True)
+
+    telefone = Column(String(25), nullable=True)
+    email = Column(String(150), nullable=True)
+
+    cep = Column(String(10), nullable=True)
+    logradouro = Column(String(180), nullable=True)
+    numero = Column(String(20), nullable=True)
+    complemento = Column(String(120), nullable=True)
+    bairro = Column(String(120), nullable=True)
+    cidade = Column(String(120), nullable=True)
+    uf = Column(String(2), nullable=True)
+
+    # Endereço exibido/operacional da loja
+    endereco_loja = Column(String(255), nullable=True)
+
+    # logo configurável por loja
     logo_url = Column(String(255), nullable=True)
 
     ativa = Column(Boolean, default=True)
