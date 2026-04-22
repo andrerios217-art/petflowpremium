@@ -14,3 +14,5 @@ alembic
 pytest
 httpx
 openpyxl
+qrcode[pil]
+Pillow

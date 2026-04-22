@@ -31,7 +31,6 @@ class AtendimentoClinico(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
-    # RELACIONAMENTOS
     empresa = relationship("Empresa")
     agendamento = relationship("Agendamento")
     pet = relationship("Pet")
@@ -74,6 +73,13 @@ class AtendimentoClinico(Base):
         "PetReceita",
         back_populates="atendimento",
         cascade="all, delete-orphan",
+    )
+
+    receitas_emitidas = relationship(
+        "PetReceitaEmitida",
+        back_populates="atendimento",
+        cascade="all, delete-orphan",
+        order_by="PetReceitaEmitida.id.desc()",
     )
 
     vacinas = relationship(

@@ -1,5 +1,13 @@
+import base64
+import hashlib
+import io
+import json
+import os
+import secrets
 from datetime import datetime
+from urllib.parse import quote
 
+import qrcode
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
@@ -13,6 +21,7 @@ from app.models.funcionario import Funcionario
 from app.models.pet import Pet
 from app.models.pet_anamnese import PetAnamnese
 from app.models.pet_prontuario import PetProntuario
+from app.models.pet_receita_emitida import PetReceitaEmitida
 from app.models.servico import Servico
 from app.schemas.atendimento_clinico import (
     AtendimentoClinicoAnamneseSalvar,
@@ -142,6 +151,204 @@ def _extrair_observacoes_clinicas_serializadas(texto: str) -> dict:
     }
 
 
+def _serializar_datetime(valor):
+    if not valor:
+        return None
+    if isinstance(valor, datetime):
+        return valor.isoformat()
+    return str(valor)
+
+
+def _gerar_codigo_verificacao(db: Session) -> str:
+    for _ in range(20):
+        codigo = secrets.token_hex(8).upper()
+        existe = (
+            db.query(PetReceitaEmitida)
+            .filter(PetReceitaEmitida.codigo_verificacao == codigo)
+            .first()
+        )
+        if not existe:
+            return codigo
+
+    raise HTTPException(
+        status_code=500,
+        detail="Não foi possível gerar um código verificador único para a receita.",
+    )
+
+
+def _montar_validacao_url(codigo_verificacao: str) -> str:
+    codigo = _valor_texto_limpo(codigo_verificacao).upper()
+    if not codigo:
+        return ""
+
+    caminho = f"/api/clinico/receita/validar?codigo={quote(codigo)}"
+    base_url = _valor_texto_limpo(os.getenv("APP_BASE_URL"))
+
+    if not base_url:
+        return caminho
+
+    return f"{base_url.rstrip('/')}{caminho}"
+
+
+def _gerar_qrcode_data_url(conteudo: str) -> str | None:
+    conteudo_limpo = _valor_texto_limpo(conteudo)
+    if not conteudo_limpo:
+        return None
+
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2,
+    )
+    qr.add_data(conteudo_limpo)
+    qr.make(fit=True)
+
+    imagem = qr.make_image(fill_color="black", back_color="white")
+    buffer = io.BytesIO()
+    imagem.save(buffer, format="PNG")
+    imagem_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+    return f"data:image/png;base64,{imagem_base64}"
+
+
+def _montar_snapshot_receita(atendimento: AtendimentoClinico) -> dict:
+    veterinario = getattr(atendimento, "veterinario", None)
+    empresa = getattr(atendimento, "empresa", None)
+    pet = getattr(atendimento, "pet", None)
+    cliente = getattr(atendimento, "cliente", None)
+    prontuario = getattr(atendimento, "prontuario", None)
+
+    receitas = sorted(getattr(atendimento, "receitas", []) or [], key=lambda item: item.id or 0)
+    exames = sorted(getattr(atendimento, "exames", []) or [], key=lambda item: item.id or 0)
+
+    observacoes_serializadas = _extrair_observacoes_clinicas_serializadas(
+        getattr(prontuario, "observacoes", "") if prontuario else ""
+    )
+
+    receitas_descricao = []
+    receitas_orientacoes = []
+    receitas_completas = []
+
+    for item in receitas:
+        descricao = _valor_texto_limpo(getattr(item, "descricao", None))
+        orientacoes = _valor_texto_limpo(getattr(item, "orientacoes", None))
+
+        if descricao:
+            receitas_descricao.append(descricao)
+
+        if orientacoes:
+            receitas_orientacoes.append(orientacoes)
+
+        if descricao or orientacoes:
+            receitas_completas.append(
+                {
+                    "descricao": descricao,
+                    "orientacoes": orientacoes,
+                }
+            )
+
+    if not receitas_descricao and observacoes_serializadas.get("receita"):
+        receitas_descricao.append(observacoes_serializadas["receita"])
+        receitas_completas.append(
+            {
+                "descricao": observacoes_serializadas["receita"],
+                "orientacoes": "",
+            }
+        )
+
+    if not receitas_orientacoes and observacoes_serializadas.get("receita"):
+        receitas_orientacoes.append(observacoes_serializadas["receita"])
+        if not receitas_completas:
+            receitas_completas.append(
+                {
+                    "descricao": "",
+                    "orientacoes": observacoes_serializadas["receita"],
+                }
+            )
+
+    exames_solicitados = []
+    for exame in exames:
+        texto_exame = _montar_texto_exame(exame)
+        if texto_exame:
+            exames_solicitados.append(texto_exame)
+
+    if not exames_solicitados and observacoes_serializadas.get("exames"):
+        exames_solicitados.append(observacoes_serializadas["exames"])
+
+    diagnostico = ""
+    if prontuario and getattr(prontuario, "diagnostico", None):
+        diagnostico = _valor_texto_limpo(prontuario.diagnostico)
+
+    data_documento = atendimento.data_fim or atendimento.data_inicio or datetime.utcnow()
+
+    snapshot = {
+        "atendimento": {
+            "id": atendimento.id,
+            "empresa_id": atendimento.empresa_id,
+            "agendamento_id": atendimento.agendamento_id,
+            "pet_id": atendimento.pet_id,
+            "cliente_id": atendimento.cliente_id,
+            "veterinario_id": atendimento.veterinario_id,
+            "status": _valor_texto_limpo(getattr(atendimento, "status", None)),
+            "data_inicio": _serializar_datetime(getattr(atendimento, "data_inicio", None)),
+            "data_fim": _serializar_datetime(getattr(atendimento, "data_fim", None)),
+        },
+        "empresa": {
+            "id": getattr(empresa, "id", None) if empresa else None,
+            "nome": _valor_texto_limpo(getattr(empresa, "nome", None)) if empresa else "",
+            "cnpj": _valor_texto_limpo(getattr(empresa, "cnpj", None)) if empresa else "",
+            "telefone": _valor_texto_limpo(getattr(empresa, "telefone", None)) if empresa else "",
+            "email": _valor_texto_limpo(getattr(empresa, "email", None)) if empresa else "",
+            "logo_url": _resolver_logo_empresa(empresa),
+            "endereco_receita": _resolver_endereco_empresa_receita(empresa),
+        },
+        "pet": {
+            "id": getattr(pet, "id", None) if pet else None,
+            "nome": _valor_texto_limpo(getattr(pet, "nome", None)) if pet else "",
+            "raca": _valor_texto_limpo(getattr(pet, "raca", None)) if pet else "",
+            "sexo": _valor_texto_limpo(getattr(pet, "sexo", None)) if pet else "",
+            "porte": _valor_texto_limpo(getattr(pet, "porte", None)) if pet else "",
+        },
+        "cliente": {
+            "id": getattr(cliente, "id", None) if cliente else None,
+            "nome": _valor_texto_limpo(getattr(cliente, "nome", None)) if cliente else "",
+            "telefone": _valor_texto_limpo(getattr(cliente, "telefone", None)) if cliente else "",
+            "email": _valor_texto_limpo(getattr(cliente, "email", None)) if cliente else "",
+        },
+        "veterinario": {
+            "id": getattr(veterinario, "id", None) if veterinario else None,
+            "nome": _valor_texto_limpo(getattr(veterinario, "nome", None)) if veterinario else "",
+            "crmv": _valor_texto_limpo(getattr(veterinario, "crmv", None)) if veterinario else "",
+            "telefone": _valor_texto_limpo(getattr(veterinario, "telefone", None))
+            if veterinario
+            else "",
+        },
+        "prontuario": {
+            "diagnostico": diagnostico,
+            "observacoes": _valor_texto_limpo(getattr(prontuario, "observacoes", None))
+            if prontuario
+            else "",
+            "observacoes_serializadas": observacoes_serializadas,
+        },
+        "receitas": receitas_completas,
+        "exames_solicitados": exames_solicitados,
+        "receitas_descricao": receitas_descricao,
+        "receitas_orientacoes": receitas_orientacoes,
+        "data_documento": _serializar_datetime(data_documento),
+    }
+
+    return snapshot
+
+
+def _gerar_texto_canonico_snapshot(snapshot: dict) -> str:
+    return json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _gerar_hash_documento(snapshot_texto_canonico: str) -> str:
+    return hashlib.sha256(snapshot_texto_canonico.encode("utf-8")).hexdigest()
+
+
 def _get_atendimento_or_404(db: Session, atendimento_id: int) -> AtendimentoClinico:
     atendimento = (
         db.query(AtendimentoClinico)
@@ -156,6 +363,7 @@ def _get_atendimento_or_404(db: Session, atendimento_id: int) -> AtendimentoClin
             joinedload(AtendimentoClinico.agendamento),
             joinedload(AtendimentoClinico.exames),
             joinedload(AtendimentoClinico.receitas),
+            joinedload(AtendimentoClinico.receitas_emitidas),
         )
         .filter(AtendimentoClinico.id == atendimento_id)
         .first()
@@ -165,6 +373,26 @@ def _get_atendimento_or_404(db: Session, atendimento_id: int) -> AtendimentoClin
         raise HTTPException(status_code=404, detail="Atendimento clínico não encontrado.")
 
     return atendimento
+
+
+def _get_receita_emitida_or_404(db: Session, receita_emitida_id: int) -> PetReceitaEmitida:
+    receita_emitida = (
+        db.query(PetReceitaEmitida)
+        .options(
+            joinedload(PetReceitaEmitida.empresa),
+            joinedload(PetReceitaEmitida.atendimento),
+            joinedload(PetReceitaEmitida.pet),
+            joinedload(PetReceitaEmitida.cliente),
+            joinedload(PetReceitaEmitida.veterinario),
+        )
+        .filter(PetReceitaEmitida.id == receita_emitida_id)
+        .first()
+    )
+
+    if not receita_emitida:
+        raise HTTPException(status_code=404, detail="Receita emitida não encontrada.")
+
+    return receita_emitida
 
 
 def _finalizar_agendamento_vinculado_se_existir(atendimento: AtendimentoClinico):
@@ -317,6 +545,91 @@ def iniciar_por_agendamento(db: Session, agendamento_id: int, empresa_id: int) -
 
 def obter_atendimento(db: Session, atendimento_id: int) -> AtendimentoClinico:
     return _get_atendimento_or_404(db, atendimento_id)
+
+
+def obter_receita_emitida(db: Session, receita_emitida_id: int) -> PetReceitaEmitida:
+    return _get_receita_emitida_or_404(db, receita_emitida_id)
+
+
+def obter_receita_emitida_por_codigo(db: Session, codigo_verificacao: str) -> PetReceitaEmitida:
+    codigo = _valor_texto_limpo(codigo_verificacao).upper()
+    if not codigo:
+        raise HTTPException(status_code=400, detail="Código de verificação não informado.")
+
+    receita_emitida = (
+        db.query(PetReceitaEmitida)
+        .options(
+            joinedload(PetReceitaEmitida.empresa),
+            joinedload(PetReceitaEmitida.atendimento),
+            joinedload(PetReceitaEmitida.pet),
+            joinedload(PetReceitaEmitida.cliente),
+            joinedload(PetReceitaEmitida.veterinario),
+        )
+        .filter(PetReceitaEmitida.codigo_verificacao == codigo)
+        .first()
+    )
+
+    if not receita_emitida:
+        raise HTTPException(status_code=404, detail="Receita emitida não encontrada.")
+
+    return receita_emitida
+
+
+def emitir_receita_veterinaria(db: Session, atendimento_id: int) -> PetReceitaEmitida:
+    atendimento = _get_atendimento_or_404(db, atendimento_id)
+
+    if not getattr(atendimento, "empresa_id", None):
+        raise HTTPException(status_code=400, detail="Atendimento sem empresa vinculada.")
+
+    if not getattr(atendimento, "pet_id", None):
+        raise HTTPException(status_code=400, detail="Atendimento sem pet vinculado.")
+
+    if not getattr(atendimento, "cliente_id", None):
+        raise HTTPException(status_code=400, detail="Atendimento sem cliente vinculado.")
+
+    snapshot = _montar_snapshot_receita(atendimento)
+    snapshot_texto_canonico = _gerar_texto_canonico_snapshot(snapshot)
+    hash_documento = _gerar_hash_documento(snapshot_texto_canonico)
+    codigo_verificacao = _gerar_codigo_verificacao(db)
+
+    receita_emitida = PetReceitaEmitida(
+        empresa_id=atendimento.empresa_id,
+        atendimento_id=atendimento.id,
+        pet_id=atendimento.pet_id,
+        cliente_id=atendimento.cliente_id,
+        veterinario_id=atendimento.veterinario_id,
+        codigo_verificacao=codigo_verificacao,
+        hash_documento=hash_documento,
+        snapshot_json=json.dumps(snapshot, ensure_ascii=False),
+        snapshot_texto_canonico=snapshot_texto_canonico,
+        emitido_em=datetime.utcnow(),
+    )
+
+    db.add(receita_emitida)
+    _touch_updated_at(atendimento)
+    db.commit()
+    db.refresh(receita_emitida)
+
+    return _get_receita_emitida_or_404(db, receita_emitida.id)
+
+
+def cancelar_receita_emitida(
+    db: Session,
+    receita_emitida_id: int,
+    motivo: str | None = None,
+) -> PetReceitaEmitida:
+    receita_emitida = _get_receita_emitida_or_404(db, receita_emitida_id)
+
+    if receita_emitida.cancelado_em:
+        return receita_emitida
+
+    receita_emitida.cancelado_em = datetime.utcnow()
+    receita_emitida.cancelado_motivo = _valor_texto_limpo(motivo)
+
+    db.commit()
+    db.refresh(receita_emitida)
+
+    return receita_emitida
 
 
 def salvar_anamnese(
@@ -572,6 +885,64 @@ def marcar_enviado_pdv(db: Session, atendimento_id: int) -> AtendimentoClinico:
     return _get_atendimento_or_404(db, atendimento_id)
 
 
+def montar_contexto_receita_impressao_emitida(db: Session, receita_emitida_id: int) -> dict:
+    receita_emitida = _get_receita_emitida_or_404(db, receita_emitida_id)
+
+    try:
+        snapshot = json.loads(receita_emitida.snapshot_json or "{}")
+    except json.JSONDecodeError:
+        snapshot = {}
+
+    atendimento_snapshot = snapshot.get("atendimento") or {}
+    empresa_snapshot = snapshot.get("empresa") or {}
+    pet_snapshot = snapshot.get("pet") or {}
+    cliente_snapshot = snapshot.get("cliente") or {}
+    veterinario_snapshot = snapshot.get("veterinario") or {}
+    prontuario_snapshot = snapshot.get("prontuario") or {}
+
+    data_documento = receita_emitida.emitido_em or datetime.utcnow()
+    validacao_url = _montar_validacao_url(receita_emitida.codigo_verificacao)
+    qrcode_data_url = _gerar_qrcode_data_url(validacao_url)
+
+    return {
+        "receita_emitida": receita_emitida,
+        "atendimento": receita_emitida.atendimento,
+        "empresa": receita_emitida.empresa,
+        "empresa_logo_url": empresa_snapshot.get("logo_url") or _resolver_logo_empresa(receita_emitida.empresa),
+        "empresa_endereco_receita": empresa_snapshot.get("endereco_receita")
+        or _resolver_endereco_empresa_receita(receita_emitida.empresa),
+        "pet": receita_emitida.pet,
+        "cliente": receita_emitida.cliente,
+        "veterinario": receita_emitida.veterinario,
+        "veterinario_nome": veterinario_snapshot.get("nome") or _valor_texto_limpo(
+            getattr(receita_emitida.veterinario, "nome", None)
+        ),
+        "veterinario_crmv": veterinario_snapshot.get("crmv") or _valor_texto_limpo(
+            getattr(receita_emitida.veterinario, "crmv", None)
+        ),
+        "veterinario_telefone": veterinario_snapshot.get("telefone") or _valor_texto_limpo(
+            getattr(receita_emitida.veterinario, "telefone", None)
+        ),
+        "prontuario": prontuario_snapshot,
+        "receitas": snapshot.get("receitas") or [],
+        "receitas_descricao": snapshot.get("receitas_descricao") or [],
+        "receitas_orientacoes": snapshot.get("receitas_orientacoes") or [],
+        "receitas_completas": snapshot.get("receitas") or [],
+        "exames": snapshot.get("exames_solicitados") or [],
+        "exames_solicitados": snapshot.get("exames_solicitados") or [],
+        "diagnostico": prontuario_snapshot.get("diagnostico") or "",
+        "data_documento": data_documento,
+        "codigo_verificacao": receita_emitida.codigo_verificacao,
+        "hash_documento": receita_emitida.hash_documento,
+        "validacao_url": validacao_url,
+        "qrcode_data_url": qrcode_data_url,
+        "snapshot_receita": snapshot,
+        "atendimento_snapshot": atendimento_snapshot,
+        "pet_snapshot": pet_snapshot,
+        "cliente_snapshot": cliente_snapshot,
+    }
+
+
 def montar_contexto_receita_impressao(db: Session, atendimento_id: int) -> dict:
     atendimento = _get_atendimento_or_404(db, atendimento_id)
 
@@ -670,4 +1041,8 @@ def montar_contexto_receita_impressao(db: Session, atendimento_id: int) -> dict:
         "exames_solicitados": exames_solicitados,
         "diagnostico": diagnostico,
         "data_documento": data_documento,
+        "codigo_verificacao": None,
+        "hash_documento": None,
+        "validacao_url": None,
+        "qrcode_data_url": None,
     }

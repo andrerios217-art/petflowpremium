@@ -33,6 +33,7 @@ from app.models.pet_exame import PetExame
 from app.models.pet_medicacao import PetMedicacao
 from app.models.pet_prontuario import PetProntuario
 from app.models.pet_receita import PetReceita
+from app.models.pet_receita_emitida import PetReceitaEmitida
 from app.models.pet_vacina import PetVacina
 from app.models.pdv_pagamento import PdvPagamento
 from app.models.pdv_venda import PdvVenda
@@ -87,6 +88,7 @@ from app.models.pet_exame import PetExame
 from app.models.pet_medicacao import PetMedicacao
 from app.models.pet_prontuario import PetProntuario
 from app.models.pet_receita import PetReceita
+from app.models.pet_receita_emitida import PetReceitaEmitida
 from app.models.pet_vacina import PetVacina
 from app.models.pdv_pagamento import PdvPagamento
 from app.models.pdv_venda import PdvVenda

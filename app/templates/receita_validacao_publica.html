@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Validação de Receita Veterinária</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #f4f6fb;
+      --paper: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --soft: #f8fafc;
+      --brand: #0f172a;
+      --accent: #1d4ed8;
+      --success-bg: #ecfdf5;
+      --success-text: #065f46;
+      --success-line: #a7f3d0;
+      --danger-bg: #fef2f2;
+      --danger-text: #991b1b;
+      --danger-line: #fecaca;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+      background: var(--paper);
+      border-radius: 18px;
+      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.10);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 28px 32px 20px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.92) 0%, rgba(255, 255, 255, 1) 100%);
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      color: var(--brand);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .header p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .content {
+      padding: 24px 32px 32px;
+    }
+
+    .status-box,
+    .card,
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      min-width: 0;
+    }
+
+    .status-box {
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+
+    .status-box.valido {
+      background: var(--success-bg);
+      border-color: var(--success-line);
+    }
+
+    .status-box.invalido {
+      background: var(--danger-bg);
+      border-color: var(--danger-line);
+    }
+
+    .status-box h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .status-box.valido h2 {
+      color: var(--success-text);
+    }
+
+    .status-box.invalido h2 {
+      color: var(--danger-text);
+    }
+
+    .status-box p {
+      margin: 6px 0 0;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .card h3,
+    .section h2 {
+      margin: 0 0 10px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .card h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .card p,
+    .section p,
+    .section li {
+      margin: 5px 0;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .section {
+      padding: 20px;
+      margin-bottom: 16px;
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.72) 0%, rgba(255, 255, 255, 1) 100%);
+    }
+
+    .section h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .prescription-list {
+      margin: 0;
+      padding-left: 22px;
+    }
+
+    .prescription-list li {
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+    }
+
+    .prescription-list li::marker {
+      color: var(--accent);
+    }
+
+    .prescription-note {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed #cbd5e1;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .prescription-note strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .meta-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .meta-row {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+    }
+
+    .meta-row strong,
+    .meta-row span {
+      display: block;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .meta-row strong {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .meta-row span {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 12px;
+      }
+
+      .header,
+      .content {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <h1>Validação de Receita Veterinária</h1>
+      <p>
+        Esta página confirma se a receita consultada foi emitida eletronicamente pelo sistema e se o registro permanece válido.
+      </p>
+    </div>
+
+    <div class="content">
+      <div class="status-box {% if documento_valido %}valido{% else %}invalido{% endif %}">
+        {% if documento_valido %}
+          <h2>Documento válido</h2>
+          <p>
+            A receita com código <strong>{{ receita_emitida.codigo_verificacao }}</strong> foi localizada e permanece ativa no sistema.
+          </p>
+        {% else %}
+          <h2>Documento inválido ou cancelado</h2>
+          <p>
+            A receita com código <strong>{{ receita_emitida.codigo_verificacao if receita_emitida else codigo_consultado }}</strong>
+            foi localizada, porém está cancelada e não deve ser considerada válida.
+          </p>
+          {% if receita_emitida and receita_emitida.cancelado_motivo %}
+            <p><strong>Motivo do cancelamento:</strong> {{ receita_emitida.cancelado_motivo }}</p>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Dados da emissão</h3>
+          <p><strong>Código verificador:</strong> {{ receita_emitida.codigo_verificacao if receita_emitida else '-' }}</p>
+          <p><strong>Emitido em:</strong> {{ data_documento.strftime("%d/%m/%Y %H:%M") if data_documento else '-' }}</p>
+          <p><strong>Hash do documento:</strong> {{ hash_documento if hash_documento else '-' }}</p>
+          <p><strong>Atendimento:</strong> #{{ atendimento.id if atendimento else (atendimento_snapshot.id if atendimento_snapshot else '-') }}</p>
+        </div>
+
+        <div class="card">
+          <h3>Veterinário responsável</h3>
+          <p><strong>Nome:</strong> {{ veterinario_nome if veterinario_nome else '-' }}</p>
+          <p><strong>CRMV:</strong> {{ veterinario_crmv if veterinario_crmv else '-' }}</p>
+          <p><strong>Telefone:</strong> {{ veterinario_telefone if veterinario_telefone else '-' }}</p>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Pet</h3>
+          <p><strong>Nome:</strong> {{ pet.nome if pet and pet.nome else (pet_snapshot.nome if pet_snapshot and pet_snapshot.nome else '-') }}</p>
+          <p><strong>Raça:</strong> {{ pet.raca if pet and pet.raca else (pet_snapshot.raca if pet_snapshot and pet_snapshot.raca else '-') }}</p>
+          <p><strong>Sexo:</strong> {{ pet.sexo if pet and pet.sexo else (pet_snapshot.sexo if pet_snapshot and pet_snapshot.sexo else '-') }}</p>
+          <p><strong>Porte:</strong> {{ pet.porte if pet and pet.porte else (pet_snapshot.porte if pet_snapshot and pet_snapshot.porte else '-') }}</p>
+        </div>
+
+        <div class="card">
+          <h3>Responsável</h3>
+          <p><strong>Nome:</strong> {{ cliente.nome if cliente and cliente.nome else (cliente_snapshot.nome if cliente_snapshot and cliente_snapshot.nome else '-') }}</p>
+          <p><strong>Telefone:</strong> {{ cliente.telefone if cliente and cliente.telefone else (cliente_snapshot.telefone if cliente_snapshot and cliente_snapshot.telefone else '-') }}</p>
+          <p><strong>E-mail:</strong> {{ cliente.email if cliente and cliente.email else (cliente_snapshot.email if cliente_snapshot and cliente_snapshot.email else '-') }}</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Prescrição registrada na emissão</h2>
+
+        {% set possui_receita = receitas_descricao and receitas_descricao|length > 0 %}
+        {% set possui_orientacoes = receitas_orientacoes and receitas_orientacoes|length > 0 %}
+
+        {% if possui_receita %}
+          <ul class="prescription-list">
+            {% for item in receitas_descricao %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">Nenhuma prescrição registrada no snapshot emitido.</div>
+        {% endif %}
+
+        {% if possui_orientacoes %}
+          <div class="prescription-note">
+            <strong>Orientações de uso</strong>
+            {% for item in receitas_orientacoes %}
+{{ item }}{% if not loop.last %}
+
+{% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="section">
+        <h2>Metadados de autenticidade</h2>
+
+        <div class="meta-list">
+          <div class="meta-row">
+            <strong>Código verificador</strong>
+            <span>{{ receita_emitida.codigo_verificacao if receita_emitida else '-' }}</span>
+          </div>
+
+          <div class="meta-row">
+            <strong>Hash SHA-256 do snapshot</strong>
+            <span>{{ hash_documento if hash_documento else '-' }}</span>
+          </div>
+
+          <div class="meta-row">
+            <strong>Status atual</strong>
+            <span>{% if documento_valido %}ATIVO{% else %}CANCELADO{% endif %}</span>
+          </div>
+
+          {% if receita_emitida and receita_emitida.cancelado_em %}
+            <div class="meta-row">
+              <strong>Cancelado em</strong>
+              <span>{{ receita_emitida.cancelado_em.strftime("%d/%m/%Y %H:%M") }}</span>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if empresa_endereco_receita %}
+        <div class="section">
+          <h2>Endereço da clínica / loja</h2>
+          <p style="white-space: pre-wrap;">{{ empresa_endereco_receita }}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

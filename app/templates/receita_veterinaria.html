@@ -270,7 +270,7 @@
 
     .footer {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 200px;
+      grid-template-columns: minmax(0, 1fr) 220px;
       gap: 14px;
       padding: 0 32px 20px;
       align-items: stretch;
@@ -285,7 +285,7 @@
 
     .signature-line {
       width: 100%;
-      max-width: 320px;
+      max-width: 360px;
       border-top: 1px solid #111827;
       padding-top: 10px;
     }
@@ -323,6 +323,19 @@
       font-weight: 700;
       color: #0f172a;
       margin-top: 6px;
+      word-break: break-all;
+    }
+
+    .hash-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px dashed #cbd5e1;
+      background: #fff;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 10px;
+      line-height: 1.4;
+      color: #334155;
       word-break: break-all;
     }
 
@@ -537,7 +550,7 @@
       }
 
       .footer {
-        grid-template-columns: minmax(0, 1fr) 160px;
+        grid-template-columns: minmax(0, 1fr) 175px;
         gap: 10px;
         padding: 0 0 0;
       }
@@ -576,6 +589,11 @@
         padding: 5px 8px;
         font-size: 8pt;
         margin-top: 4px;
+      }
+
+      .hash-box {
+        font-size: 6.8pt;
+        padding: 6px 7px;
       }
 
       .qrcode-box {
@@ -648,13 +666,22 @@
           <div>
             <h1>Receita Veterinária</h1>
             <p>{{ empresa.nome if empresa and empresa.nome else 'PetFlow Premium' }}</p>
-            <p>Documento emitido pelo atendimento clínico.</p>
+            <p>
+              {% if receita_emitida %}
+                Documento emitido eletronicamente e congelado para validação auditável.
+              {% else %}
+                Documento emitido pelo atendimento clínico.
+              {% endif %}
+            </p>
           </div>
         </div>
 
         <div class="meta">
           <p><strong>Atendimento:</strong> #{{ atendimento.id if atendimento else '-' }}</p>
           <p><strong>Data:</strong> {{ data_documento.strftime("%d/%m/%Y %H:%M") if data_documento else '-' }}</p>
+          {% if receita_emitida %}
+            <p><strong>Emissão:</strong> #{{ receita_emitida.id }}</p>
+          {% endif %}
         </div>
       </div>
 
@@ -720,13 +747,21 @@
             <strong>{{ veterinario_nome if veterinario_nome else 'Veterinário responsável' }}</strong>
             <span>CRMV: {{ veterinario_crmv if veterinario_crmv else '-' }}</span>
             <span>Telefone: {{ veterinario_telefone if veterinario_telefone else '-' }}</span>
-            <span class="print-only">Assinado eletronicamente em {{ data_documento.strftime("%d/%m/%Y %H:%M") if data_documento else '-' }}</span>
+            <span class="print-only">
+              Assinado eletronicamente em {{ data_documento.strftime("%d/%m/%Y %H:%M") if data_documento else '-' }}
+            </span>
           </div>
         </div>
 
         <div class="auth-box">
           <h3>Autenticação</h3>
-          <p><strong>Assinatura eletrônica:</strong> documento emitido eletronicamente pelo sistema.</p>
+
+          {% if receita_emitida %}
+            <p><strong>Status:</strong> {% if receita_emitida.cancelado_em %}cancelado{% else %}ativo{% endif %}</p>
+          {% else %}
+            <p><strong>Assinatura eletrônica:</strong> documento emitido eletronicamente pelo sistema.</p>
+          {% endif %}
+
           <p><strong>Código verificador:</strong></p>
 
           <div class="verify-code">
@@ -735,6 +770,11 @@
 
           {% if validacao_url %}
             <p style="margin-top: 8px;"><strong>Validação:</strong><br>{{ validacao_url }}</p>
+          {% endif %}
+
+          {% if hash_documento %}
+            <p style="margin-top: 8px;"><strong>Hash do documento:</strong></p>
+            <div class="hash-box">{{ hash_documento }}</div>
           {% endif %}
 
           <div class="qrcode-box">

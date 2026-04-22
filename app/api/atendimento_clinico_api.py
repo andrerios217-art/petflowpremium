@@ -7,6 +7,7 @@ from app.core.deps import get_db
 from app.crud.atendimento_clinico import (
     adicionar_item,
     calcular_total_faturavel,
+    emitir_receita_veterinaria,
     finalizar_atendimento,
     gerar_payload_pdv,
     iniciar_atendimento,
@@ -14,7 +15,9 @@ from app.crud.atendimento_clinico import (
     listar_itens,
     marcar_enviado_pdv,
     montar_contexto_receita_impressao,
+    montar_contexto_receita_impressao_emitida,
     obter_atendimento,
+    obter_receita_emitida_por_codigo,
     salvar_anamnese,
     salvar_prontuario,
 )
@@ -67,6 +70,23 @@ def obter_atendimento_clinico(
     )
 
 
+@router.post("/{atendimento_id}/receita/emitir")
+def emitir_receita_clinica(
+    atendimento_id: int,
+    db: Session = Depends(get_db),
+):
+    receita_emitida = emitir_receita_veterinaria(db, atendimento_id)
+
+    return {
+        "ok": True,
+        "receita_emitida_id": receita_emitida.id,
+        "codigo_verificacao": receita_emitida.codigo_verificacao,
+        "hash_documento": receita_emitida.hash_documento,
+        "emitido_em": receita_emitida.emitido_em,
+        "cancelado_em": receita_emitida.cancelado_em,
+    }
+
+
 @router.get("/{atendimento_id}/receita/imprimir", response_class=HTMLResponse)
 def imprimir_receita_veterinaria(
     request: Request,
@@ -81,6 +101,46 @@ def imprimir_receita_veterinaria(
         {
             "request": request,
             **contexto,
+        },
+    )
+
+
+@router.get("/receita/emitida/{receita_emitida_id}/imprimir", response_class=HTMLResponse)
+def imprimir_receita_veterinaria_emitida(
+    request: Request,
+    receita_emitida_id: int,
+    db: Session = Depends(get_db),
+):
+    contexto = montar_contexto_receita_impressao_emitida(db, receita_emitida_id)
+
+    return templates.TemplateResponse(
+        request,
+        "receita_veterinaria.html",
+        {
+            "request": request,
+            **contexto,
+        },
+    )
+
+
+@router.get("/receita/validar", response_class=HTMLResponse)
+def validar_receita_veterinaria_publica(
+    request: Request,
+    codigo: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    receita_emitida = obter_receita_emitida_por_codigo(db, codigo)
+    contexto = montar_contexto_receita_impressao_emitida(db, receita_emitida.id)
+
+    return templates.TemplateResponse(
+        request,
+        "receita_validacao_publica.html",
+        {
+            "request": request,
+            **contexto,
+            "receita_emitida": receita_emitida,
+            "codigo_consultado": codigo,
+            "documento_valido": receita_emitida.cancelado_em is None,
         },
     )
 
