@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pet Flow Premium</title>
+  <title>{{ system_name if system_name else "VectorPet" }}</title>
 
   <script>
     (function () {
@@ -49,7 +49,7 @@
     <main class="main-content">
       <div class="topbar-global">
         <div class="topbar-global-left">
-          <span class="topbar-global-label">Pet Flow Premium</span>
+          <span class="topbar-global-label">{{ system_name if system_name else "VectorPet" }}</span>
         </div>
       </div>
 

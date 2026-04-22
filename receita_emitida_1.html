@@ -1,0 +1,787 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receita Veterinária</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #f4f6fb;
+      --paper: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --soft: #f8fafc;
+      --brand: #0f172a;
+      --accent: #1d4ed8;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      position: relative;
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--paper);
+      border-radius: 18px;
+      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.10);
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .watermark {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .watermark img {
+      width: 58%;
+      max-width: 420px;
+      max-height: 60%;
+      object-fit: contain;
+      opacity: 0.045;
+      filter: grayscale(100%);
+      transform: rotate(-18deg);
+    }
+
+    .page-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 28px 32px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .brand-logo {
+      width: 88px;
+      height: 88px;
+      object-fit: contain;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 8px;
+      flex-shrink: 0;
+    }
+
+    .brand-logo-placeholder {
+      width: 88px;
+      height: 88px;
+      border-radius: 14px;
+      border: 1px dashed #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 13px;
+      text-align: center;
+      padding: 8px;
+      background: #f8fafc;
+      flex-shrink: 0;
+    }
+
+    .brand h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      color: var(--brand);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .brand p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.45;
+    }
+
+    .meta {
+      text-align: right;
+      min-width: 220px;
+    }
+
+    .meta p {
+      margin: 4px 0;
+      font-size: 14px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .content {
+      padding: 24px 32px 8px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card,
+    .section,
+    .auth-box,
+    .signature-block,
+    .company-footer-box {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      min-width: 0;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .card h3,
+    .section h2,
+    .auth-box h3,
+    .company-footer-box h3 {
+      margin: 0 0 10px;
+      color: var(--text);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .card h3,
+    .auth-box h3,
+    .company-footer-box h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .card p,
+    .auth-box p,
+    .company-footer-box p {
+      margin: 5px 0;
+      font-size: 14px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.45;
+    }
+
+    .section {
+      padding: 20px;
+      margin-bottom: 16px;
+      min-width: 0;
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.72) 0%, rgba(255, 255, 255, 1) 100%);
+    }
+
+    .section h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .prescription-list {
+      margin: 0;
+      padding-left: 22px;
+      max-width: 100%;
+    }
+
+    .prescription-list li {
+      margin-bottom: 10px;
+      line-height: 1.55;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      max-width: 100%;
+      font-size: 15px;
+      color: var(--text);
+    }
+
+    .prescription-list li::marker {
+      color: var(--accent);
+    }
+
+    .prescription-note {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed #cbd5e1;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .prescription-note strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .company-footer-wrap {
+      padding: 0 32px 16px;
+    }
+
+    .company-footer-box {
+      padding: 14px 16px;
+      background: var(--soft);
+    }
+
+    .company-footer-box p {
+      white-space: pre-wrap;
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .footer {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
+      gap: 14px;
+      padding: 0 32px 20px;
+      align-items: stretch;
+    }
+
+    .signature-block {
+      padding: 16px;
+      min-height: 120px;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .signature-line {
+      width: 100%;
+      max-width: 360px;
+      border-top: 1px solid #111827;
+      padding-top: 10px;
+    }
+
+    .signature-line strong,
+    .signature-line span {
+      display: block;
+      margin-top: 4px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.35;
+      font-size: 13px;
+    }
+
+    .auth-box {
+      padding: 14px;
+      background: var(--soft);
+    }
+
+    .auth-box p {
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .verify-code {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px dashed #94a3b8;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 6px;
+      word-break: break-all;
+    }
+
+    .hash-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px dashed #cbd5e1;
+      background: #fff;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 10px;
+      line-height: 1.4;
+      color: #334155;
+      word-break: break-all;
+    }
+
+    .qrcode-box {
+      margin-top: 10px;
+      width: 110px;
+      height: 110px;
+      border-radius: 10px;
+      border: 1px dashed #cbd5e1;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .qrcode-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .qrcode-placeholder {
+      padding: 8px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.3;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 32px 24px;
+    }
+
+    .print-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      background: #111827;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .screen-only {
+      display: block;
+    }
+
+    .print-only {
+      display: none;
+    }
+
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+
+    @media print {
+      html, body {
+        background: #fff;
+        padding: 0;
+        margin: 0;
+        color: #111827;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body {
+        font-size: 11px;
+      }
+
+      .page {
+        max-width: none;
+        width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: visible;
+      }
+
+      .actions,
+      .screen-only {
+        display: none !important;
+      }
+
+      .print-only {
+        display: block !important;
+      }
+
+      .header {
+        padding: 0 0 10px 0;
+        gap: 14px;
+      }
+
+      .brand {
+        gap: 10px;
+      }
+
+      .brand-logo,
+      .brand-logo-placeholder {
+        width: 58px;
+        height: 58px;
+        border-radius: 10px;
+        padding: 5px;
+      }
+
+      .brand h1 {
+        font-size: 14pt;
+        margin: 0 0 3px;
+      }
+
+      .brand p,
+      .meta p {
+        font-size: 8.8pt;
+        line-height: 1.25;
+      }
+
+      .meta {
+        min-width: 150px;
+      }
+
+      .meta p {
+        margin: 2px 0;
+      }
+
+      .content {
+        padding: 10px 0 0;
+      }
+
+      .grid {
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .card,
+      .section,
+      .auth-box,
+      .signature-block,
+      .company-footer-box {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .card {
+        padding: 10px 12px;
+        border-radius: 12px;
+      }
+
+      .card h3,
+      .auth-box h3,
+      .section h2,
+      .company-footer-box h3 {
+        margin-bottom: 7px;
+      }
+
+      .card h3,
+      .auth-box h3,
+      .company-footer-box h3 {
+        font-size: 8pt;
+        letter-spacing: 0.08em;
+      }
+
+      .card p {
+        margin: 3px 0;
+        font-size: 8.8pt;
+        line-height: 1.28;
+      }
+
+      .section {
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        border-radius: 12px;
+      }
+
+      .section h2 {
+        font-size: 8.2pt;
+        margin-bottom: 9px;
+      }
+
+      .prescription-list {
+        padding-left: 18px;
+      }
+
+      .prescription-list li {
+        font-size: 9pt;
+        line-height: 1.35;
+        margin-bottom: 6px;
+      }
+
+      .prescription-note {
+        margin-top: 8px;
+        padding-top: 8px;
+        font-size: 8.2pt;
+        line-height: 1.35;
+      }
+
+      .company-footer-wrap {
+        padding: 0 0 10px;
+      }
+
+      .company-footer-box {
+        padding: 10px 12px;
+        border-radius: 12px;
+      }
+
+      .company-footer-box p {
+        font-size: 8.2pt;
+        line-height: 1.35;
+      }
+
+      .footer {
+        grid-template-columns: minmax(0, 1fr) 175px;
+        gap: 10px;
+        padding: 0 0 0;
+      }
+
+      .signature-block {
+        padding: 10px 12px;
+        min-height: 82px;
+        border-radius: 12px;
+      }
+
+      .signature-line {
+        max-width: 250px;
+        padding-top: 8px;
+      }
+
+      .signature-line strong,
+      .signature-line span {
+        margin-top: 3px;
+        font-size: 8.4pt;
+        line-height: 1.25;
+      }
+
+      .auth-box {
+        padding: 10px;
+        border-radius: 12px;
+      }
+
+      .auth-box p {
+        margin: 4px 0;
+        font-size: 7.8pt;
+        line-height: 1.3;
+      }
+
+      .verify-code {
+        min-height: 28px;
+        padding: 5px 8px;
+        font-size: 8pt;
+        margin-top: 4px;
+      }
+
+      .hash-box {
+        font-size: 6.8pt;
+        padding: 6px 7px;
+      }
+
+      .qrcode-box {
+        margin-top: 8px;
+        width: 82px;
+        height: 82px;
+      }
+
+      .qrcode-placeholder {
+        font-size: 7pt;
+        line-height: 1.15;
+        padding: 5px;
+      }
+
+      .watermark img {
+        opacity: 0.035;
+        max-width: 300px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 12px;
+      }
+
+      .header {
+        flex-direction: column;
+      }
+
+      .meta {
+        text-align: left;
+      }
+
+      .grid,
+      .footer {
+        grid-template-columns: 1fr;
+      }
+
+      .content,
+      .actions,
+      .footer,
+      .company-footer-wrap {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .header {
+        padding: 22px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    
+      <div class="watermark" aria-hidden="true">
+        <img src="/static/uploads/empresas/empresa_1_d9147fd001d84bf2968c912c80174437.png" alt="Marca d'água da empresa">
+      </div>
+    
+
+    <div class="page-inner">
+      <div class="header">
+        <div class="brand">
+          
+            <img src="/static/uploads/empresas/empresa_1_d9147fd001d84bf2968c912c80174437.png" alt="Logo da empresa" class="brand-logo">
+          
+
+          <div>
+            <h1>Receita Veterinária</h1>
+            <p>Pet Flow Premium</p>
+            <p>
+              
+                Documento emitido eletronicamente e congelado para validação auditável.
+              
+            </p>
+          </div>
+        </div>
+
+        <div class="meta">
+          <p><strong>Atendimento:</strong> #40</p>
+          <p><strong>Data:</strong> 22/04/2026 16:21</p>
+          
+            <p><strong>Emissão:</strong> #1</p>
+          
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="grid">
+          <div class="card">
+            <h3>Dados do Pet</h3>
+            <p><strong>Nome:</strong> tutu</p>
+            <p><strong>Raça:</strong> lulu</p>
+            <p><strong>Sexo:</strong> femea</p>
+            <p><strong>Porte:</strong> G1</p>
+          </div>
+
+          <div class="card">
+            <h3>Responsável</h3>
+            <p><strong>Nome:</strong> Lara Rios</p>
+            <p><strong>Telefone:</strong> 11963296864</p>
+            <p><strong>E-mail:</strong> pamelalais36@outlook.com.br</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Prescrição</h2>
+
+          
+          
+
+          
+            <ul class="prescription-list">
+              
+                <li>zvzxvzxvzxvzxvzxvzxvzxvzxvzxvxvvzxvzxvzxvzxvzxvvzxvzxvz</li>
+              
+            </ul>
+          
+
+          
+            <div class="prescription-note">
+              <strong>Orientações de uso</strong>
+              
+zvzxvzxvzxvzxvzxvzxvzxvzxvzxvxvvzxvzxvzxvzxvzxvvzxvzxvz
+              
+            </div>
+          
+        </div>
+      </div>
+
+      
+        <div class="company-footer-wrap">
+          <div class="company-footer-box">
+            <h3>Endereço da clínica / loja</h3>
+            <p>AVENIDA JACUTINGA, 21
+INDIANOPOLIS
+SAO PAULO / SP
+04515-030</p>
+          </div>
+        </div>
+      
+
+      <div class="footer">
+        <div class="signature-block">
+          <div class="signature-line">
+            <strong>lara Rios</strong>
+            <span>CRMV: 50881</span>
+            <span>Telefone: 11963296866</span>
+            <span class="print-only">
+              Assinado eletronicamente em 22/04/2026 16:21
+            </span>
+          </div>
+        </div>
+
+        <div class="auth-box">
+          <h3>Autenticação</h3>
+
+          
+            <p><strong>Status:</strong> ativo</p>
+          
+
+          <p><strong>Código verificador:</strong></p>
+
+          <div class="verify-code">
+            33A63099B2ACB6F0
+          </div>
+
+          
+            <p style="margin-top: 8px;"><strong>Validação:</strong><br>/api/clinico/receita/validar?codigo=33A63099B2ACB6F0</p>
+          
+
+          
+            <p style="margin-top: 8px;"><strong>Hash do documento:</strong></p>
+            <div class="hash-box">4aa8c3a37260c95a2475d692b7f6e0c05aaee2eb8b512b67e9d7678ec95d5b39</div>
+          
+
+          <div class="qrcode-box">
+            
+              <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASgAAAEoAQAAAADDfFG0AAAB80lEQVR4nO1ay47EMAizV/3/X/YeDDTducypIC3MpQ9LYyFCjFMKX8TPN6BFLeojLoC+EgiBAiHmg3gzlX1LviAgssbIkehlmm+msu/JFwgIcI4EggCdMr8Zy74b5aUoQap1OoHXHNR13lCUmE2slddU1AWgUiMoU6V80sRrKgo6kvXxS8hU9i31VQuPIKLtu9vXm6ns30dR4CG38hLPm6nsu/oXrVZDRMQlrDLA1at/UITIFGCEl6ME0emazf5VVAj5W0HUAyrU/ubriSJdXNGu6MZPeJqUdh46Q5JKPlhDqMSE/Gz1RAWFMiSiou7VSdHKYir7pv5F4dwYo20du+RU9j39C2BIVRcaISkNHrXxGonyvB2iNefGlBSMNTmWfds8xJATYeigvFat/npEadRwcdyzSlqIOw894mM/RBZcqtetr0ekn/OwccoA81i0+uuBEtJ9joHRWUI4FFtfR3h/tDEhSscZEcQUZlPZN6HkymKdDSktMLqljWb/KurC2a9CeIW342LT+l9H8DjFRgxEiJnoNg2nsu/JVygHNzGWHV0KY+vrjuN8O0ZI1DcB5YeNZd+McopIQfdcNIDXINR5vu1RCGGKhbRYPfGJks7TxnJ10j4czv5V1IX6sCQ/mRCl2BtjqxzLvsufePMfF/WfUL86NxQp6d097QAAAABJRU5ErkJggg==" alt="QR Code de validação da receita">
+            
+          </div>
+        </div>
+      </div>
+
+      <div class="actions screen-only">
+        <button type="button" class="print-btn" onclick="window.print()">Imprimir receita</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

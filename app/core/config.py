@@ -2,7 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Pet Flow Premium"
+    APP_NAME: str = "VectorPet"
+    APP_TAGLINE: str = "gestão completa para pet shops"
     APP_ENV: str = "development"
 
     SECRET_KEY: str = "troque-essa-chave"

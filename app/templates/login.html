@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login | Pet Flow Premium</title>
+  <title>Login | {{ system_name if system_name else "VectorPet" }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,8 +13,8 @@
   <div class="premium-login-shell">
     <section class="premium-login-left">
       <div class="premium-brand-badge">🐾</div>
-      <span class="premium-kicker">Petshop • Clínica • Gestão • CRM</span>
-      <h1>Pet Flow Premium</h1>
+      <span class="premium-kicker">{{ system_tagline if system_tagline else "gestão completa para pet shops" }}</span>
+      <h1>{{ system_name if system_name else "VectorPet" }}</h1>
       <p>
         Controle completo da operação, agenda, produção, financeiro, CRM e relacionamento
         com clientes em uma experiência fluida e moderna.
@@ -48,7 +48,7 @@
 
         <form id="login-form" class="premium-login-form">
           <label for="email">E-mail</label>
-          <input type="email" id="email" placeholder="admin@petflow.com" required />
+          <input type="email" id="email" placeholder="admin@vectorpet.com" required />
 
           <label for="senha">Senha</label>
           <input type="password" id="senha" placeholder="••••••••" required />

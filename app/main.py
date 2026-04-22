@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.core.config import settings
 from app.core.database import Base, engine
 from app.models import *  # noqa
 import app.models  # noqa
@@ -33,10 +34,13 @@ from app.api.relatorios_banho_tosa_api import router as relatorios_banho_tosa_ro
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Pet Flow Premium", version="1.0.0")
+app = FastAPI(title=settings.APP_NAME, version="1.0.0")
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
+
+templates.env.globals["system_name"] = settings.APP_NAME
+templates.env.globals["system_tagline"] = settings.APP_TAGLINE
 
 app.include_router(auth.router)
 app.include_router(empresas.router)

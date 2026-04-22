@@ -14,13 +14,13 @@ from app.crud.atendimento_clinico import (
     iniciar_por_agendamento,
     listar_itens,
     marcar_enviado_pdv,
-    montar_contexto_receita_impressao,
     montar_contexto_receita_impressao_emitida,
     obter_atendimento,
     obter_receita_emitida_por_codigo,
     salvar_anamnese,
     salvar_prontuario,
 )
+from app.models.pet_receita_emitida import PetReceitaEmitida
 from app.schemas.atendimento_clinico import (
     AtendimentoClinicoAnamneseSalvar,
     AtendimentoClinicoDetalheResponse,
@@ -93,7 +93,20 @@ def imprimir_receita_veterinaria(
     atendimento_id: int,
     db: Session = Depends(get_db),
 ):
-    contexto = montar_contexto_receita_impressao(db, atendimento_id)
+    receita_emitida = (
+        db.query(PetReceitaEmitida)
+        .filter(
+            PetReceitaEmitida.atendimento_id == atendimento_id,
+            PetReceitaEmitida.cancelado_em.is_(None),
+        )
+        .order_by(PetReceitaEmitida.id.desc())
+        .first()
+    )
+
+    if not receita_emitida:
+        receita_emitida = emitir_receita_veterinaria(db, atendimento_id)
+
+    contexto = montar_contexto_receita_impressao_emitida(db, receita_emitida.id)
 
     return templates.TemplateResponse(
         request,
