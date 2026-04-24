@@ -335,8 +335,8 @@ def _validar_atendimento_disponivel_para_pdv(db: Session, atendimento: Atendimen
         raise HTTPException(status_code=400, detail="Atendimento não está finalizado para envio ao PDV.")
     if atendimento.enviado_pdv:
         raise HTTPException(status_code=400, detail="Atendimento já foi enviado ao PDV.")
-    if venda.modo_cliente != "REGISTERED_CLIENT":
-        raise HTTPException(status_code=400, detail="Venda balcão não aceita itens de serviço.")
+    if not venda.cliente_id:
+        raise HTTPException(status_code=400, detail="Selecione um cliente na venda antes de adicionar serviço.")
     if venda.cliente_id != atendimento.cliente_id:
         raise HTTPException(status_code=400, detail="Atendimento pertence a um cliente diferente da venda atual.")
 
@@ -354,11 +354,14 @@ def _validar_atendimento_disponivel_para_pdv(db: Session, atendimento: Atendimen
 
 
 def _atualizar_snapshots_cliente(venda: PdvVenda):
-    if venda.modo_cliente != "REGISTERED_CLIENT" or not venda.cliente:
+    if venda.cliente:
+        venda.nome_cliente_snapshot = getattr(venda.cliente, "nome", None)
+        venda.telefone_cliente_snapshot = getattr(venda.cliente, "telefone", None)
+        venda.updated_at = _agora_utc()
         return
-    venda.nome_cliente_snapshot = getattr(venda.cliente, "nome", None)
-    venda.telefone_cliente_snapshot = getattr(venda.cliente, "telefone", None)
-    venda.updated_at = _agora_utc()
+
+    if venda.modo_cliente == "WALK_IN":
+        venda.updated_at = _agora_utc()
 
 
 def _gerar_financeiro_recebido_para_venda(db: Session, venda: PdvVenda, forma_pagamento: str, valor: Decimal):
@@ -489,6 +492,27 @@ def _buscar_saldo_for_update(
         .with_for_update()
         .first()
     )
+
+
+def _calcular_estoque_atual_produto(db: Session, empresa_id: int, produto_id: int) -> Decimal:
+    saldos = (
+        db.query(EstoqueSaldo)
+        .filter(
+            EstoqueSaldo.empresa_id == empresa_id,
+            EstoqueSaldo.produto_id == produto_id,
+        )
+        .all()
+    )
+    total = Decimal("0.000")
+    for saldo in saldos:
+        total += Decimal(str(getattr(saldo, "quantidade_atual", 0) or 0))
+    return _decimal_3(total)
+
+
+def _anexar_estoque_atual_produtos(db: Session, produtos: list[Produto]) -> list[Produto]:
+    for produto in produtos:
+        produto.estoque_atual = _calcular_estoque_atual_produto(db, produto.empresa_id, produto.id)
+    return produtos
 
 
 def _itens_produto_para_baixa(venda: PdvVenda) -> list[PdvVendaItem]:
@@ -703,7 +727,7 @@ def buscar_produtos(db: Session, empresa_id: int, termo: str, limite: int = 20) 
 
     candidatos = query.all()
     encontrados = [p for p in candidatos if _match_produto(p, tokens)]
-    return encontrados[:limite]
+    return _anexar_estoque_atual_produtos(db, encontrados[:limite])
 
 
 def listar_atendimentos_prontos(db: Session, empresa_id: int, cliente_id: int | None = None):
@@ -868,17 +892,23 @@ def criar_venda(db: Session, payload: PdvVendaCreate) -> PdvVenda:
         updated_at=_agora_utc(),
     )
 
-    if payload.modo_cliente == "REGISTERED_CLIENT":
+    cliente = None
+    if payload.cliente_id:
         cliente = _get_cliente_or_404(db, payload.cliente_id)
         if getattr(cliente, "empresa_id", None) != payload.empresa_id:
             raise HTTPException(status_code=400, detail="O cliente informado não pertence à empresa informada.")
+
+    if payload.modo_cliente == "REGISTERED_CLIENT":
+        if not cliente:
+            raise HTTPException(status_code=400, detail="cliente_id é obrigatório para venda com cliente cadastrado.")
         venda.definir_cliente_cadastrado(cliente.id)
         venda.nome_cliente_snapshot = getattr(cliente, "nome", None)
         venda.telefone_cliente_snapshot = getattr(cliente, "telefone", None)
     else:
         venda.definir_como_balcao(
-            nome_cliente_snapshot=payload.nome_cliente_snapshot,
-            telefone_cliente_snapshot=payload.telefone_cliente_snapshot,
+            nome_cliente_snapshot=payload.nome_cliente_snapshot or getattr(cliente, "nome", None),
+            telefone_cliente_snapshot=payload.telefone_cliente_snapshot or getattr(cliente, "telefone", None),
+            cliente_id=getattr(cliente, "id", None),
         )
 
     db.add(venda)
@@ -1072,8 +1102,8 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
 
     cliente_cashback = None
     if usar_cashback or valor_cashback_utilizado > Decimal("0.00"):
-        if venda.modo_cliente != "REGISTERED_CLIENT" or not venda.cliente_id:
-            raise HTTPException(status_code=400, detail="Cashback só pode ser usado em venda com cliente cadastrado.")
+        if not venda.cliente_id:
+            raise HTTPException(status_code=400, detail="Cashback só pode ser usado em venda com cliente vinculado.")
 
         if not cashback_config or not getattr(cashback_config, "permite_uso_no_pdv", False):
             raise HTTPException(status_code=400, detail="Uso de cashback não está habilitado para esta empresa.")
@@ -1128,7 +1158,7 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
                 atendimento.updated_at = _agora_utc()
                 db.add(atendimento)
 
-        venda.fechar(usuario_fechamento_id=usuario_fechamento_id)
+        venda.fechar(usuario_id=usuario_fechamento_id)
         db.add(venda)
 
         db.commit()
@@ -1192,7 +1222,6 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
 
     if (
         cashback_config
-        and venda.modo_cliente == "REGISTERED_CLIENT"
         and venda.cliente_id
         and Decimal(str(getattr(cashback_config, "percentual_cashback", 0) or 0)) > Decimal("0.00")
         and total_a_pagar >= _decimal_2(getattr(cashback_config, "valor_minimo_venda", Decimal("0.00")))
@@ -1223,7 +1252,7 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
                     observacao=f"Cashback gerado pela venda {venda.numero_venda or venda.id}",
                 )
 
-    venda.fechar(usuario_fechamento_id=pagamento.usuario_id)
+    venda.fechar(usuario_id=pagamento.usuario_id)
     db.add(venda)
 
     db.commit()
@@ -1315,8 +1344,8 @@ def cancelar_venda(db: Session, venda_id: int, payload: PdvCancelRequest) -> Pdv
                 )
 
     venda.cancelar(
-        motivo_cancelamento=payload.motivo_cancelamento,
-        usuario_cancelamento_id=payload.usuario_cancelamento_id,
+        motivo=payload.motivo_cancelamento,
+        usuario_id=payload.usuario_cancelamento_id,
     )
     db.add(venda)
 

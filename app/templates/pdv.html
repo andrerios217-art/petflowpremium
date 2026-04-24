@@ -57,12 +57,15 @@
         <div class="pdv-card__header">
           <div>
             <h2>Venda atual</h2>
-            <p>Venda rápida com busca única de produto e pagamento integral.</p>
+            <p>Venda rápida com cliente opcional, busca de produto enxuta e pagamento integral.</p>
           </div>
 
           <div class="pdv-venda-actions">
             <button type="button" id="btn-venda-balcao" class="pdv-btn pdv-btn-primary">
-              Venda balcão
+              Venda sem cliente
+            </button>
+            <button type="button" id="btn-venda-com-cliente" class="pdv-btn">
+              Venda com cliente
             </button>
             <button type="button" id="btn-cancelar-venda" class="pdv-btn pdv-btn-danger">
               Cancelar venda
@@ -73,7 +76,7 @@
         <div class="pdv-venda-headline">
           <div>
             <strong id="pdv-venda-cliente">Nenhuma venda iniciada</strong>
-            <p id="pdv-venda-meta">Abra uma venda balcão ou puxe da produção.</p>
+            <p id="pdv-venda-meta">Abra uma venda, vincule um cliente se necessário ou puxe da produção.</p>
           </div>
           <div class="pdv-venda-badges">
             <span id="pdv-venda-numero" class="pdv-badge">Sem venda</span>
@@ -81,24 +84,57 @@
           </div>
         </div>
 
-        <div class="pdv-search-row">
+        <div id="pdv-cliente-vinculado-box" class="pdv-inline-note pdv-hidden">
+          <div class="pdv-cliente-vinculado-content">
+            <div>
+              <span class="pdv-label">Cliente vinculado</span>
+              <strong id="pdv-cliente-vinculado-nome">-</strong>
+            </div>
+            <button type="button" id="btn-remover-cliente-venda" class="pdv-btn pdv-btn-danger">
+              Remover cliente
+            </button>
+          </div>
+        </div>
+
+        <div class="pdv-search-row pdv-search-row-clientes">
           <div class="pdv-field pdv-field-small">
             <label for="pdv-empresa-id">Empresa ID</label>
             <input type="number" id="pdv-empresa-id" value="1" min="1" />
           </div>
 
           <div class="pdv-field pdv-field-grow">
-            <label for="pdv-busca-produto">Produto / cliente</label>
+            <label for="pdv-busca-cliente">Buscar cliente</label>
             <input
               type="text"
-              id="pdv-busca-produto"
-              placeholder="Busque cliente para iniciar venda ou produto para adicionar item"
+              id="pdv-busca-cliente"
+              placeholder="Busque por nome, CPF ou telefone"
             />
           </div>
 
           <div class="pdv-search-action">
+            <button type="button" id="btn-buscar-cliente" class="pdv-btn">
+              Buscar cliente
+            </button>
+          </div>
+        </div>
+
+        <div id="pdv-clientes-resultado" class="pdv-results-panel pdv-hidden">
+          <div class="pdv-empty-state">Nenhum cliente pesquisado.</div>
+        </div>
+
+        <div class="pdv-search-row">
+          <div class="pdv-field pdv-field-small">
+            <label for="pdv-busca-produto">Produto</label>
+            <input
+              type="text"
+              id="pdv-busca-produto"
+              placeholder="Busque por nome do produto"
+            />
+          </div>
+
+          <div class="pdv-search-action pdv-search-action-grow">
             <button type="button" id="btn-buscar-produto" class="pdv-btn">
-              Buscar
+              Buscar produto
             </button>
           </div>
         </div>
@@ -215,7 +251,7 @@
         <div class="pdv-card__header">
           <div>
             <h2>Atendimentos veterinários prontos</h2>
-            <p>Adicione na venda como serviço (cliente cadastrado).</p>
+            <p>Adicione na venda como serviço (cliente cadastrado ou vinculado).</p>
           </div>
 
           <button type="button" id="btn-atualizar-atendimentos" class="pdv-btn">
@@ -819,6 +855,10 @@
       align-items: end;
     }
 
+    .pdv-search-row-clientes {
+      grid-template-columns: 140px minmax(0, 1fr) 160px;
+    }
+
     .pdv-payment-row {
       grid-template-columns: minmax(0, 1fr) 180px 180px;
     }
@@ -842,6 +882,10 @@
     }
 
     .pdv-field-grow {
+      min-width: 0;
+    }
+
+    .pdv-field-small {
       min-width: 0;
     }
 
@@ -869,6 +913,10 @@
     .pdv-search-action {
       display: flex;
       align-items: end;
+    }
+
+    .pdv-search-action-grow {
+      justify-content: flex-start;
     }
 
     .pdv-search-action .pdv-btn {
@@ -907,6 +955,21 @@
     .pdv-inline-note {
       color: #64748b;
       font-size: 0.92rem;
+    }
+
+    .pdv-inline-note {
+      margin-bottom: 12px;
+    }
+
+    .pdv-cliente-vinculado-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid #dbeafe;
+      border-radius: 14px;
+      background: #eff6ff;
     }
 
     .pdv-alert {
@@ -970,6 +1033,47 @@
     .pdv-selection-selected {
       border-color: #0f172a;
       background: #f1f5f9;
+    }
+
+    .pdv-produto-card,
+    .pdv-cliente-card,
+    .pdv-cart-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f8fafc;
+      margin-bottom: 10px;
+    }
+
+    .pdv-produto-card:last-child,
+    .pdv-cliente-card:last-child,
+    .pdv-cart-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .pdv-produto-principal,
+    .pdv-cliente-principal,
+    .pdv-cart-principal {
+      min-width: 0;
+    }
+
+    .pdv-produto-principal strong,
+    .pdv-cliente-principal strong,
+    .pdv-cart-principal strong {
+      display: block;
+      color: #0f172a;
+    }
+
+    .pdv-produto-meta,
+    .pdv-cliente-meta,
+    .pdv-cart-meta {
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 0.9rem;
     }
 
     .pdv-modal-overlay {
@@ -1058,7 +1162,11 @@
       .pdv-venda-headline,
       .pdv-card__header,
       .pdv-modal__header,
-      .pdv-modal__footer {
+      .pdv-modal__footer,
+      .pdv-cliente-vinculado-content,
+      .pdv-produto-card,
+      .pdv-cliente-card,
+      .pdv-cart-item {
         flex-direction: column;
         align-items: stretch;
       }

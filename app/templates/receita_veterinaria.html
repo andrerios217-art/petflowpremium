@@ -665,7 +665,7 @@
 
           <div>
             <h1>Receita Veterinária</h1>
-            <p>{{ empresa.nome if empresa and empresa.nome else 'PetFlow Premium' }}</p>
+            <p>{{ system_name if system_name else "VectorPet" }}</p>
             <p>
               {% if receita_emitida %}
                 Documento emitido eletronicamente e congelado para validação auditável.

@@ -26,7 +26,6 @@ class PdvVenda(Base):
     id = Column(Integer, primary_key=True, index=True)
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
 
-    # Toda venda pertence a uma sessão de caixa
     caixa_sessao_id = Column(
         Integer,
         ForeignKey("caixa_sessoes.id"),
@@ -34,29 +33,15 @@ class PdvVenda(Base):
         index=True,
     )
 
-    # Modo da venda:
-    # - REGISTERED_CLIENT = cliente cadastrado
-    # - WALK_IN = venda balcão
     cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True, index=True)
     modo_cliente = Column(String(30), nullable=False, default="WALK_IN", index=True)
 
-    # Número amigável para operação/consulta
     numero_venda = Column(String(30), nullable=True, index=True)
 
-    # Snapshots para venda balcão ou histórico da venda
     nome_cliente_snapshot = Column(String(150), nullable=True)
     telefone_cliente_snapshot = Column(String(20), nullable=True)
 
-    # Origem da venda:
-    # - PRODUCT_ONLY
-    # - SERVICE_ONLY
-    # - MIXED
     origem = Column(String(30), nullable=False, default="PRODUCT_ONLY", index=True)
-
-    # Status da venda:
-    # - ABERTA
-    # - FECHADA
-    # - CANCELADA
     status = Column(String(20), nullable=False, default="ABERTA", index=True)
 
     subtotal = Column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
@@ -105,12 +90,6 @@ class PdvVenda(Base):
             "acrescimo_valor >= 0", name="ck_pdv_vendas_acrescimo_non_negative"
         ),
         CheckConstraint("valor_total >= 0", name="ck_pdv_vendas_total_non_negative"),
-        CheckConstraint(
-            "(modo_cliente = 'REGISTERED_CLIENT' AND cliente_id IS NOT NULL) "
-            "OR "
-            "(modo_cliente = 'WALK_IN' AND cliente_id IS NULL)",
-            name="ck_pdv_vendas_cliente_por_modo",
-        ),
     )
 
     empresa = relationship("Empresa")
@@ -138,11 +117,11 @@ class PdvVenda(Base):
 
     @property
     def possui_cliente_cadastrado(self) -> bool:
-        return self.modo_cliente == "REGISTERED_CLIENT" and self.cliente_id is not None
+        return self.cliente_id is not None
 
     @property
     def pode_receber_atendimentos(self) -> bool:
-        return self.modo_cliente == "REGISTERED_CLIENT"
+        return self.cliente_id is not None
 
     @property
     def esta_aberta(self) -> bool:
@@ -165,9 +144,10 @@ class PdvVenda(Base):
         self,
         nome_cliente_snapshot: str | None = None,
         telefone_cliente_snapshot: str | None = None,
+        cliente_id: int | None = None,
     ):
         self.modo_cliente = "WALK_IN"
-        self.cliente_id = None
+        self.cliente_id = cliente_id
         self.nome_cliente_snapshot = nome_cliente_snapshot
         self.telefone_cliente_snapshot = telefone_cliente_snapshot
         self.updated_at = _agora_utc()
@@ -191,38 +171,15 @@ class PdvVenda(Base):
         self.valor_total = total
         self.updated_at = _agora_utc()
 
-        self._atualizar_origem()
-
-    def _atualizar_origem(self):
-        possui_produto = False
-        possui_servico = False
-
-        for item in self.itens or []:
-            if item.tipo_item == "PRODUCT":
-                possui_produto = True
-            elif item.tipo_item == "SERVICE":
-                possui_servico = True
-
-        if possui_produto and possui_servico:
-            self.origem = "MIXED"
-        elif possui_servico:
-            self.origem = "SERVICE_ONLY"
-        else:
-            self.origem = "PRODUCT_ONLY"
-
-    def fechar(self, usuario_fechamento_id: int | None = None):
+    def fechar(self, usuario_id: int | None = None):
         self.status = "FECHADA"
-        self.usuario_fechamento_id = usuario_fechamento_id
+        self.usuario_fechamento_id = usuario_id
         self.fechada_em = _agora_utc()
         self.updated_at = _agora_utc()
 
-    def cancelar(
-        self,
-        motivo_cancelamento: str | None = None,
-        usuario_cancelamento_id: int | None = None,
-    ):
+    def cancelar(self, motivo: str | None = None, usuario_id: int | None = None):
         self.status = "CANCELADA"
-        self.motivo_cancelamento = motivo_cancelamento
-        self.usuario_cancelamento_id = usuario_cancelamento_id
+        self.motivo_cancelamento = motivo
+        self.usuario_cancelamento_id = usuario_id
         self.cancelada_em = _agora_utc()
         self.updated_at = _agora_utc()

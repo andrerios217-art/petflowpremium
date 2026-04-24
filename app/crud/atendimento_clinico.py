@@ -715,13 +715,6 @@ def salvar_prontuario(
     if hasattr(atendimento, "observacoes_clinicas"):
         atendimento.observacoes_clinicas = payload.observacoes
 
-    if hasattr(atendimento, "status"):
-        atendimento.status = "FINALIZADO"
-
-    if hasattr(atendimento, "data_fim"):
-        atendimento.data_fim = datetime.utcnow()
-
-    _finalizar_agendamento_vinculado_se_existir(atendimento)
     _touch_updated_at(atendimento)
 
     db.commit()
@@ -743,17 +736,30 @@ def adicionar_item(
             detail="Não é possível incluir itens em atendimento finalizado.",
         )
 
+    valor_unitario = float(payload.valor_unitario or 0)
+
     if payload.servico_id:
         servico = db.query(Servico).filter(Servico.id == payload.servico_id).first()
         if not servico:
             raise HTTPException(status_code=404, detail="Serviço não encontrado.")
+
+        preco_servico = (
+            getattr(servico, "venda", None)
+            or getattr(servico, "valor", None)
+            or getattr(servico, "preco", None)
+            or 0
+        )
+        preco_servico = float(preco_servico or 0)
+
+        if valor_unitario <= 0:
+            valor_unitario = preco_servico
 
     item = AtendimentoClinicoItem(
         atendimento_id=atendimento.id,
         servico_id=payload.servico_id,
         descricao=payload.descricao,
         quantidade=payload.quantidade,
-        valor_unitario=payload.valor_unitario,
+        valor_unitario=valor_unitario,
         tipo_item=payload.tipo_item,
         created_at=datetime.utcnow(),
     )
@@ -761,7 +767,7 @@ def adicionar_item(
     if hasattr(item, "calcular_total") and callable(item.calcular_total):
         item.calcular_total()
     else:
-        item.valor_total = (payload.quantidade or 0) * (payload.valor_unitario or 0)
+        item.valor_total = (payload.quantidade or 0) * (valor_unitario or 0)
 
     db.add(item)
 

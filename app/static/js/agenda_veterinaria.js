@@ -1150,6 +1150,52 @@
         `;
     }
 
+    function obterServicosClinicosFaturaveis() {
+        const servicos = Array.isArray(state.agendamentoAtual?.servicos)
+            ? state.agendamentoAtual.servicos
+            : [];
+
+        return servicos
+            .map((servico) => {
+                const servicoId = Number(servico?.id || 0);
+                const valor = Number(servico?.valor || 0);
+                const nome = String(servico?.nome || "").trim();
+
+                return {
+                    servico_id: servicoId > 0 ? servicoId : null,
+                    descricao: nome || "Serviço veterinário",
+                    quantidade: 1,
+                    valor_unitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
+                    tipo_item: "SERVICO_EXECUTADO",
+                };
+            })
+            .filter((item) => item.descricao);
+    }
+
+    async function criarItensClinicosFaturaveis() {
+        if (!state.atendimentoClinicoId) {
+            throw new Error("Atendimento clínico não iniciado no backend.");
+        }
+
+        const itens = obterServicosClinicosFaturaveis();
+
+        if (!itens.length) {
+            throw new Error("Nenhum serviço veterinário encontrado para faturar neste atendimento.");
+        }
+
+        for (const item of itens) {
+            await fetchJsonSafe(
+                `/api/clinico/${state.atendimentoClinicoId}/itens`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(item),
+                },
+                "Erro ao incluir item faturável no atendimento clínico."
+            );
+        }
+    }
+
     async function salvarAtendimentoClinico() {
         try {
             salvarRascunhoClinicoLocal();
@@ -1206,6 +1252,8 @@
             if (!dataProntuario) {
                 throw new Error("Erro ao salvar prontuário.");
             }
+
+            await criarItensClinicosFaturaveis();
 
             await fetchJsonSafe(
                 `/api/clinico/${state.atendimentoClinicoId}/finalizar`,

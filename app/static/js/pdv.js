@@ -26,12 +26,21 @@
     btnFecharCaixa: document.getElementById("btn-fechar-caixa"),
 
     btnVendaBalcao: document.getElementById("btn-venda-balcao"),
+    btnVendaComCliente: document.getElementById("btn-venda-com-cliente"),
     btnCancelarVenda: document.getElementById("btn-cancelar-venda"),
 
     vendaCliente: document.getElementById("pdv-venda-cliente"),
     vendaMeta: document.getElementById("pdv-venda-meta"),
     vendaNumero: document.getElementById("pdv-venda-numero"),
     vendaModo: document.getElementById("pdv-venda-modo"),
+
+    clienteVinculadoBox: document.getElementById("pdv-cliente-vinculado-box"),
+    clienteVinculadoNome: document.getElementById("pdv-cliente-vinculado-nome"),
+    btnRemoverClienteVenda: document.getElementById("btn-remover-cliente-venda"),
+
+    buscaCliente: document.getElementById("pdv-busca-cliente"),
+    btnBuscarCliente: document.getElementById("btn-buscar-cliente"),
+    clientesResultado: document.getElementById("pdv-clientes-resultado"),
 
     buscaProduto: document.getElementById("pdv-busca-produto"),
     btnBuscarProduto: document.getElementById("btn-buscar-produto"),
@@ -168,6 +177,16 @@
 
   function hideEl(el) {
     if (el) el.classList.add("pdv-hidden");
+  }
+
+  function setDisabled(el, disabled) {
+    if (!el) return;
+    el.disabled = !!disabled;
+  }
+
+  function toggleHidden(el) {
+    if (!el) return;
+    el.classList.toggle("pdv-hidden");
   }
 
   function toNumber(value, fallback = 0) {
@@ -368,6 +387,14 @@
     return !!state.vendaAtual && state.vendaAtual.status === "ABERTA";
   }
 
+  function vendaTemClienteVinculado() {
+    return !!state.vendaAtual?.cliente_id;
+  }
+
+  function vendaTemItens() {
+    return (state.vendaAtual?.itens?.length || 0) > 0;
+  }
+
   function requireText(value, message) {
     const v = String(value ?? "").trim();
     if (!v) throw new Error(message);
@@ -474,15 +501,9 @@
     }
 
     if (!container.parentElement) {
-      const anchor =
-        els.valorPagamento?.closest(".form-group") ||
-        els.formaPagamento?.closest(".form-group") ||
-        els.formaPagamento?.parentElement;
-
+      const anchor = els.valorPagamento?.parentElement || els.formaPagamento?.parentElement;
       if (anchor && anchor.parentElement) {
         anchor.insertAdjacentElement("afterend", container);
-      } else if (els.formaPagamento.parentElement) {
-        els.formaPagamento.parentElement.appendChild(container);
       }
     }
 
@@ -522,26 +543,78 @@
     }
   }
 
+  function limparEstadoVendaLocal() {
+    state.vendaAtual = null;
+    state.produtosEncontrados = [];
+    state.clientesEncontrados = [];
+    setValue(els.buscaProduto, "");
+    setValue(els.buscaCliente, "");
+    setValue(els.descontoPercent, "");
+    if (els.quantidadeParcelas) {
+      els.quantidadeParcelas.value = "1";
+    }
+    if (els.produtosResultado) {
+      setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
+    }
+    if (els.clientesResultado) {
+      hideEl(els.clientesResultado);
+      setHtml(els.clientesResultado, `<div class="pdv-empty-state">Nenhum cliente pesquisado.</div>`);
+    }
+    renderVenda();
+    renderControlsState();
+  }
+
+  function renderClienteVinculado() {
+    if (!els.clienteVinculadoBox || !els.clienteVinculadoNome) return;
+
+    if (!hasVendaAtual() || !vendaTemClienteVinculado()) {
+      hideEl(els.clienteVinculadoBox);
+      setText(els.clienteVinculadoNome, "-");
+      return;
+    }
+
+    const nome =
+      state.vendaAtual?.nome_cliente_snapshot ||
+      state.vendaAtual?.cliente?.nome ||
+      "Cliente vinculado";
+
+    setText(els.clienteVinculadoNome, nome);
+    showEl(els.clienteVinculadoBox);
+  }
+
   function renderVendaContexto() {
     if (!hasVendaAtual()) {
       setText(els.vendaCliente, "Nenhuma venda iniciada");
-      setText(els.vendaMeta, "Abra uma venda balcão ou puxe da produção.");
+      setText(els.vendaMeta, "Abra uma venda, vincule um cliente se necessário ou puxe da produção.");
       setText(els.vendaNumero, "Sem venda");
       setText(els.vendaModo, "-");
+      renderClienteVinculado();
       return;
     }
 
     const venda = state.vendaAtual;
 
     const nomeCliente =
-      venda.modo_cliente === "REGISTERED_CLIENT"
-        ? venda.nome_cliente_snapshot || "Cliente cadastrado"
-        : venda.nome_cliente_snapshot || "Venda balcão";
+      venda.nome_cliente_snapshot ||
+      venda.cliente?.nome ||
+      (venda.cliente_id ? "Cliente vinculado" : "Venda sem cliente");
+
+    let meta = "Venda em andamento.";
+    if (venda.origem === "SERVICE_ONLY") meta = "Venda de serviços.";
+    if (venda.origem === "PRODUCT_ONLY") meta = "Venda de produtos.";
+    if (venda.origem === "MIXED") meta = "Venda mista.";
+    if (venda.observacoes) meta = venda.observacoes;
+
+    let modo = "Sem cliente";
+    if (venda.cliente_id && venda.modo_cliente === "REGISTERED_CLIENT") modo = "Cliente cadastrado";
+    else if (venda.cliente_id) modo = "Cliente vinculado";
+    else if (venda.modo_cliente === "WALK_IN") modo = "Balcão";
 
     setText(els.vendaCliente, nomeCliente);
-    setText(els.vendaMeta, venda.observacoes || "");
+    setText(els.vendaMeta, meta);
     setText(els.vendaNumero, venda.numero_venda || `#${venda.id}`);
-    setText(els.vendaModo, venda.status || "-");
+    setText(els.vendaModo, modo);
+    renderClienteVinculado();
   }
 
   function syncValorPagamento() {
@@ -590,19 +663,27 @@
       itens
         .map(
           (item) => `
-        <div class="pdv-item-card">
-          <div class="pdv-item-card__header">
+        <div class="pdv-cart-item">
+          <div class="pdv-cart-principal">
             <strong>${escapeHtml(item.descricao_snapshot || "Item sem descrição")}</strong>
-            <span class="pdv-badge">${item.tipo_item === "SERVICE" ? "Atendimento" : "Produto"}</span>
+            <div class="pdv-cart-meta">
+              ${item.tipo_item === "SERVICE" ? "Serviço" : "Produto"} |
+              Qtde: ${toNumber(item.quantidade, 0)} |
+              Unitário: ${formatMoney(item.valor_unitario)} |
+              Desconto: ${formatMoney(item.desconto_valor)}
+            </div>
+            ${item.observacao ? `<div class="pdv-cart-meta">${escapeHtml(item.observacao)}</div>` : ""}
           </div>
-          <div class="pdv-item-card__meta">
-            Qtde: ${toNumber(item.quantidade, 0)} |
-            Unitário: ${formatMoney(item.valor_unitario)} |
-            Desconto: ${formatMoney(item.desconto_valor)}
-          </div>
-          ${item.observacao ? `<div class="pdv-item-card__obs">${escapeHtml(item.observacao)}</div>` : ""}
-          <div class="pdv-item-card__footer">
+          <div class="pdv-producao-item__actions">
             <strong>${formatMoney(item.valor_total)}</strong>
+            <button
+              type="button"
+              class="pdv-btn pdv-btn-danger"
+              data-action="remover-item"
+              data-item-id="${escapeHtml(item.id)}"
+            >
+              Excluir
+            </button>
           </div>
         </div>
       `
@@ -617,23 +698,15 @@
     renderCarrinho();
   }
 
-  function setDisabled(el, disabled) {
-    if (!el) return;
-    el.disabled = !!disabled;
-  }
-
-  function toggleHidden(el) {
-    if (!el) return;
-    el.classList.toggle("pdv-hidden");
-  }
-
   function renderControlsState() {
     const podeFinalizar =
-      hasCaixaAberto() && hasVendaAberta() && (state.vendaAtual?.itens?.length || 0) > 0;
+      hasCaixaAberto() && hasVendaAberta() && vendaTemItens();
 
     setDisabled(els.btnFinalizarVenda, !podeFinalizar);
     setDisabled(els.btnAplicarDesconto, !hasVendaAberta());
     setDisabled(els.btnZerarDesconto, !hasVendaAberta());
+    setDisabled(els.btnCancelarVenda, !hasVendaAberta());
+    setDisabled(els.btnRemoverClienteVenda, !hasVendaAberta() || !vendaTemClienteVinculado());
   }
 
   async function aplicarDescontoPercentual(percentValue) {
@@ -674,6 +747,124 @@
     showAlert("Desconto zerado.", "success");
   }
 
+  function renderClientesResultado() {
+    if (!els.clientesResultado) return;
+
+    const clientes = state.clientesEncontrados || [];
+    if (!clientes.length) {
+      setHtml(els.clientesResultado, `<div class="pdv-empty-state">Nenhum cliente encontrado.</div>`);
+      showEl(els.clientesResultado);
+      return;
+    }
+
+    setHtml(
+      els.clientesResultado,
+      clientes
+        .map((cliente) => {
+          const nome = escapeHtml(cliente.nome || "Cliente");
+          const cpf = cliente.cpf ? `CPF: ${escapeHtml(cliente.cpf)}` : "CPF não informado";
+          const telefone = cliente.telefone
+            ? `Telefone: ${escapeHtml(cliente.telefone)}`
+            : "Telefone não informado";
+
+          return `
+          <div class="pdv-cliente-card">
+            <div class="pdv-cliente-principal">
+              <strong>${nome}</strong>
+              <div class="pdv-cliente-meta">${cpf}</div>
+              <div class="pdv-cliente-meta">${telefone}</div>
+            </div>
+            <div class="pdv-producao-item__actions">
+              <button
+                type="button"
+                class="pdv-btn pdv-btn-primary"
+                data-action="selecionar-cliente"
+                data-cliente-id="${escapeHtml(cliente.id)}"
+              >
+                Usar cliente
+              </button>
+            </div>
+          </div>
+        `;
+        })
+        .join("")
+    );
+
+    showEl(els.clientesResultado);
+  }
+
+  async function buscarClientes(termo, limite = 20) {
+    const empresaId = getEmpresaId();
+    const q = String(termo || "").trim();
+
+    if (!empresaId || empresaId <= 0) {
+      throw new Error("empresa_id inválido para busca de clientes.");
+    }
+
+    if (!q) {
+      state.clientesEncontrados = [];
+      if (els.clientesResultado) {
+        setHtml(els.clientesResultado, `<div class="pdv-empty-state">Digite algo para buscar clientes.</div>`);
+        showEl(els.clientesResultado);
+      }
+      return [];
+    }
+
+    if (els.clientesResultado) {
+      setHtml(els.clientesResultado, `<div class="pdv-empty-state">Buscando clientes...</div>`);
+      showEl(els.clientesResultado);
+    }
+
+    const data = await request(
+      `/api/pdv/clientes/busca?empresa_id=${empresaId}&q=${encodeURIComponent(q)}&limite=${limite}`
+    );
+
+    state.clientesEncontrados = Array.isArray(data) ? data : [];
+    renderClientesResultado();
+    return state.clientesEncontrados;
+  }
+
+  async function handleBuscarClientesAction(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const termo = String(els.buscaCliente?.value || "").trim();
+    if (!termo) {
+      state.clientesEncontrados = [];
+      if (els.clientesResultado) {
+        setHtml(els.clientesResultado, `<div class="pdv-empty-state">Digite algo para buscar clientes.</div>`);
+        showEl(els.clientesResultado);
+      }
+      showAlert("Digite nome, CPF ou telefone do cliente.", "warning");
+      return;
+    }
+
+    const btn = els.btnBuscarCliente;
+    const textoOriginal = btn?.textContent || "Buscar cliente";
+
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Buscando...";
+      }
+
+      await buscarClientes(termo);
+
+      if (!(state.clientesEncontrados || []).length) {
+        showAlert("Nenhum cliente encontrado para a busca informada.", "warning");
+      } else {
+        showAlert(`Encontrado(s) ${state.clientesEncontrados.length} cliente(s).`, "success");
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+      }
+    }
+  }
+
   function renderProdutosResultado() {
     if (!els.produtosResultado) return;
 
@@ -688,19 +879,17 @@
       produtos
         .map((produto) => {
           const nome = escapeHtml(produto.nome || "Produto");
-          const sku = produto.sku ? `<div class="pdv-muted">SKU: ${escapeHtml(produto.sku)}</div>` : "";
-          const unidade = produto.unidade ? `<div class="pdv-muted">Unidade: ${escapeHtml(produto.unidade)}</div>` : "";
+          const estoque = Number(toNumber(produto.estoque_atual, 0)).toLocaleString("pt-BR");
           const preco = formatMoney(produto.preco_venda_atual || 0);
 
           return `
-          <div class="pdv-producao-item">
-            <div class="pdv-producao-item__info">
+          <div class="pdv-produto-card">
+            <div class="pdv-produto-principal">
               <strong>${nome}</strong>
-              ${sku}
-              ${unidade}
+              <div class="pdv-produto-meta">Estoque atual: ${estoque}</div>
+              <div class="pdv-produto-meta">Valor: ${preco}</div>
             </div>
             <div class="pdv-producao-item__actions">
-              <strong>${preco}</strong>
               <button
                 type="button"
                 class="pdv-btn pdv-btn-primary"
@@ -763,7 +952,7 @@
     }
 
     const btn = els.btnBuscarProduto;
-    const textoOriginal = btn?.textContent || "Buscar";
+    const textoOriginal = btn?.textContent || "Buscar produto";
 
     try {
       if (btn) {
@@ -778,15 +967,6 @@
       } else {
         showAlert(`Encontrado(s) ${state.produtosEncontrados.length} produto(s).`, "success");
       }
-    } catch (error) {
-      state.produtosEncontrados = [];
-      if (els.produtosResultado) {
-        setHtml(
-          els.produtosResultado,
-          `<div class="pdv-empty-state">Falha ao buscar produtos: ${escapeHtml(error.message || "erro inesperado")}</div>`
-        );
-      }
-      throw error;
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -795,12 +975,16 @@
     }
   }
 
-  async function criarVendaBalcao() {
+  async function criarVendaBalcao(clienteId = null) {
     if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
 
     const empresaId = getEmpresaId();
     const caixaSessaoId = getCaixaSessaoId();
     if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
+
+    const cliente = clienteId
+      ? (state.clientesEncontrados || []).find((c) => Number(c.id) === Number(clienteId))
+      : null;
 
     const venda = await request("/api/pdv/vendas", {
       method: "POST",
@@ -808,6 +992,9 @@
         empresa_id: empresaId,
         caixa_sessao_id: caixaSessaoId,
         modo_cliente: "WALK_IN",
+        cliente_id: clienteId ? Number(clienteId) : null,
+        nome_cliente_snapshot: cliente?.nome || null,
+        telefone_cliente_snapshot: cliente?.telefone || null,
       }),
     });
 
@@ -838,6 +1025,41 @@
     renderVenda();
     renderControlsState();
     return venda;
+  }
+
+  async function selecionarClienteParaVenda(clienteId) {
+    const cliente = (state.clientesEncontrados || []).find((c) => Number(c.id) === Number(clienteId));
+    if (!cliente) throw new Error("Cliente não encontrado no resultado da busca.");
+
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
+
+    if (hasVendaAberta()) {
+      if (vendaTemItens()) {
+        throw new Error("A venda atual já tem itens. Finalize ou cancele a venda antes de trocar o cliente.");
+      }
+
+      if (vendaTemClienteVinculado()) {
+        throw new Error("A venda atual já possui cliente vinculado.");
+      }
+
+      await cancelarVendaAtual("Substituição por nova venda com cliente.");
+    }
+
+    await criarVendaBalcao(cliente.id);
+    showAlert("Cliente vinculado à venda avulsa.", "success");
+  }
+
+  async function removerClienteDaVendaAtual() {
+    if (!hasVendaAberta()) throw new Error("Nenhuma venda aberta.");
+    if (!vendaTemClienteVinculado()) throw new Error("A venda atual não possui cliente vinculado.");
+
+    if (vendaTemItens()) {
+      throw new Error("Remova os itens ou cancele a venda antes de retirar o cliente.");
+    }
+
+    await cancelarVendaAtual("Remoção de cliente da venda.");
+    await criarVendaBalcao();
+    showAlert("Cliente removido da venda atual.", "success");
   }
 
   async function adicionarProdutoNaVenda(produtoId) {
@@ -872,6 +1094,18 @@
     showAlert("Produto adicionado na venda.", "success");
   }
 
+  async function removerItemDaVenda(itemId) {
+    if (!hasVendaAberta()) throw new Error("Nenhuma venda aberta.");
+    const vendaAtualizada = await request(`/api/pdv/vendas/${state.vendaAtual.id}/itens/${itemId}`, {
+      method: "DELETE",
+    });
+
+    state.vendaAtual = vendaAtualizada;
+    renderVenda();
+    renderControlsState();
+    showAlert("Item removido da venda.", "success");
+  }
+
   async function carregarOperadores(termo, limite = 50) {
     const empresaId = getEmpresaId();
     const q = String(termo || "").trim();
@@ -886,7 +1120,7 @@
   async function pesquisarUsuarios(termo, onlyManager = false) {
     const operadores = await carregarOperadores(termo, 50);
     if (!onlyManager) return operadores;
-    return operadores.filter((u) => String(u.tipo || "").toLowerCase() === "gerente");
+    return operadores.filter((u) => ["gerente", "admin"].includes(String(u.tipo || "").toLowerCase()));
   }
 
   function closeAllModals() {
@@ -1114,7 +1348,7 @@
         .map((item) => {
           const pet = escapeHtml(item.pet_nome || "Pet");
           const cliente = item.cliente_nome ? `<div class="pdv-muted">${escapeHtml(item.cliente_nome)}</div>` : "";
-          const servicos = item.servicos ? `<div class="pdv-muted">${escapeHtml(item.servicos)}</div>` : "";
+          const descricao = item.descricao ? `<div class="pdv-muted">${escapeHtml(item.descricao)}</div>` : "";
           const valor = formatMoney(item.valor_total || 0);
           const producaoId = item.producao_id || item.id;
 
@@ -1123,7 +1357,7 @@
             <div class="pdv-producao-item__info">
               <strong>${pet}</strong>
               ${cliente}
-              ${servicos}
+              ${descricao}
             </div>
             <div class="pdv-producao-item__actions">
               <strong>${valor}</strong>
@@ -1238,16 +1472,16 @@
     if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
 
     if (!hasVendaAberta()) {
-      await criarVendaParaCliente(clienteId);
+      await criarVendaBalcao(clienteId);
     }
 
     if (!hasVendaAberta()) throw new Error("Não foi possível abrir uma venda.");
 
-    if (state.vendaAtual.modo_cliente !== "REGISTERED_CLIENT") {
-      throw new Error("Atendimento veterinário exige venda com cliente cadastrado.");
+    if (!vendaTemClienteVinculado()) {
+      throw new Error("Atendimento veterinário exige venda com cliente vinculado.");
     }
     if (Number(state.vendaAtual.cliente_id) !== Number(clienteId)) {
-      throw new Error("Esse atendimento é de outro cliente. Finalize/cancele a venda atual e tente novamente.");
+      throw new Error("Esse atendimento é de outro cliente. Finalize ou cancele a venda atual e tente novamente.");
     }
 
     const vendaId = state.vendaAtual.id;
@@ -1297,9 +1531,7 @@
       body: JSON.stringify(payload),
     });
 
-    state.vendaAtual = null;
-    renderVenda();
-    renderControlsState();
+    limparEstadoVendaLocal();
     showAlert(result?.mensagem || "Venda finalizada com sucesso.", "success");
 
     try {
@@ -1313,6 +1545,23 @@
     } catch (error) {
       console.warn("Falha ao atualizar listas após checkout:", error);
     }
+  }
+
+  async function cancelarVendaAtual(motivo = "Cancelamento manual no PDV.") {
+    if (!hasVendaAberta()) {
+      limparEstadoVendaLocal();
+      return;
+    }
+
+    await request(`/api/pdv/vendas/${state.vendaAtual.id}/cancelar`, {
+      method: "POST",
+      body: JSON.stringify({
+        motivo_cancelamento: motivo,
+      }),
+    });
+
+    limparEstadoVendaLocal();
+    showAlert("Venda cancelada.", "warning");
   }
 
   function collectAberturaPayload() {
@@ -1604,6 +1853,23 @@
       }
     });
 
+    els.btnBuscarCliente?.addEventListener("click", async (event) => {
+      try {
+        await handleBuscarClientesAction(event);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.buscaCliente?.addEventListener("keydown", async (event) => {
+      if (event.key !== "Enter") return;
+      try {
+        await handleBuscarClientesAction(event);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
     els.btnBuscarProduto?.addEventListener("click", async (event) => {
       try {
         await handleBuscarProdutosAction(event);
@@ -1625,6 +1891,19 @@
       updateParcelasVisibility();
     });
 
+    els.clientesResultado?.addEventListener("click", async (event) => {
+      const btn = event.target?.closest?.('[data-action="selecionar-cliente"]');
+      if (!btn) return;
+
+      try {
+        const clienteId = btn.getAttribute("data-cliente-id");
+        if (!clienteId) throw new Error("Cliente inválido.");
+        await selecionarClienteParaVenda(clienteId);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
     els.produtosResultado?.addEventListener("click", async (event) => {
       const btn = event.target?.closest?.('[data-action="adicionar-produto"]');
       if (!btn) return;
@@ -1633,6 +1912,19 @@
         const produtoId = btn.getAttribute("data-produto-id");
         if (!produtoId) throw new Error("Produto inválido.");
         await adicionarProdutoNaVenda(produtoId);
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.carrinhoLista?.addEventListener("click", async (event) => {
+      const btn = event.target?.closest?.('[data-action="remover-item"]');
+      if (!btn) return;
+
+      try {
+        const itemId = btn.getAttribute("data-item-id");
+        if (!itemId) throw new Error("Item inválido.");
+        await removerItemDaVenda(itemId);
       } catch (error) {
         showAlert(error.message, "danger");
       }
@@ -1667,18 +1959,46 @@
 
     els.btnVendaBalcao?.addEventListener("click", async () => {
       try {
+        if (hasVendaAberta()) {
+          if (vendaTemItens()) {
+            throw new Error("Finalize ou cancele a venda atual antes de abrir outra.");
+          }
+          await cancelarVendaAtual("Substituição por nova venda sem cliente.");
+        }
         await criarVendaBalcao();
-        showAlert("Venda balcão iniciada.", "success");
+        showAlert("Venda sem cliente iniciada.", "success");
       } catch (error) {
         showAlert(error.message, "danger");
       }
     });
 
-    els.btnCancelarVenda?.addEventListener("click", () => {
-      state.vendaAtual = null;
-      renderVenda();
-      renderControlsState();
-      showAlert("Venda atual limpa no PDV.", "warning");
+    els.btnVendaComCliente?.addEventListener("click", async () => {
+      try {
+        const termo = String(els.buscaCliente?.value || "").trim();
+        if (!termo) {
+          showEl(els.clientesResultado);
+          throw new Error("Busque e selecione um cliente para iniciar a venda com cliente.");
+        }
+        await handleBuscarClientesAction();
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnRemoverClienteVenda?.addEventListener("click", async () => {
+      try {
+        await removerClienteDaVendaAtual();
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
+    });
+
+    els.btnCancelarVenda?.addEventListener("click", async () => {
+      try {
+        await cancelarVendaAtual();
+      } catch (error) {
+        showAlert(error.message, "danger");
+      }
     });
 
     els.btnAplicarDesconto?.addEventListener("click", async () => {
@@ -1834,11 +2154,17 @@
       setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
     }
 
+    if (els.clientesResultado) {
+      setHtml(els.clientesResultado, `<div class="pdv-empty-state">Nenhum cliente pesquisado.</div>`);
+      hideEl(els.clientesResultado);
+    }
+
     ensureParcelasControl();
     updateParcelasVisibility();
 
     bindEvents();
     bindFloatingActions();
+    renderControlsState();
 
     try {
       await carregarCaixaAtual();

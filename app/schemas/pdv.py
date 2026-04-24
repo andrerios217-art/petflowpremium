@@ -37,8 +37,6 @@ class PdvVendaCreate(BaseModel):
     def validar_cliente_por_modo(self):
         if self.modo_cliente == "REGISTERED_CLIENT" and not self.cliente_id:
             raise ValueError("cliente_id é obrigatório para venda com cliente cadastrado.")
-        if self.modo_cliente == "WALK_IN" and self.cliente_id is not None:
-            raise ValueError("Venda balcão não pode ter cliente_id informado.")
         return self
 
 
@@ -79,7 +77,6 @@ class PdvVendaItemAdd(BaseModel):
 
 class PdvPagamentoCreate(BaseModel):
     forma_pagamento: FormaPagamentoLiteral
-    # ALTERADO: permitir 0 para baixa de serviço zerado (retorno/cortesia)
     valor: Decimal = Field(ge=0)
     quantidade_parcelas: int = Field(default=1, ge=1, le=12)
     referencia: str | None = None
