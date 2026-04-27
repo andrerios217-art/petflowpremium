@@ -179,6 +179,44 @@
     color: #1d4ed8;
   }
 
+  .subscriber-discount-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr)) minmax(220px, 1fr);
+    gap: 18px;
+    align-items: end;
+    margin-top: 20px;
+  }
+
+  .subscriber-discount-preview {
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    padding: 16px;
+  }
+
+  .subscriber-discount-preview span {
+    display: block;
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+
+  .subscriber-discount-preview strong {
+    display: block;
+    color: #111827;
+    font-size: 1.25rem;
+    line-height: 1.35;
+  }
+
+  .subscriber-discount-preview p {
+    margin: 8px 0 0;
+    color: #6b7280;
+    line-height: 1.45;
+  }
+
   .permission-summary {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -627,7 +665,8 @@
   }
 
   @media (max-width: 900px) {
-    .settings-toolbar {
+    .settings-toolbar,
+    .subscriber-discount-grid {
       grid-template-columns: 1fr;
     }
 
@@ -843,6 +882,67 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="settings-card">
+    <div class="settings-header">
+      <div>
+        <span class="settings-kicker">Configurações • Assinantes</span>
+        <h1>Desconto automático no PDV</h1>
+        <p>
+          Configure percentuais diferentes para produtos e serviços quando o cliente selecionado no PDV for assinante.
+        </p>
+      </div>
+    </div>
+
+    <div id="settings-desconto-assinante-alert" class="settings-alert info"></div>
+
+    <div class="subscriber-discount-grid">
+      <div class="company-field">
+        <label for="desconto-assinante-produtos-percentual">Desconto em produtos (%)</label>
+        <input
+          type="number"
+          id="desconto-assinante-produtos-percentual"
+          class="settings-input"
+          min="0"
+          max="100"
+          step="0.01"
+          value="0"
+          placeholder="Ex.: 5"
+        >
+      </div>
+
+      <div class="company-field">
+        <label for="desconto-assinante-servicos-percentual">Desconto em serviços (%)</label>
+        <input
+          type="number"
+          id="desconto-assinante-servicos-percentual"
+          class="settings-input"
+          min="0"
+          max="100"
+          step="0.01"
+          value="0"
+          placeholder="Ex.: 10"
+        >
+      </div>
+
+      <div class="subscriber-discount-preview">
+        <span>Regra atual</span>
+        <strong id="desconto-assinante-preview">Produtos: 0,00% • Serviços: 0,00%</strong>
+        <p>
+          No PDV, o desconto será calculado separando itens de produto e itens de serviço.
+        </p>
+      </div>
+    </div>
+
+    <div class="logo-actions">
+      <button type="button" class="settings-success-btn" id="btn-salvar-desconto-assinante">
+        Salvar desconto
+      </button>
+      <button type="button" class="settings-secondary-btn" id="btn-recarregar-desconto-assinante">
+        Recarregar desconto
+      </button>
     </div>
   </section>
 
@@ -1152,6 +1252,13 @@
 
   function showLogoAlert(message, type = "info") {
     const el = document.getElementById("settings-logo-alert");
+    if (!el) return;
+    el.textContent = message;
+    el.className = `settings-alert ${type} show`;
+  }
+
+  function showDescontoAssinanteAlert(message, type = "info") {
+    const el = document.getElementById("settings-desconto-assinante-alert");
     if (!el) return;
     el.textContent = message;
     el.className = `settings-alert ${type} show`;
@@ -1550,6 +1657,126 @@
     });
   }
 
+  function setDescontoAssinanteLoading(loading) {
+    const ids = [
+      "btn-salvar-desconto-assinante",
+      "btn-recarregar-desconto-assinante",
+      "desconto-assinante-produtos-percentual",
+      "desconto-assinante-servicos-percentual"
+    ];
+
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = loading;
+    });
+  }
+
+  function percentualSeguro(valor) {
+    const percentual = Number(valor || 0);
+    if (!Number.isFinite(percentual)) return 0;
+    return Math.max(0, Math.min(100, percentual));
+  }
+
+  function formatarPercentual(valor) {
+    return percentualSeguro(valor).toFixed(2).replace(".", ",");
+  }
+
+  function atualizarPreviewDescontoAssinante() {
+    const produtos = document.getElementById("desconto-assinante-produtos-percentual")?.value || 0;
+    const servicos = document.getElementById("desconto-assinante-servicos-percentual")?.value || 0;
+    const preview = document.getElementById("desconto-assinante-preview");
+
+    if (preview) {
+      preview.textContent = `Produtos: ${formatarPercentual(produtos)}% • Serviços: ${formatarPercentual(servicos)}%`;
+    }
+  }
+
+
+  function normalizarPercentualAssinanteInput(valor) {
+    let texto = String(valor ?? "")
+      .replace(",", ".")
+      .replace(/[^\d.]/g, "");
+
+    const partes = texto.split(".");
+    if (partes.length > 2) {
+      texto = `${partes[0]}.${partes.slice(1).join("")}`;
+    }
+
+    let [inteiro, decimal] = texto.split(".");
+
+    inteiro = String(inteiro || "").replace(/^0+(?=\d)/, "");
+
+    if (inteiro === "") {
+      inteiro = decimal !== undefined ? "0" : "";
+    }
+
+    if (decimal !== undefined) {
+      decimal = decimal.slice(0, 2);
+      texto = `${inteiro}.${decimal}`;
+    } else {
+      texto = inteiro;
+    }
+
+    if (texto === "") return "";
+
+    const numero = Number(texto);
+    if (!Number.isFinite(numero)) return "";
+
+    if (numero > 100) return "100";
+    if (numero < 0) return "0";
+
+    return texto;
+  }
+
+  function configurarInputPercentualAssinante(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input || input.dataset.percentualAssinanteBound === "true") return;
+
+    input.dataset.percentualAssinanteBound = "true";
+
+    input.addEventListener("focus", () => {
+      const numeroAtual = Number(String(input.value || "0").replace(",", "."));
+
+      if (!Number.isFinite(numeroAtual) || numeroAtual === 0) {
+        input.value = "";
+      } else if (typeof input.select === "function") {
+        input.select();
+      }
+
+      if (typeof atualizarPreviewDescontoAssinante === "function") {
+        configurarInputPercentualAssinante("desconto-assinante-produtos-percentual");
+  configurarInputPercentualAssinante("desconto-assinante-servicos-percentual");
+  atualizarPreviewDescontoAssinante();
+      }
+    });
+
+    input.addEventListener("input", () => {
+      input.value = normalizarPercentualAssinanteInput(input.value);
+
+      if (typeof atualizarPreviewDescontoAssinante === "function") {
+        atualizarPreviewDescontoAssinante();
+      }
+    });
+
+    input.addEventListener("blur", () => {
+      const texto = String(input.value || "").trim();
+
+      if (!texto) {
+        input.value = "0";
+      } else {
+        const numero = Number(texto.replace(",", "."));
+        input.value = Number.isFinite(numero)
+          ? String(Math.max(0, Math.min(100, numero)))
+          : "0";
+      }
+
+      if (typeof atualizarPreviewDescontoAssinante === "function") {
+        atualizarPreviewDescontoAssinante();
+      }
+    });
+  }
+
+
   function renderEmpresaVisual(empresa) {
     statePermissoes.empresaAtual = empresa || null;
 
@@ -1615,8 +1842,114 @@
       const empresa = await response.json();
       renderEmpresaVisual(empresa);
       showLogoAlert("Dados da empresa carregados com sucesso.", "success");
+
+      await carregarDescontoAssinante();
     } catch (error) {
       showLogoAlert(error.message || "Erro ao carregar dados da empresa.", "error");
+    }
+  }
+
+  async function carregarDescontoAssinante() {
+    if (!statePermissoes.empresaId) {
+      showDescontoAssinanteAlert("Empresa atual não identificada para carregar o desconto.", "error");
+      return;
+    }
+
+    try {
+      setDescontoAssinanteLoading(true);
+      showDescontoAssinanteAlert("Carregando desconto de assinante...", "info");
+
+      const response = await fetch(`/configuracoes/desconto-assinante?empresa_id=${statePermissoes.empresaId}`, {
+        headers: {
+          Accept: "application/json",
+          ...getHeadersConfiguracoes()
+        }
+      });
+
+      if (!response.ok) {
+        let detail = "Não foi possível carregar o desconto de assinante.";
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+
+      const data = await response.json();
+      const percentualProdutos = Number(data.percentual_produtos || 0);
+      const percentualServicos = Number(data.percentual_servicos || 0);
+
+      document.getElementById("desconto-assinante-produtos-percentual").value = String(percentualProdutos);
+      document.getElementById("desconto-assinante-servicos-percentual").value = String(percentualServicos);
+
+      atualizarPreviewDescontoAssinante();
+      showDescontoAssinanteAlert("Desconto de assinante carregado com sucesso.", "success");
+    } catch (error) {
+      showDescontoAssinanteAlert(error.message || "Erro ao carregar desconto de assinante.", "error");
+    } finally {
+      setDescontoAssinanteLoading(false);
+    }
+  }
+
+  async function salvarDescontoAssinante() {
+    if (!statePermissoes.empresaId) {
+      showDescontoAssinanteAlert("Empresa atual não identificada para salvar o desconto.", "error");
+      return;
+    }
+
+    const inputProdutos = document.getElementById("desconto-assinante-produtos-percentual");
+    const inputServicos = document.getElementById("desconto-assinante-servicos-percentual");
+
+    const percentualProdutos = Number(inputProdutos?.value || 0);
+    const percentualServicos = Number(inputServicos?.value || 0);
+
+    if (!Number.isFinite(percentualProdutos) || percentualProdutos < 0 || percentualProdutos > 100) {
+      showDescontoAssinanteAlert("Informe um percentual de produtos válido entre 0 e 100.", "error");
+      return;
+    }
+
+    if (!Number.isFinite(percentualServicos) || percentualServicos < 0 || percentualServicos > 100) {
+      showDescontoAssinanteAlert("Informe um percentual de serviços válido entre 0 e 100.", "error");
+      return;
+    }
+
+    try {
+      setDescontoAssinanteLoading(true);
+      showDescontoAssinanteAlert("Salvando desconto de assinante...", "info");
+
+      const response = await fetch("/configuracoes/desconto-assinante", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getHeadersConfiguracoes()
+        },
+        body: JSON.stringify({
+          empresa_id: statePermissoes.empresaId,
+          percentual_produtos: percentualProdutos,
+          percentual_servicos: percentualServicos
+        })
+      });
+
+      if (!response.ok) {
+        let detail = "Não foi possível salvar o desconto de assinante.";
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+
+      const data = await response.json();
+
+      inputProdutos.value = String(Number(data.percentual_produtos || 0));
+      inputServicos.value = String(Number(data.percentual_servicos || 0));
+
+      atualizarPreviewDescontoAssinante();
+      showDescontoAssinanteAlert("Desconto de assinante salvo com sucesso.", "success");
+    } catch (error) {
+      showDescontoAssinanteAlert(error.message || "Erro ao salvar desconto de assinante.", "error");
+    } finally {
+      setDescontoAssinanteLoading(false);
     }
   }
 
@@ -1813,9 +2146,14 @@
     event.target.value = String(event.target.value || "").toUpperCase().slice(0, 2);
   });
 
+  document.getElementById("desconto-assinante-produtos-percentual")?.addEventListener("input", atualizarPreviewDescontoAssinante);
+  document.getElementById("desconto-assinante-servicos-percentual")?.addEventListener("input", atualizarPreviewDescontoAssinante);
+
   document.getElementById("btn-buscar-cnpj")?.addEventListener("click", buscarDadosCnpj);
   document.getElementById("btn-salvar-empresa")?.addEventListener("click", salvarEmpresa);
   document.getElementById("btn-usar-endereco-cadastro")?.addEventListener("click", usarEnderecoCadastro);
+  document.getElementById("btn-salvar-desconto-assinante")?.addEventListener("click", salvarDescontoAssinante);
+  document.getElementById("btn-recarregar-desconto-assinante")?.addEventListener("click", carregarDescontoAssinante);
 
   document.getElementById("settings-search-funcionario")?.addEventListener("input", (event) => {
     statePermissoes.filtro = event.target.value || "";
@@ -1873,6 +2211,7 @@
     }
   });
 
+  atualizarPreviewDescontoAssinante();
   carregarPermissoes();
 </script>
 

@@ -12,12 +12,14 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.core.security import verify_password
 from app.models.agendamento import Agendamento
 from app.models.agendamento_servico import AgendamentoServico
+from app.models.assinatura_pet import AssinaturaPet
 from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.caixa_movimento import CaixaMovimento
 from app.models.caixa_sessao import CaixaSessao
 from app.models.cashback_configuracao import CashbackConfiguracao
 from app.models.cashback_lancamento import CashbackLancamento
 from app.models.cliente import Cliente
+from app.models.configuracao import Configuracao
 from app.models.empresa import Empresa
 from app.models.estoque_deposito import EstoqueDeposito
 from app.models.estoque_movimento import EstoqueMovimento
@@ -40,6 +42,9 @@ from app.schemas.pdv import (
 
 DECIMAL_2 = Decimal("0.01")
 DECIMAL_3 = Decimal("0.001")
+
+CHAVE_DESCONTO_ASSINANTE_PRODUTOS = "desconto_assinante_produtos_percentual"
+CHAVE_DESCONTO_ASSINANTE_SERVICOS = "desconto_assinante_servicos_percentual"
 
 
 def _agora_utc():
@@ -362,6 +367,105 @@ def _atualizar_snapshots_cliente(venda: PdvVenda):
 
     if venda.modo_cliente == "WALK_IN":
         venda.updated_at = _agora_utc()
+
+
+def _get_configuracao_decimal(db: Session, empresa_id: int, chave: str) -> Decimal:
+    item = (
+        db.query(Configuracao)
+        .filter(
+            Configuracao.empresa_id == empresa_id,
+            Configuracao.chave == chave,
+        )
+        .first()
+    )
+
+    if not item:
+        return Decimal("0.00")
+
+    try:
+        valor = _decimal_2(item.valor)
+    except Exception:
+        return Decimal("0.00")
+
+    if valor < Decimal("0.00"):
+        return Decimal("0.00")
+
+    if valor > Decimal("100.00"):
+        return Decimal("100.00")
+
+    return valor
+
+
+def _cliente_tem_assinatura_ativa(db: Session, empresa_id: int, cliente_id: int | None) -> bool:
+    if not cliente_id:
+        return False
+
+    return (
+        db.query(AssinaturaPet.id)
+        .filter(
+            AssinaturaPet.empresa_id == empresa_id,
+            AssinaturaPet.cliente_id == cliente_id,
+            AssinaturaPet.status == "ATIVA",
+        )
+        .first()
+        is not None
+    )
+
+
+def _calcular_desconto_assinante_venda(db: Session, venda: PdvVenda) -> Decimal:
+    if not venda.cliente_id:
+        return Decimal("0.00")
+
+    if not _cliente_tem_assinatura_ativa(db, venda.empresa_id, venda.cliente_id):
+        return Decimal("0.00")
+
+    percentual_produtos = _get_configuracao_decimal(
+        db,
+        empresa_id=venda.empresa_id,
+        chave=CHAVE_DESCONTO_ASSINANTE_PRODUTOS,
+    )
+    percentual_servicos = _get_configuracao_decimal(
+        db,
+        empresa_id=venda.empresa_id,
+        chave=CHAVE_DESCONTO_ASSINANTE_SERVICOS,
+    )
+
+    if percentual_produtos <= Decimal("0.00") and percentual_servicos <= Decimal("0.00"):
+        return Decimal("0.00")
+
+    base_produtos = Decimal("0.00")
+    base_servicos = Decimal("0.00")
+
+    for item in venda.itens or []:
+        valor_item = _decimal_2(getattr(item, "valor_total", Decimal("0.00")))
+
+        if item.tipo_item == "PRODUCT":
+            base_produtos += valor_item
+        elif item.tipo_item == "SERVICE":
+            base_servicos += valor_item
+
+    desconto_produtos = _decimal_2((base_produtos * percentual_produtos) / Decimal("100"))
+    desconto_servicos = _decimal_2((base_servicos * percentual_servicos) / Decimal("100"))
+
+    subtotal = _decimal_2(getattr(venda, "subtotal", Decimal("0.00")))
+    desconto_total = _decimal_2(desconto_produtos + desconto_servicos)
+
+    if desconto_total > subtotal:
+        desconto_total = subtotal
+
+    return _decimal_2(desconto_total)
+
+
+def _aplicar_desconto_assinante_automatico(db: Session, venda: PdvVenda) -> bool:
+    desconto = _calcular_desconto_assinante_venda(db, venda)
+
+    if desconto <= Decimal("0.00"):
+        return False
+
+    venda.desconto_valor = desconto
+    venda.recalcular_totais()
+    venda.updated_at = _agora_utc()
+    return True
 
 
 def _gerar_financeiro_recebido_para_venda(db: Session, venda: PdvVenda, forma_pagamento: str, valor: Decimal):
@@ -864,6 +968,7 @@ def enviar_producao_para_pdv(db: Session, payload: PdvVendaProducaoCreate) -> Pd
 
     venda = _recarregar_venda(db, venda.id)
     venda.recalcular_totais()
+    _aplicar_desconto_assinante_automatico(db, venda)
     _atualizar_snapshots_cliente(venda)
 
     producao.enviado_pdv = True
@@ -1020,6 +1125,7 @@ def adicionar_item(db: Session, venda_id: int, payload: PdvVendaItemAdd) -> PdvV
 
     venda = _recarregar_venda(db, venda.id)
     venda.recalcular_totais()
+    _aplicar_desconto_assinante_automatico(db, venda)
     _atualizar_snapshots_cliente(venda)
 
     db.commit()
@@ -1053,6 +1159,7 @@ def remover_item(db: Session, venda_id: int, item_id: int) -> PdvVenda:
 
     venda = _recarregar_venda(db, venda.id)
     venda.recalcular_totais()
+    _aplicar_desconto_assinante_automatico(db, venda)
     _atualizar_snapshots_cliente(venda)
 
     db.commit()
@@ -1068,6 +1175,7 @@ def checkout_venda(db: Session, venda_id: int, payload: PdvCheckoutRequest) -> P
         venda.observacoes = payload.observacoes
 
     venda.recalcular_totais()
+    _aplicar_desconto_assinante_automatico(db, venda)
     total = _decimal_2(venda.valor_total)
 
     pagamento_payload = payload.pagamento
@@ -1351,3 +1459,188 @@ def cancelar_venda(db: Session, venda_id: int, payload: PdvCancelRequest) -> Pdv
 
     db.commit()
     return _recarregar_venda(db, venda.id)
+
+def _parse_data_relatorio(valor):
+    if not valor:
+        return None
+
+    if isinstance(valor, datetime):
+        return valor
+
+    texto = str(valor).strip()
+    if not texto:
+        return None
+
+    try:
+        if len(texto) == 10:
+            return datetime.fromisoformat(texto).replace(tzinfo=timezone.utc)
+
+        data = datetime.fromisoformat(texto)
+        if data.tzinfo is None:
+            data = data.replace(tzinfo=timezone.utc)
+        return data
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data inválida no relatório de vendas.")
+
+
+def _fim_dia_relatorio(valor):
+    data = _parse_data_relatorio(valor)
+    if not data:
+        return None
+
+    return data.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+
+def _data_referencia_venda(venda: PdvVenda):
+    return venda.fechada_em or venda.aberta_em or venda.created_at
+
+
+def _forma_pagamento_venda(venda: PdvVenda) -> str | None:
+    pagamentos = getattr(venda, "pagamentos", []) or []
+
+    for pagamento in pagamentos:
+        if getattr(pagamento, "status", None) == "RECEBIDO":
+            return getattr(pagamento, "forma_pagamento", None)
+
+    if pagamentos:
+        return getattr(pagamentos[0], "forma_pagamento", None)
+
+    return None
+
+
+def _serializar_venda_relatorio(venda: PdvVenda) -> dict:
+    cliente = getattr(venda, "cliente", None)
+    data_ref = _data_referencia_venda(venda)
+
+    return {
+        "id": venda.id,
+        "numero_venda": venda.numero_venda,
+        "data": data_ref.isoformat() if data_ref else None,
+        "aberta_em": venda.aberta_em.isoformat() if venda.aberta_em else None,
+        "fechada_em": venda.fechada_em.isoformat() if venda.fechada_em else None,
+        "cliente_id": venda.cliente_id,
+        "cliente_nome": (
+            getattr(cliente, "nome", None)
+            or venda.nome_cliente_snapshot
+            or "Cliente não informado"
+        ),
+        "modo_cliente": venda.modo_cliente,
+        "origem": venda.origem,
+        "status": venda.status,
+        "subtotal": float(_decimal_2(venda.subtotal)),
+        "desconto_valor": float(_decimal_2(venda.desconto_valor)),
+        "acrescimo_valor": float(_decimal_2(venda.acrescimo_valor)),
+        "valor_total": float(_decimal_2(venda.valor_total)),
+        "forma_pagamento": _forma_pagamento_venda(venda),
+        "quantidade_itens": len(getattr(venda, "itens", []) or []),
+    }
+
+
+def relatorio_vendas(
+    db: Session,
+    *,
+    empresa_id: int,
+    data_inicio=None,
+    data_fim=None,
+    cliente_id: int | None = None,
+    status: str | None = None,
+    limite: int = 500,
+) -> dict:
+    _get_empresa_or_404(db, empresa_id)
+
+    inicio = _parse_data_relatorio(data_inicio)
+    fim = _fim_dia_relatorio(data_fim)
+
+    query = (
+        db.query(PdvVenda)
+        .options(
+            joinedload(PdvVenda.cliente),
+            joinedload(PdvVenda.itens),
+            joinedload(PdvVenda.pagamentos),
+        )
+        .filter(PdvVenda.empresa_id == empresa_id)
+    )
+
+    if inicio:
+        query = query.filter(
+            or_(
+                PdvVenda.fechada_em >= inicio,
+                PdvVenda.aberta_em >= inicio,
+            )
+        )
+
+    if fim:
+        query = query.filter(
+            or_(
+                PdvVenda.fechada_em <= fim,
+                PdvVenda.aberta_em <= fim,
+            )
+        )
+
+    if cliente_id:
+        query = query.filter(PdvVenda.cliente_id == cliente_id)
+
+    if status:
+        status_normalizado = str(status).strip().upper()
+        if status_normalizado not in {"ABERTA", "FECHADA", "CANCELADA"}:
+            raise HTTPException(status_code=400, detail="Status inválido para relatório de vendas.")
+        query = query.filter(PdvVenda.status == status_normalizado)
+
+    vendas = (
+        query
+        .order_by(PdvVenda.id.desc())
+        .limit(max(1, min(int(limite or 500), 2000)))
+        .all()
+    )
+
+    linhas = [_serializar_venda_relatorio(venda) for venda in vendas]
+
+    vendas_fechadas = [venda for venda in vendas if venda.status == "FECHADA"]
+    vendas_canceladas = [venda for venda in vendas if venda.status == "CANCELADA"]
+    vendas_abertas = [venda for venda in vendas if venda.status == "ABERTA"]
+
+    total_subtotal = sum((_decimal_2(venda.subtotal) for venda in vendas_fechadas), Decimal("0.00"))
+    total_descontos = sum((_decimal_2(venda.desconto_valor) for venda in vendas_fechadas), Decimal("0.00"))
+    total_acrescimos = sum((_decimal_2(venda.acrescimo_valor) for venda in vendas_fechadas), Decimal("0.00"))
+    total_vendido = sum((_decimal_2(venda.valor_total) for venda in vendas_fechadas), Decimal("0.00"))
+
+    resumo_por_pagamento = {}
+    for venda in vendas_fechadas:
+        forma = _forma_pagamento_venda(venda) or "NAO_INFORMADO"
+        if forma not in resumo_por_pagamento:
+            resumo_por_pagamento[forma] = {
+                "forma_pagamento": forma,
+                "quantidade": 0,
+                "valor_total": 0.0,
+            }
+
+        resumo_por_pagamento[forma]["quantidade"] += 1
+        resumo_por_pagamento[forma]["valor_total"] = float(
+            _decimal_2(
+                Decimal(str(resumo_por_pagamento[forma]["valor_total"]))
+                + _decimal_2(venda.valor_total)
+            )
+        )
+
+    return {
+        "filtros": {
+            "empresa_id": empresa_id,
+            "data_inicio": inicio.isoformat() if inicio else None,
+            "data_fim": fim.isoformat() if fim else None,
+            "cliente_id": cliente_id,
+            "status": status,
+            "limite": limite,
+        },
+        "resumo": {
+            "quantidade_vendas": len(vendas),
+            "quantidade_fechadas": len(vendas_fechadas),
+            "quantidade_abertas": len(vendas_abertas),
+            "quantidade_canceladas": len(vendas_canceladas),
+            "subtotal": float(_decimal_2(total_subtotal)),
+            "descontos": float(_decimal_2(total_descontos)),
+            "acrescimos": float(_decimal_2(total_acrescimos)),
+            "total_vendido": float(_decimal_2(total_vendido)),
+            "por_forma_pagamento": list(resumo_por_pagamento.values()),
+        },
+        "vendas": linhas,
+    }

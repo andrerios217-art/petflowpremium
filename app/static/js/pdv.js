@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const state = {
     empresaId: 1,
     caixaAtual: null,
@@ -9,6 +9,10 @@
     atendimentosProntos: [],
     operadores: [],
     produtosEncontrados: [],
+    descontoAssinanteProdutosPercentual: 0,
+    descontoAssinanteServicosPercentual: 0,
+    descontoAssinanteCarregado: false,
+    clientesAssinantes: new Set(),
   };
 
   const els = {
@@ -49,6 +53,8 @@
     carrinhoLista: document.getElementById("pdv-carrinho-lista"),
     totalSubtotal: document.getElementById("pdv-total-subtotal"),
     totalDesconto: document.getElementById("pdv-total-desconto"),
+    totalDescontoLegenda: document.getElementById("pdv-total-desconto-legenda"),
+    descontoAssinanteInfo: document.getElementById("pdv-desconto-assinante-info"),
     totalAcrescimo: document.getElementById("pdv-total-acrescimo"),
     totalFinal: document.getElementById("pdv-total-final"),
 
@@ -578,7 +584,9 @@
       state.vendaAtual?.cliente?.nome ||
       "Cliente vinculado";
 
-    setText(els.clienteVinculadoNome, nome);
+    const sufixoAssinante = vendaAtualTemAssinanteAtivo() ? " • Assinante ativo" : "";
+
+    setText(els.clienteVinculadoNome, `${nome}${sufixoAssinante}`);
     showEl(els.clienteVinculadoBox);
   }
 
@@ -609,6 +617,13 @@
     if (venda.cliente_id && venda.modo_cliente === "REGISTERED_CLIENT") modo = "Cliente cadastrado";
     else if (venda.cliente_id) modo = "Cliente vinculado";
     else if (venda.modo_cliente === "WALK_IN") modo = "Balcão";
+
+    if (vendaAtualTemAssinanteAtivo()) {
+      modo = `${modo} • Assinante`;
+      if (!venda.observacoes) {
+        meta = `Desconto automático de assinante: ${descricaoRegraDescontoAssinante()}.`;
+      }
+    }
 
     setText(els.vendaCliente, nomeCliente);
     setText(els.vendaMeta, meta);
@@ -646,6 +661,7 @@
 
     syncValorPagamento();
     updateParcelasVisibility();
+    atualizarLegendaDescontoAssinante();
     renderControlsState();
   }
 
@@ -707,6 +723,149 @@
     setDisabled(els.btnZerarDesconto, !hasVendaAberta());
     setDisabled(els.btnCancelarVenda, !hasVendaAberta());
     setDisabled(els.btnRemoverClienteVenda, !hasVendaAberta() || !vendaTemClienteVinculado());
+  }
+
+  function normalizarTextoFlag(value) {
+    return String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function isValorAtivo(value) {
+    if (value === true) return true;
+    if (value === 1) return true;
+
+    const texto = normalizarTextoFlag(value);
+    return ["true", "1", "sim", "s", "ativo", "ativa", "active"].includes(texto);
+  }
+
+  function isStatusAssinaturaAtivo(value) {
+    const texto = normalizarTextoFlag(value);
+    return ["ativo", "ativa", "active", "vigente", "em_dia", "emdia"].includes(texto);
+  }
+
+  function isClienteAssinanteAtivo(cliente) {
+    if (!cliente) return false;
+
+    const flagsDiretas = [
+      cliente.assinante,
+      cliente.cliente_assinante,
+      cliente.assinatura_ativa,
+      cliente.assinaturaAtiva,
+      cliente.possui_assinatura_ativa,
+      cliente.possuiAssinaturaAtiva,
+      cliente.tem_assinatura_ativa,
+      cliente.temAssinaturaAtiva,
+      cliente.plano_assinante,
+    ];
+
+    if (flagsDiretas.some(isValorAtivo)) return true;
+
+    if (isStatusAssinaturaAtivo(cliente.status_assinatura)) return true;
+    if (isStatusAssinaturaAtivo(cliente.assinatura_status)) return true;
+    if (isStatusAssinaturaAtivo(cliente.statusAssinatura)) return true;
+    if (isStatusAssinaturaAtivo(cliente.assinatura?.status)) return true;
+    if (isValorAtivo(cliente.assinatura?.ativa)) return true;
+
+    return false;
+  }
+
+  function registrarClienteAssinanteSeAplicavel(cliente) {
+    if (!cliente?.id) return;
+
+    if (isClienteAssinanteAtivo(cliente)) {
+      state.clientesAssinantes.add(Number(cliente.id));
+    }
+  }
+
+  function vendaAtualTemAssinanteAtivo() {
+    const venda = state.vendaAtual;
+    if (!venda?.cliente_id) return false;
+
+    if (isClienteAssinanteAtivo(venda.cliente)) return true;
+    if (isClienteAssinanteAtivo(venda)) return true;
+
+    const clienteId = Number(venda.cliente_id);
+    if (state.clientesAssinantes.has(clienteId)) return true;
+
+    const clienteBusca = (state.clientesEncontrados || []).find(
+      (cliente) => Number(cliente.id) === clienteId
+    );
+
+    return isClienteAssinanteAtivo(clienteBusca);
+  }
+
+  function limitarPercentual(value) {
+    return Math.max(0, Math.min(100, toNumber(value, 0)));
+  }
+
+  function formatPercent(value) {
+    return limitarPercentual(value).toFixed(2).replace(".", ",");
+  }
+
+  function descricaoRegraDescontoAssinante() {
+    return `produtos ${formatPercent(state.descontoAssinanteProdutosPercentual)}% / serviços ${formatPercent(state.descontoAssinanteServicosPercentual)}%`;
+  }
+
+  function temRegraDescontoAssinanteConfigurada() {
+    return (
+      toNumber(state.descontoAssinanteProdutosPercentual, 0) > 0 ||
+      toNumber(state.descontoAssinanteServicosPercentual, 0) > 0
+    );
+  }
+
+  async function carregarConfiguracaoDescontoAssinante() {
+    const empresaId = getEmpresaId();
+
+    try {
+      const data = await request(`/configuracoes/desconto-assinante?empresa_id=${empresaId}`, {
+        method: "GET",
+      });
+
+      state.descontoAssinanteProdutosPercentual = limitarPercentual(data?.percentual_produtos);
+      state.descontoAssinanteServicosPercentual = limitarPercentual(data?.percentual_servicos);
+      state.descontoAssinanteCarregado = true;
+
+      return data;
+    } catch (error) {
+      state.descontoAssinanteProdutosPercentual = 0;
+      state.descontoAssinanteServicosPercentual = 0;
+      state.descontoAssinanteCarregado = false;
+      console.warn("Falha ao carregar desconto de assinante:", error);
+      return null;
+    }
+  }
+
+  function atualizarLegendaDescontoAssinante() {
+    const venda = state.vendaAtual;
+    const desconto = toNumber(venda?.desconto_valor, 0);
+    const clienteAssinante = vendaAtualTemAssinanteAtivo();
+    const regraConfigurada = temRegraDescontoAssinanteConfigurada();
+
+    if (els.totalDescontoLegenda) {
+      if (!venda) {
+        setText(els.totalDescontoLegenda, "Manual ou automático para assinante");
+      } else if (clienteAssinante && regraConfigurada && desconto > 0) {
+        setText(els.totalDescontoLegenda, `Assinante ativo: ${descricaoRegraDescontoAssinante()}`);
+      } else if (clienteAssinante && regraConfigurada) {
+        setText(els.totalDescontoLegenda, `Assinante ativo: ${descricaoRegraDescontoAssinante()}`);
+      } else if (desconto > 0) {
+        setText(els.totalDescontoLegenda, "Desconto manual aplicado");
+      } else {
+        setText(els.totalDescontoLegenda, "Manual ou automático para assinante");
+      }
+    }
+
+    if (els.descontoAssinanteInfo) {
+      if (clienteAssinante && regraConfigurada) {
+        els.descontoAssinanteInfo.innerHTML = `<strong>Desconto automático de assinante ativo:</strong> ${escapeHtml(descricaoRegraDescontoAssinante())}. O valor é recalculado ao adicionar/remover itens e fica salvo na venda.`;
+        showEl(els.descontoAssinanteInfo);
+      } else {
+        hideEl(els.descontoAssinanteInfo);
+      }
+    }
   }
 
   async function aplicarDescontoPercentual(percentValue) {
@@ -773,6 +932,7 @@
               <strong>${nome}</strong>
               <div class="pdv-cliente-meta">${cpf}</div>
               <div class="pdv-cliente-meta">${telefone}</div>
+              ${isClienteAssinanteAtivo(cliente) ? `<div class="pdv-cliente-meta"><span class="pdv-badge pdv-badge-soft">Assinante ativo</span></div>` : ""}
             </div>
             <div class="pdv-producao-item__actions">
               <button
@@ -820,6 +980,7 @@
     );
 
     state.clientesEncontrados = Array.isArray(data) ? data : [];
+    state.clientesEncontrados.forEach(registrarClienteAssinanteSeAplicavel);
     renderClientesResultado();
     return state.clientesEncontrados;
   }
@@ -986,6 +1147,8 @@
       ? (state.clientesEncontrados || []).find((c) => Number(c.id) === Number(clienteId))
       : null;
 
+    registrarClienteAssinanteSeAplicavel(cliente);
+
     const venda = await request("/api/pdv/vendas", {
       method: "POST",
       body: JSON.stringify({
@@ -1001,7 +1164,7 @@
     state.vendaAtual = venda;
     renderVenda();
     renderControlsState();
-    return venda;
+    return state.vendaAtual;
   }
 
   async function criarVendaParaCliente(clienteId) {
@@ -1010,6 +1173,9 @@
     const empresaId = getEmpresaId();
     const caixaSessaoId = getCaixaSessaoId();
     if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
+
+    const cliente = (state.clientesEncontrados || []).find((c) => Number(c.id) === Number(clienteId));
+    registrarClienteAssinanteSeAplicavel(cliente);
 
     const venda = await request("/api/pdv/vendas", {
       method: "POST",
@@ -1024,7 +1190,7 @@
     state.vendaAtual = venda;
     renderVenda();
     renderControlsState();
-    return venda;
+    return state.vendaAtual;
   }
 
   async function selecionarClienteParaVenda(clienteId) {
@@ -1045,8 +1211,16 @@
       await cancelarVendaAtual("Substituição por nova venda com cliente.");
     }
 
+    registrarClienteAssinanteSeAplicavel(cliente);
     await criarVendaBalcao(cliente.id);
-    showAlert("Cliente vinculado à venda avulsa.", "success");
+
+    if (vendaAtualTemAssinanteAtivo() && temRegraDescontoAssinanteConfigurada()) {
+      showAlert(`Cliente assinante vinculado. Regra ativa: ${descricaoRegraDescontoAssinante()}.`, "success");
+    } else if (vendaAtualTemAssinanteAtivo()) {
+      showAlert("Cliente assinante vinculado, mas não há regra de desconto configurada.", "warning");
+    } else {
+      showAlert("Cliente vinculado à venda avulsa.", "success");
+    }
   }
 
   async function removerClienteDaVendaAtual() {
@@ -1091,7 +1265,12 @@
     state.vendaAtual = vendaAtualizada;
     renderVenda();
     renderControlsState();
-    showAlert("Produto adicionado na venda.", "success");
+    showAlert(
+      vendaAtualTemAssinanteAtivo() && toNumber(state.vendaAtual?.desconto_valor, 0) > 0
+        ? "Produto adicionado. Desconto de assinante recalculado automaticamente."
+        : "Produto adicionado na venda.",
+      "success"
+    );
   }
 
   async function removerItemDaVenda(itemId) {
@@ -1103,7 +1282,12 @@
     state.vendaAtual = vendaAtualizada;
     renderVenda();
     renderControlsState();
-    showAlert("Item removido da venda.", "success");
+    showAlert(
+      vendaAtualTemAssinanteAtivo()
+        ? "Item removido. Desconto de assinante recalculado automaticamente."
+        : "Item removido da venda.",
+      "success"
+    );
   }
 
   async function carregarOperadores(termo, limite = 50) {
@@ -1358,6 +1542,7 @@
               <strong>${pet}</strong>
               ${cliente}
               ${descricao}
+              ${isClienteAssinanteAtivo(item) ? `<div class="pdv-muted"><span class="pdv-badge pdv-badge-soft">Assinante ativo</span></div>` : ""}
             </div>
             <div class="pdv-producao-item__actions">
               <strong>${valor}</strong>
@@ -1381,6 +1566,11 @@
     const empresaId = getEmpresaId();
     const data = await request(`/api/pdv/producao/prontos?empresa_id=${empresaId}`);
     state.producaoPronta = Array.isArray(data) ? data : [];
+    state.producaoPronta.forEach((item) => {
+      if (item?.cliente_id && isClienteAssinanteAtivo(item)) {
+        state.clientesAssinantes.add(Number(item.cliente_id));
+      }
+    });
     renderProducaoLista();
     return state.producaoPronta;
   }
@@ -1406,7 +1596,12 @@
     state.vendaAtual = venda;
     renderVenda();
     renderControlsState();
-    showAlert("Produção puxada para a venda atual.", "success");
+    showAlert(
+      vendaAtualTemAssinanteAtivo() && toNumber(state.vendaAtual?.desconto_valor, 0) > 0
+        ? "Produção puxada. Desconto de assinante aplicado automaticamente."
+        : "Produção puxada para a venda atual.",
+      "success"
+    );
 
     try {
       await carregarProducaoPronta();
@@ -1440,6 +1635,7 @@
             <div class="pdv-producao-item__info">
               <strong>${cliente}${pet}</strong>
               <div class="pdv-muted">${descricao}</div>
+              ${isClienteAssinanteAtivo(a) ? `<div class="pdv-muted"><span class="pdv-badge pdv-badge-soft">Assinante ativo</span></div>` : ""}
             </div>
             <div class="pdv-producao-item__actions">
               <strong>${valor}</strong>
@@ -1464,6 +1660,11 @@
     const empresaId = getEmpresaId();
     const data = await request(`/api/pdv/atendimentos/prontos?empresa_id=${empresaId}`);
     state.atendimentosProntos = Array.isArray(data) ? data : [];
+    state.atendimentosProntos.forEach((item) => {
+      if (item?.cliente_id && isClienteAssinanteAtivo(item)) {
+        state.clientesAssinantes.add(Number(item.cliente_id));
+      }
+    });
     renderAtendimentosLista();
     return state.atendimentosProntos;
   }
@@ -1497,7 +1698,12 @@
     state.vendaAtual = vendaAtualizada;
     renderVenda();
     renderControlsState();
-    showAlert("Atendimento adicionado na venda.", "success");
+    showAlert(
+      vendaAtualTemAssinanteAtivo() && toNumber(state.vendaAtual?.desconto_valor, 0) > 0
+        ? "Atendimento adicionado. Desconto de assinante aplicado automaticamente."
+        : "Atendimento adicionado na venda.",
+      "success"
+    );
 
     state.atendimentosProntos = (state.atendimentosProntos || []).filter(
       (x) => Number(x.atendimento_id) !== Number(atendimentoId)
@@ -2142,29 +2348,19 @@
       selectedLabel: "Gerente",
       emptyMessage: "Nenhum gerente encontrado.",
     });
+
+    bindFloatingActions();
   }
 
   async function init() {
-    renderCaixa();
-    renderVenda();
-    syncValorPagamento();
     bindMoneyInputs();
-
-    if (els.produtosResultado) {
-      setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
-    }
-
-    if (els.clientesResultado) {
-      setHtml(els.clientesResultado, `<div class="pdv-empty-state">Nenhum cliente pesquisado.</div>`);
-      hideEl(els.clientesResultado);
-    }
-
     ensureParcelasControl();
     updateParcelasVisibility();
-
     bindEvents();
     bindFloatingActions();
     renderControlsState();
+
+    await carregarConfiguracaoDescontoAssinante();
 
     try {
       await carregarCaixaAtual();

@@ -194,6 +194,11 @@ def pdv_page(request: Request):
     return templates.TemplateResponse(request, "pdv.html", {"request": request})
 
 
+@app.get("/relatorio-vendas", response_class=HTMLResponse)
+def relatorio_vendas_page(request: Request):
+    return templates.TemplateResponse(request, "relatorio_vendas.html", {"request": request})
+
+
 @app.get("/crm", response_class=HTMLResponse)
 def crm_page(request: Request):
     return templates.TemplateResponse(request, "crm.html", {"request": request})

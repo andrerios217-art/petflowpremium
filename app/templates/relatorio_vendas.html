@@ -1,0 +1,1910 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="sales-report-page">
+  <div class="sales-report-header">
+    <div>
+      <span class="sales-report-kicker">Relatórios • PDV</span>
+      <h1>Relatório de vendas</h1>
+      <p>Consulte vendas, produtos e serviços vendidos por período, cliente e status.</p>
+    </div>
+  </div>
+
+  <div id="relatorio-vendas-alerta" class="sales-report-alert sales-report-alert-info">
+    Informe os filtros e clique em buscar.
+  </div>
+
+  <section class="sales-report-card sales-report-no-print">
+    <div class="sales-report-tabs">
+      <button type="button" class="sales-report-tab active" data-tab="vendas">
+        Vendas
+      </button>
+      <button type="button" class="sales-report-tab" data-tab="itens">
+        Produtos e Serviços vendidos
+      </button>
+    </div>
+
+    <div class="sales-report-filters">
+      <div class="sales-report-field sales-report-field-small">
+        <label for="relatorio-empresa-id">Empresa ID</label>
+        <input type="number" id="relatorio-empresa-id" value="1" min="1">
+      </div>
+
+      <div class="sales-report-field">
+        <label for="relatorio-data-inicio">Data inicial</label>
+        <input type="date" id="relatorio-data-inicio">
+      </div>
+
+      <div class="sales-report-field">
+        <label for="relatorio-data-fim">Data final</label>
+        <input type="date" id="relatorio-data-fim">
+      </div>
+
+      <div class="sales-report-field">
+        <label for="relatorio-status">Status</label>
+        <select id="relatorio-status">
+          <option value="">Todos</option>
+          <option value="FECHADA" selected>Fechadas</option>
+          <option value="ABERTA">Abertas</option>
+          <option value="CANCELADA">Canceladas</option>
+        </select>
+      </div>
+
+      <div class="sales-report-field sales-report-field-client">
+        <label for="relatorio-cliente-busca">Cliente</label>
+        <input type="text" id="relatorio-cliente-busca" placeholder="Buscar por nome, CPF ou telefone">
+        <input type="hidden" id="relatorio-cliente-id">
+      </div>
+
+      <div class="sales-report-actions">
+        <button type="button" id="btn-buscar-cliente-relatorio" class="sales-report-btn">
+          Buscar cliente
+        </button>
+        <button type="button" id="btn-limpar-cliente-relatorio" class="sales-report-btn sales-report-btn-light">
+          Limpar cliente
+        </button>
+        <button type="button" id="btn-buscar-relatorio-vendas" class="sales-report-btn sales-report-btn-primary">
+          Buscar vendas
+        </button>
+        <button type="button" id="btn-buscar-relatorio-itens" class="sales-report-btn sales-report-btn-primary sales-report-hidden">
+          Buscar itens vendidos
+        </button>
+        <button type="button" id="btn-exportar-relatorio" class="sales-report-btn sales-report-btn-success">
+          Exportar CSV/Excel
+        </button>
+        <button type="button" id="btn-imprimir-relatorio" class="sales-report-btn sales-report-btn-light">
+          Imprimir / PDF
+        </button>
+      </div>
+    </div>
+
+    <div id="relatorio-clientes-resultado" class="sales-report-client-results sales-report-hidden">
+      <div class="sales-report-empty">Nenhum cliente pesquisado.</div>
+    </div>
+
+    <div id="itens-filtros-extra" class="sales-report-extra-filters sales-report-hidden">
+      <div class="sales-report-field">
+        <label for="relatorio-tipo-item">Tipo</label>
+        <select id="relatorio-tipo-item">
+          <option value="">Produtos e serviços</option>
+          <option value="PRODUCT">Somente produtos</option>
+          <option value="SERVICE">Somente serviços</option>
+        </select>
+      </div>
+
+      <div class="sales-report-field">
+        <label for="relatorio-produto-busca">Produto específico</label>
+        <input type="text" id="relatorio-produto-busca" placeholder="Buscar produto vendido">
+        <input type="hidden" id="relatorio-produto-id">
+      </div>
+
+      <div class="sales-report-field">
+        <label for="relatorio-termo-item">Termo no item</label>
+        <input type="text" id="relatorio-termo-item" placeholder="Ex.: ração, banho, consulta">
+      </div>
+
+      <div class="sales-report-field">
+        <label for="relatorio-ordenar-itens">Ordenar por</label>
+        <select id="relatorio-ordenar-itens">
+          <option value="valor_total">Faturamento</option>
+          <option value="quantidade">Quantidade</option>
+          <option value="descricao">Descrição</option>
+        </select>
+      </div>
+
+      <div class="sales-report-field">
+        <label for="relatorio-ordem-itens">Ordem</label>
+        <select id="relatorio-ordem-itens">
+          <option value="desc">Maior para menor</option>
+          <option value="asc">Menor para maior</option>
+        </select>
+      </div>
+
+      <div class="sales-report-actions">
+        <button type="button" id="btn-buscar-produto-relatorio" class="sales-report-btn">
+          Buscar produto
+        </button>
+        <button type="button" id="btn-limpar-produto-relatorio" class="sales-report-btn sales-report-btn-light">
+          Limpar produto
+        </button>
+      </div>
+
+      <div id="relatorio-produtos-resultado" class="sales-report-client-results sales-report-hidden">
+        <div class="sales-report-empty">Nenhum produto pesquisado.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="aba-vendas" class="sales-report-tab-panel">
+    <section class="sales-report-summary-grid">
+      <div class="sales-report-summary-card">
+        <span>Vendas listadas</span>
+        <strong id="resumo-quantidade-vendas">0</strong>
+      </div>
+
+      <div class="sales-report-summary-card">
+        <span>Vendas fechadas</span>
+        <strong id="resumo-quantidade-fechadas">0</strong>
+      </div>
+
+      <div class="sales-report-summary-card">
+        <span>Total vendido</span>
+        <strong id="resumo-total-vendido">R$ 0,00</strong>
+      </div>
+
+      <div class="sales-report-summary-card">
+        <span>Descontos</span>
+        <strong id="resumo-total-descontos">R$ 0,00</strong>
+      </div>
+    </section>
+
+    <section class="sales-report-card">
+      <div class="sales-report-card-header">
+        <div>
+          <h2>Vendas encontradas</h2>
+          <p id="relatorio-vendas-subtitle">Nenhuma busca realizada.</p>
+        </div>
+      </div>
+
+      <div class="sales-report-table-wrap">
+        <table class="sales-report-table">
+          <thead>
+            <tr>
+              <th>Venda</th>
+              <th>Data</th>
+              <th>Cliente</th>
+              <th>Status</th>
+              <th>Pagamento</th>
+              <th class="sales-report-money">Subtotal</th>
+              <th class="sales-report-money">Desconto</th>
+              <th class="sales-report-money">Total</th>
+            </tr>
+          </thead>
+          <tbody id="relatorio-vendas-tbody">
+            <tr>
+              <td colspan="8" class="sales-report-empty-cell">
+                Nenhuma venda carregada.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="sales-report-table-hint sales-report-no-print">
+        Clique em uma venda para ver detalhes, itens e pagamentos.
+      </p>
+    </section>
+
+    <section class="sales-report-card">
+      <div class="sales-report-card-header">
+        <div>
+          <h2>Resumo por forma de pagamento</h2>
+          <p>Considera apenas vendas fechadas.</p>
+        </div>
+      </div>
+
+      <div id="resumo-formas-pagamento" class="sales-report-payment-summary">
+        <div class="sales-report-empty">Nenhum pagamento encontrado.</div>
+      </div>
+    </section>
+  </section>
+
+  <section id="aba-itens" class="sales-report-tab-panel sales-report-hidden">
+    <section class="sales-report-summary-grid">
+      <div class="sales-report-summary-card">
+        <span>Itens agrupados</span>
+        <strong id="itens-resumo-agrupados">0</strong>
+      </div>
+
+      <div class="sales-report-summary-card">
+        <span>Quantidade vendida</span>
+        <strong id="itens-resumo-quantidade">0</strong>
+      </div>
+
+      <div class="sales-report-summary-card">
+        <span>Faturamento</span>
+        <strong id="itens-resumo-faturamento">R$ 0,00</strong>
+      </div>
+
+      <div class="sales-report-summary-card">
+        <span>Descontos nos itens</span>
+        <strong id="itens-resumo-desconto">R$ 0,00</strong>
+      </div>
+    </section>
+
+    <section class="sales-report-card">
+      <div class="sales-report-card-header">
+        <div>
+          <h2>Produtos e serviços vendidos</h2>
+          <p id="relatorio-itens-subtitle">Nenhuma busca realizada.</p>
+        </div>
+      </div>
+
+      <div class="sales-report-table-wrap">
+        <table class="sales-report-table">
+          <thead>
+            <tr>
+              <th>Descrição</th>
+              <th>Tipo</th>
+              <th class="sales-report-money">Quantidade</th>
+              <th class="sales-report-money">Vendas</th>
+              <th class="sales-report-money">Desconto</th>
+              <th class="sales-report-money">Ticket médio</th>
+              <th class="sales-report-money">Faturamento</th>
+            </tr>
+          </thead>
+          <tbody id="relatorio-itens-tbody">
+            <tr>
+              <td colspan="7" class="sales-report-empty-cell">
+                Nenhum item carregado.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sales-report-rank-grid">
+      <div class="sales-report-card">
+        <div class="sales-report-card-header">
+          <div>
+            <h2>Mais vendidos</h2>
+            <p>Ranking por quantidade.</p>
+          </div>
+        </div>
+        <div id="ranking-mais-vendidos" class="sales-report-ranking">
+          <div class="sales-report-empty">Nenhum dado.</div>
+        </div>
+      </div>
+
+      <div class="sales-report-card">
+        <div class="sales-report-card-header">
+          <div>
+            <h2>Menos vendidos</h2>
+            <p>Útil para produtos parados.</p>
+          </div>
+        </div>
+        <div id="ranking-menos-vendidos" class="sales-report-ranking">
+          <div class="sales-report-empty">Nenhum dado.</div>
+        </div>
+      </div>
+
+      <div class="sales-report-card">
+        <div class="sales-report-card-header">
+          <div>
+            <h2>Maior faturamento</h2>
+            <p>Ranking por valor total.</p>
+          </div>
+        </div>
+        <div id="ranking-maior-faturamento" class="sales-report-ranking">
+          <div class="sales-report-empty">Nenhum dado.</div>
+        </div>
+      </div>
+    </section>
+  </section>
+</section>
+
+<div id="sales-report-modal-overlay" class="sales-report-modal-overlay sales-report-hidden"></div>
+
+<div id="sales-report-sale-modal" class="sales-report-modal sales-report-hidden" aria-hidden="true">
+  <div class="sales-report-modal-header">
+    <div>
+      <h2 id="sales-report-modal-title">Detalhes da venda</h2>
+      <p id="sales-report-modal-subtitle">Carregando informações...</p>
+    </div>
+
+    <button type="button" id="btn-fechar-detalhe-venda" class="sales-report-modal-close" aria-label="Fechar">
+      ×
+    </button>
+  </div>
+
+  <div id="sales-report-modal-body" class="sales-report-modal-body">
+    <div class="sales-report-empty">Nenhuma venda selecionada.</div>
+  </div>
+</div>
+
+<style>
+  .sales-report-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .sales-report-header,
+  .sales-report-card,
+  .sales-report-summary-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+  }
+
+  .sales-report-header {
+    border-radius: 18px;
+    padding: 24px;
+  }
+
+  .sales-report-kicker {
+    display: inline-block;
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #2563eb;
+  }
+
+  .sales-report-header h1,
+  .sales-report-card-header h2 {
+    margin: 0 0 6px;
+    color: #111827;
+  }
+
+  .sales-report-header p,
+  .sales-report-card-header p {
+    margin: 0;
+    color: #6b7280;
+  }
+
+  .sales-report-card {
+    border-radius: 18px;
+    padding: 20px;
+  }
+
+  .sales-report-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .sales-report-tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .sales-report-tab {
+    min-height: 42px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #374151;
+    padding: 0 16px;
+    cursor: pointer;
+    font-weight: 800;
+  }
+
+  .sales-report-tab.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+  }
+
+  .sales-report-alert {
+    border-radius: 14px;
+    padding: 13px 15px;
+    font-weight: 700;
+  }
+
+  .sales-report-alert-info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  .sales-report-alert-success {
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+  }
+
+  .sales-report-alert-warning {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+  }
+
+  .sales-report-alert-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+  }
+
+  .sales-report-filters,
+  .sales-report-extra-filters {
+    display: grid;
+    grid-template-columns: 120px repeat(3, minmax(150px, 1fr)) minmax(220px, 1.4fr);
+    gap: 14px;
+    align-items: end;
+  }
+
+  .sales-report-extra-filters {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .sales-report-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .sales-report-field label {
+    color: #374151;
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+
+  .sales-report-field input,
+  .sales-report-field select {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 0 12px;
+    background: #ffffff;
+    color: #111827;
+    font: inherit;
+    box-sizing: border-box;
+    outline: none;
+  }
+
+  .sales-report-field input:focus,
+  .sales-report-field select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .sales-report-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .sales-report-btn {
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    padding: 0 16px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: 0.16s ease;
+  }
+
+  .sales-report-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  }
+
+  .sales-report-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .sales-report-btn-primary {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+  }
+
+  .sales-report-btn-success {
+    background: #16a34a;
+    color: #ffffff;
+    border-color: #16a34a;
+  }
+
+  .sales-report-btn-light {
+    background: #f3f4f6;
+  }
+
+  .sales-report-client-results {
+    margin-top: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 12px;
+    background: #f9fafb;
+  }
+
+  .sales-report-client-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #ffffff;
+    margin-bottom: 10px;
+  }
+
+  .sales-report-client-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .sales-report-client-item strong {
+    display: block;
+    color: #111827;
+  }
+
+  .sales-report-client-item span {
+    display: block;
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  .sales-report-summary-grid,
+  .sales-report-rank-grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .sales-report-summary-grid {
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+  }
+
+  .sales-report-rank-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sales-report-summary-card {
+    border-radius: 16px;
+    padding: 18px;
+  }
+
+  .sales-report-summary-card span {
+    display: block;
+    color: #6b7280;
+    font-weight: 800;
+    font-size: 0.86rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+
+  .sales-report-summary-card strong {
+    color: #111827;
+    font-size: 1.4rem;
+  }
+
+  .sales-report-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .sales-report-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 920px;
+  }
+
+  .sales-report-table th,
+  .sales-report-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .sales-report-table th {
+    background: #f9fafb;
+    color: #374151;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .sales-report-row {
+    cursor: pointer;
+    transition: 0.14s ease;
+  }
+
+  .sales-report-row:hover {
+    background: #eff6ff;
+  }
+
+  .sales-report-money {
+    text-align: right !important;
+    white-space: nowrap;
+  }
+
+  .sales-report-status {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .sales-report-status.FECHADA,
+  .sales-report-status.PRODUCT {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .sales-report-status.ABERTA,
+  .sales-report-status.SERVICE {
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .sales-report-status.CANCELADA {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .sales-report-empty,
+  .sales-report-empty-cell {
+    color: #6b7280;
+    text-align: center;
+    padding: 18px;
+  }
+
+  .sales-report-table-hint {
+    margin: 14px 0 0;
+    color: #6b7280;
+    font-size: 0.92rem;
+  }
+
+  .sales-report-payment-summary,
+  .sales-report-ranking {
+    display: grid;
+    gap: 12px;
+  }
+
+  .sales-report-payment-summary {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .sales-report-payment-card,
+  .sales-report-ranking-item {
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 14px;
+    padding: 15px;
+  }
+
+  .sales-report-payment-card span,
+  .sales-report-ranking-item span {
+    display: block;
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .sales-report-payment-card strong,
+  .sales-report-ranking-item strong {
+    display: block;
+    color: #111827;
+    font-size: 1.05rem;
+    line-height: 1.35;
+  }
+
+  .sales-report-payment-card small,
+  .sales-report-ranking-item small {
+    display: block;
+    color: #6b7280;
+    margin-top: 6px;
+  }
+
+  .sales-report-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 2000;
+  }
+
+  .sales-report-modal {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    width: min(920px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    z-index: 2001;
+    background: #ffffff;
+    border-radius: 20px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 20px 70px rgba(15, 23, 42, 0.24);
+    padding: 22px;
+  }
+
+  .sales-report-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .sales-report-modal-header h2 {
+    margin: 0 0 6px;
+    color: #111827;
+  }
+
+  .sales-report-modal-header p {
+    margin: 0;
+    color: #6b7280;
+  }
+
+  .sales-report-modal-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    cursor: pointer;
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  .sales-report-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .sales-report-detail-card {
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .sales-report-detail-card span {
+    display: block;
+    color: #6b7280;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .sales-report-detail-card strong {
+    display: block;
+    color: #111827;
+    word-break: break-word;
+  }
+
+  .sales-report-detail-section {
+    margin-top: 18px;
+  }
+
+  .sales-report-detail-section h3 {
+    margin: 0 0 10px;
+    color: #111827;
+  }
+
+  .sales-report-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+  }
+
+  .sales-report-detail-table th,
+  .sales-report-detail-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+  }
+
+  .sales-report-detail-table th {
+    background: #f9fafb;
+    color: #374151;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+  }
+
+  .sales-report-hidden {
+    display: none !important;
+  }
+
+  @media (max-width: 1100px) {
+    .sales-report-filters,
+    .sales-report-extra-filters {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sales-report-summary-grid,
+    .sales-report-rank-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sales-report-detail-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 700px) {
+    .sales-report-filters,
+    .sales-report-extra-filters,
+    .sales-report-summary-grid,
+    .sales-report-rank-grid,
+    .sales-report-detail-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .sales-report-actions,
+    .sales-report-client-item,
+    .sales-report-modal-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .sales-report-btn {
+      width: 100%;
+    }
+  }
+
+  @media print {
+    .sidebar,
+    .topbar-global,
+    .sales-report-no-print,
+    .sales-report-alert,
+    .sales-report-modal-overlay,
+    .sales-report-modal {
+      display: none !important;
+    }
+
+    .main-content {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+
+    .sales-report-card,
+    .sales-report-header,
+    .sales-report-summary-card {
+      box-shadow: none !important;
+      border-color: #d1d5db !important;
+    }
+
+    .sales-report-table {
+      min-width: 0;
+      font-size: 0.82rem;
+    }
+
+    .sales-report-table th,
+    .sales-report-table td {
+      padding: 7px 6px;
+    }
+  }
+</style>
+
+<script>
+  const relatorioState = {
+    abaAtiva: "vendas",
+    clientes: [],
+    produtos: [],
+    clienteSelecionado: null,
+    produtoSelecionado: null,
+    ultimoRelatorioVendas: null,
+    ultimoRelatorioItens: null,
+    vendas: [],
+    itens: [],
+  };
+
+  const relatorioEls = {
+    alerta: document.getElementById("relatorio-vendas-alerta"),
+    empresaId: document.getElementById("relatorio-empresa-id"),
+    dataInicio: document.getElementById("relatorio-data-inicio"),
+    dataFim: document.getElementById("relatorio-data-fim"),
+    status: document.getElementById("relatorio-status"),
+    clienteBusca: document.getElementById("relatorio-cliente-busca"),
+    clienteId: document.getElementById("relatorio-cliente-id"),
+    clientesResultado: document.getElementById("relatorio-clientes-resultado"),
+    btnBuscarCliente: document.getElementById("btn-buscar-cliente-relatorio"),
+    btnLimparCliente: document.getElementById("btn-limpar-cliente-relatorio"),
+    btnBuscarRelatorioVendas: document.getElementById("btn-buscar-relatorio-vendas"),
+    btnBuscarRelatorioItens: document.getElementById("btn-buscar-relatorio-itens"),
+    btnExportar: document.getElementById("btn-exportar-relatorio"),
+    btnImprimir: document.getElementById("btn-imprimir-relatorio"),
+    abaVendas: document.getElementById("aba-vendas"),
+    abaItens: document.getElementById("aba-itens"),
+    itensFiltrosExtra: document.getElementById("itens-filtros-extra"),
+    tipoItem: document.getElementById("relatorio-tipo-item"),
+    produtoBusca: document.getElementById("relatorio-produto-busca"),
+    produtoId: document.getElementById("relatorio-produto-id"),
+    termoItem: document.getElementById("relatorio-termo-item"),
+    ordenarItens: document.getElementById("relatorio-ordenar-itens"),
+    ordemItens: document.getElementById("relatorio-ordem-itens"),
+    btnBuscarProduto: document.getElementById("btn-buscar-produto-relatorio"),
+    btnLimparProduto: document.getElementById("btn-limpar-produto-relatorio"),
+    produtosResultado: document.getElementById("relatorio-produtos-resultado"),
+    vendasSubtitle: document.getElementById("relatorio-vendas-subtitle"),
+    vendasTbody: document.getElementById("relatorio-vendas-tbody"),
+    resumoQuantidadeVendas: document.getElementById("resumo-quantidade-vendas"),
+    resumoQuantidadeFechadas: document.getElementById("resumo-quantidade-fechadas"),
+    resumoTotalVendido: document.getElementById("resumo-total-vendido"),
+    resumoTotalDescontos: document.getElementById("resumo-total-descontos"),
+    resumoFormasPagamento: document.getElementById("resumo-formas-pagamento"),
+    itensSubtitle: document.getElementById("relatorio-itens-subtitle"),
+    itensTbody: document.getElementById("relatorio-itens-tbody"),
+    itensResumoAgrupados: document.getElementById("itens-resumo-agrupados"),
+    itensResumoQuantidade: document.getElementById("itens-resumo-quantidade"),
+    itensResumoFaturamento: document.getElementById("itens-resumo-faturamento"),
+    itensResumoDesconto: document.getElementById("itens-resumo-desconto"),
+    rankingMaisVendidos: document.getElementById("ranking-mais-vendidos"),
+    rankingMenosVendidos: document.getElementById("ranking-menos-vendidos"),
+    rankingMaiorFaturamento: document.getElementById("ranking-maior-faturamento"),
+    modalOverlay: document.getElementById("sales-report-modal-overlay"),
+    modal: document.getElementById("sales-report-sale-modal"),
+    modalTitle: document.getElementById("sales-report-modal-title"),
+    modalSubtitle: document.getElementById("sales-report-modal-subtitle"),
+    modalBody: document.getElementById("sales-report-modal-body"),
+    btnFecharModal: document.getElementById("btn-fechar-detalhe-venda"),
+  };
+
+  function relatorioEscape(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function relatorioToNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
+  function relatorioMoney(value) {
+    return relatorioToNumber(value, 0).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  }
+
+  function relatorioDate(value) {
+    if (!value) return "-";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+
+    return date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function showRelatorioAlert(message, type = "info") {
+    const classes = {
+      info: "sales-report-alert sales-report-alert-info",
+      success: "sales-report-alert sales-report-alert-success",
+      warning: "sales-report-alert sales-report-alert-warning",
+      error: "sales-report-alert sales-report-alert-error",
+    };
+
+    relatorioEls.alerta.textContent = message;
+    relatorioEls.alerta.className = classes[type] || classes.info;
+  }
+
+  async function relatorioRequest(url, options = {}) {
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+      ...options,
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : await response.text();
+
+    if (!response.ok) {
+      const detail = data?.detail || data?.message || data || "Erro na requisição.";
+      throw new Error(detail);
+    }
+
+    return data;
+  }
+
+  function getRelatorioEmpresaId() {
+    const empresaId = Number(relatorioEls.empresaId.value || 1);
+    return Number.isFinite(empresaId) && empresaId > 0 ? empresaId : 1;
+  }
+
+  function setAbaAtiva(aba) {
+    relatorioState.abaAtiva = aba;
+
+    document.querySelectorAll(".sales-report-tab").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === aba);
+    });
+
+    relatorioEls.abaVendas.classList.toggle("sales-report-hidden", aba !== "vendas");
+    relatorioEls.abaItens.classList.toggle("sales-report-hidden", aba !== "itens");
+    relatorioEls.itensFiltrosExtra.classList.toggle("sales-report-hidden", aba !== "itens");
+    relatorioEls.btnBuscarRelatorioVendas.classList.toggle("sales-report-hidden", aba !== "vendas");
+    relatorioEls.btnBuscarRelatorioItens.classList.toggle("sales-report-hidden", aba !== "itens");
+
+    showRelatorioAlert(
+      aba === "vendas"
+        ? "Visão de vendas ativa."
+        : "Visão de produtos e serviços vendidos ativa.",
+      "info"
+    );
+  }
+
+  function renderClientesResultado() {
+    const clientes = relatorioState.clientes || [];
+
+    if (!clientes.length) {
+      relatorioEls.clientesResultado.innerHTML = `
+        <div class="sales-report-empty">Nenhum cliente encontrado.</div>
+      `;
+      relatorioEls.clientesResultado.classList.remove("sales-report-hidden");
+      return;
+    }
+
+    relatorioEls.clientesResultado.innerHTML = clientes.map((cliente) => {
+      return `
+        <div class="sales-report-client-item">
+          <div>
+            <strong>${relatorioEscape(cliente.nome || "Cliente")}</strong>
+            <span>
+              CPF: ${relatorioEscape(cliente.cpf || "não informado")}
+              • Telefone: ${relatorioEscape(cliente.telefone || "não informado")}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="sales-report-btn sales-report-btn-primary"
+            data-relatorio-cliente-id="${relatorioEscape(cliente.id)}"
+          >
+            Selecionar
+          </button>
+        </div>
+      `;
+    }).join("");
+
+    relatorioEls.clientesResultado.classList.remove("sales-report-hidden");
+  }
+
+  async function buscarClientesRelatorio() {
+    const empresaId = getRelatorioEmpresaId();
+    const termo = String(relatorioEls.clienteBusca.value || "").trim();
+
+    if (!termo) {
+      showRelatorioAlert("Digite nome, CPF ou telefone para buscar cliente.", "warning");
+      return;
+    }
+
+    relatorioEls.btnBuscarCliente.disabled = true;
+    relatorioEls.btnBuscarCliente.textContent = "Buscando...";
+
+    try {
+      const data = await relatorioRequest(
+        `/api/pdv/clientes/busca?empresa_id=${empresaId}&q=${encodeURIComponent(termo)}&limite=20`
+      );
+
+      relatorioState.clientes = Array.isArray(data) ? data : [];
+      renderClientesResultado();
+
+      showRelatorioAlert(
+        relatorioState.clientes.length
+          ? `${relatorioState.clientes.length} cliente(s) encontrado(s).`
+          : "Nenhum cliente encontrado.",
+        relatorioState.clientes.length ? "success" : "warning"
+      );
+    } finally {
+      relatorioEls.btnBuscarCliente.disabled = false;
+      relatorioEls.btnBuscarCliente.textContent = "Buscar cliente";
+    }
+  }
+
+  function selecionarClienteRelatorio(clienteId) {
+    const cliente = relatorioState.clientes.find((item) => Number(item.id) === Number(clienteId));
+
+    if (!cliente) {
+      showRelatorioAlert("Cliente não encontrado na busca.", "error");
+      return;
+    }
+
+    relatorioState.clienteSelecionado = cliente;
+    relatorioEls.clienteId.value = cliente.id;
+    relatorioEls.clienteBusca.value = cliente.nome || "";
+    relatorioEls.clientesResultado.classList.add("sales-report-hidden");
+
+    showRelatorioAlert(`Cliente selecionado: ${cliente.nome}.`, "success");
+  }
+
+  function limparClienteRelatorio() {
+    relatorioState.clienteSelecionado = null;
+    relatorioState.clientes = [];
+    relatorioEls.clienteId.value = "";
+    relatorioEls.clienteBusca.value = "";
+    relatorioEls.clientesResultado.classList.add("sales-report-hidden");
+    relatorioEls.clientesResultado.innerHTML = `<div class="sales-report-empty">Nenhum cliente pesquisado.</div>`;
+  }
+
+  function renderProdutosResultado() {
+    const produtos = relatorioState.produtos || [];
+
+    if (!produtos.length) {
+      relatorioEls.produtosResultado.innerHTML = `
+        <div class="sales-report-empty">Nenhum produto encontrado.</div>
+      `;
+      relatorioEls.produtosResultado.classList.remove("sales-report-hidden");
+      return;
+    }
+
+    relatorioEls.produtosResultado.innerHTML = produtos.map((produto) => {
+      return `
+        <div class="sales-report-client-item">
+          <div>
+            <strong>${relatorioEscape(produto.nome || "Produto")}</strong>
+            <span>
+              ID: ${relatorioEscape(produto.id)}
+              • Preço: ${relatorioMoney(produto.preco_venda_atual || 0)}
+              • Estoque: ${relatorioToNumber(produto.estoque_atual, 0).toLocaleString("pt-BR")}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="sales-report-btn sales-report-btn-primary"
+            data-relatorio-produto-id="${relatorioEscape(produto.id)}"
+          >
+            Selecionar
+          </button>
+        </div>
+      `;
+    }).join("");
+
+    relatorioEls.produtosResultado.classList.remove("sales-report-hidden");
+  }
+
+  async function buscarProdutosRelatorio() {
+    const empresaId = getRelatorioEmpresaId();
+    const termo = String(relatorioEls.produtoBusca.value || "").trim();
+
+    if (!termo) {
+      showRelatorioAlert("Digite o nome do produto para buscar.", "warning");
+      return;
+    }
+
+    relatorioEls.btnBuscarProduto.disabled = true;
+    relatorioEls.btnBuscarProduto.textContent = "Buscando...";
+
+    try {
+      const data = await relatorioRequest(
+        `/api/pdv/produtos/busca?empresa_id=${empresaId}&q=${encodeURIComponent(termo)}&limite=20`
+      );
+
+      relatorioState.produtos = Array.isArray(data) ? data : [];
+      renderProdutosResultado();
+
+      showRelatorioAlert(
+        relatorioState.produtos.length
+          ? `${relatorioState.produtos.length} produto(s) encontrado(s).`
+          : "Nenhum produto encontrado.",
+        relatorioState.produtos.length ? "success" : "warning"
+      );
+    } finally {
+      relatorioEls.btnBuscarProduto.disabled = false;
+      relatorioEls.btnBuscarProduto.textContent = "Buscar produto";
+    }
+  }
+
+  function selecionarProdutoRelatorio(produtoId) {
+    const produto = relatorioState.produtos.find((item) => Number(item.id) === Number(produtoId));
+
+    if (!produto) {
+      showRelatorioAlert("Produto não encontrado na busca.", "error");
+      return;
+    }
+
+    relatorioState.produtoSelecionado = produto;
+    relatorioEls.produtoId.value = produto.id;
+    relatorioEls.produtoBusca.value = produto.nome || "";
+    relatorioEls.produtosResultado.classList.add("sales-report-hidden");
+
+    showRelatorioAlert(`Produto selecionado: ${produto.nome}.`, "success");
+  }
+
+  function limparProdutoRelatorio() {
+    relatorioState.produtoSelecionado = null;
+    relatorioState.produtos = [];
+    relatorioEls.produtoId.value = "";
+    relatorioEls.produtoBusca.value = "";
+    relatorioEls.produtosResultado.classList.add("sales-report-hidden");
+    relatorioEls.produtosResultado.innerHTML = `<div class="sales-report-empty">Nenhum produto pesquisado.</div>`;
+  }
+
+  function montarUrlRelatorioVendas() {
+    const params = new URLSearchParams();
+
+    params.set("empresa_id", String(getRelatorioEmpresaId()));
+    params.set("limite", "500");
+
+    if (relatorioEls.dataInicio.value) params.set("data_inicio", relatorioEls.dataInicio.value);
+    if (relatorioEls.dataFim.value) params.set("data_fim", relatorioEls.dataFim.value);
+    if (relatorioEls.status.value) params.set("status", relatorioEls.status.value);
+    if (relatorioEls.clienteId.value) params.set("cliente_id", relatorioEls.clienteId.value);
+
+    return `/api/pdv/relatorio/vendas?${params.toString()}`;
+  }
+
+  function montarUrlRelatorioItens() {
+    const params = new URLSearchParams();
+
+    params.set("empresa_id", String(getRelatorioEmpresaId()));
+    params.set("limite", "200");
+
+    if (relatorioEls.dataInicio.value) params.set("data_inicio", relatorioEls.dataInicio.value);
+    if (relatorioEls.dataFim.value) params.set("data_fim", relatorioEls.dataFim.value);
+    if (relatorioEls.status.value) params.set("status", relatorioEls.status.value);
+    if (relatorioEls.clienteId.value) params.set("cliente_id", relatorioEls.clienteId.value);
+    if (relatorioEls.tipoItem.value) params.set("tipo_item", relatorioEls.tipoItem.value);
+    if (relatorioEls.produtoId.value) params.set("produto_id", relatorioEls.produtoId.value);
+    if (relatorioEls.termoItem.value) params.set("termo", relatorioEls.termoItem.value);
+    if (relatorioEls.ordenarItens.value) params.set("ordenar_por", relatorioEls.ordenarItens.value);
+    if (relatorioEls.ordemItens.value) params.set("ordem", relatorioEls.ordemItens.value);
+
+    return `/api/pdv/relatorio/itens-vendidos?${params.toString()}`;
+  }
+
+  function renderResumoVendas(data) {
+    const resumo = data?.resumo || {};
+
+    relatorioEls.resumoQuantidadeVendas.textContent = String(resumo.quantidade_vendas || 0);
+    relatorioEls.resumoQuantidadeFechadas.textContent = String(resumo.quantidade_fechadas || 0);
+    relatorioEls.resumoTotalVendido.textContent = relatorioMoney(resumo.total_vendido || 0);
+    relatorioEls.resumoTotalDescontos.textContent = relatorioMoney(resumo.descontos || 0);
+
+    const formas = Array.isArray(resumo.por_forma_pagamento)
+      ? resumo.por_forma_pagamento
+      : [];
+
+    if (!formas.length) {
+      relatorioEls.resumoFormasPagamento.innerHTML = `
+        <div class="sales-report-empty">Nenhum pagamento encontrado.</div>
+      `;
+      return;
+    }
+
+    relatorioEls.resumoFormasPagamento.innerHTML = formas.map((forma) => {
+      return `
+        <div class="sales-report-payment-card">
+          <span>${relatorioEscape(forma.forma_pagamento || "Não informado")}</span>
+          <strong>${relatorioMoney(forma.valor_total || 0)}</strong>
+          <small>${relatorioEscape(forma.quantidade || 0)} venda(s)</small>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderTabelaVendas(data) {
+    const vendas = Array.isArray(data?.vendas) ? data.vendas : [];
+    relatorioState.vendas = vendas;
+
+    if (!vendas.length) {
+      relatorioEls.vendasTbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="sales-report-empty-cell">
+            Nenhuma venda encontrada para os filtros informados.
+          </td>
+        </tr>
+      `;
+      relatorioEls.vendasSubtitle.textContent = "Nenhuma venda encontrada.";
+      return;
+    }
+
+    relatorioEls.vendasTbody.innerHTML = vendas.map((venda) => {
+      return `
+        <tr class="sales-report-row" data-venda-id="${relatorioEscape(venda.id)}">
+          <td>${relatorioEscape(venda.numero_venda || `#${venda.id}`)}</td>
+          <td>${relatorioDate(venda.data)}</td>
+          <td>${relatorioEscape(venda.cliente_nome || "Cliente não informado")}</td>
+          <td>
+            <span class="sales-report-status ${relatorioEscape(venda.status || "")}">
+              ${relatorioEscape(venda.status || "-")}
+            </span>
+          </td>
+          <td>${relatorioEscape(venda.forma_pagamento || "-")}</td>
+          <td class="sales-report-money">${relatorioMoney(venda.subtotal || 0)}</td>
+          <td class="sales-report-money">${relatorioMoney(venda.desconto_valor || 0)}</td>
+          <td class="sales-report-money"><strong>${relatorioMoney(venda.valor_total || 0)}</strong></td>
+        </tr>
+      `;
+    }).join("");
+
+    relatorioEls.vendasSubtitle.textContent = `${vendas.length} venda(s) encontrada(s).`;
+  }
+
+  async function buscarRelatorioVendas() {
+    relatorioEls.btnBuscarRelatorioVendas.disabled = true;
+    relatorioEls.btnBuscarRelatorioVendas.textContent = "Buscando...";
+
+    try {
+      showRelatorioAlert("Buscando relatório de vendas...", "info");
+
+      const data = await relatorioRequest(montarUrlRelatorioVendas());
+      relatorioState.ultimoRelatorioVendas = data;
+
+      renderResumoVendas(data);
+      renderTabelaVendas(data);
+
+      showRelatorioAlert("Relatório de vendas carregado com sucesso.", "success");
+    } catch (error) {
+      showRelatorioAlert(error.message || "Erro ao buscar relatório de vendas.", "error");
+    } finally {
+      relatorioEls.btnBuscarRelatorioVendas.disabled = false;
+      relatorioEls.btnBuscarRelatorioVendas.textContent = "Buscar vendas";
+    }
+  }
+
+  function renderRanking(container, itens) {
+    if (!Array.isArray(itens) || !itens.length) {
+      container.innerHTML = `<div class="sales-report-empty">Nenhum dado.</div>`;
+      return;
+    }
+
+    container.innerHTML = itens.map((item, index) => {
+      return `
+        <div class="sales-report-ranking-item">
+          <span>#${index + 1} • ${relatorioEscape(item.tipo_item || "-")}</span>
+          <strong>${relatorioEscape(item.descricao || "Item")}</strong>
+          <small>
+            Qtde: ${relatorioToNumber(item.quantidade_total, 0).toLocaleString("pt-BR")}
+            • Faturamento: ${relatorioMoney(item.valor_total || 0)}
+          </small>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderResumoItens(data) {
+    const resumo = data?.resumo || {};
+
+    relatorioEls.itensResumoAgrupados.textContent = String(resumo.quantidade_itens_agrupados || 0);
+    relatorioEls.itensResumoQuantidade.textContent = relatorioToNumber(resumo.quantidade_total, 0).toLocaleString("pt-BR");
+    relatorioEls.itensResumoFaturamento.textContent = relatorioMoney(resumo.valor_total || 0);
+    relatorioEls.itensResumoDesconto.textContent = relatorioMoney(resumo.desconto_total || 0);
+
+    renderRanking(relatorioEls.rankingMaisVendidos, resumo.mais_vendidos || []);
+    renderRanking(relatorioEls.rankingMenosVendidos, resumo.menos_vendidos || []);
+    renderRanking(relatorioEls.rankingMaiorFaturamento, resumo.maior_faturamento || []);
+  }
+
+  function renderTabelaItens(data) {
+    const itens = Array.isArray(data?.itens) ? data.itens : [];
+    relatorioState.itens = itens;
+
+    if (!itens.length) {
+      relatorioEls.itensTbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="sales-report-empty-cell">
+            Nenhum produto ou serviço encontrado para os filtros informados.
+          </td>
+        </tr>
+      `;
+      relatorioEls.itensSubtitle.textContent = "Nenhum item encontrado.";
+      return;
+    }
+
+    relatorioEls.itensTbody.innerHTML = itens.map((item) => {
+      return `
+        <tr>
+          <td>${relatorioEscape(item.descricao || "Item")}</td>
+          <td>
+            <span class="sales-report-status ${relatorioEscape(item.tipo_item || "")}">
+              ${item.tipo_item === "PRODUCT" ? "Produto" : item.tipo_item === "SERVICE" ? "Serviço" : relatorioEscape(item.tipo_item || "-")}
+            </span>
+          </td>
+          <td class="sales-report-money">${relatorioToNumber(item.quantidade_total, 0).toLocaleString("pt-BR")}</td>
+          <td class="sales-report-money">${relatorioToNumber(item.quantidade_vendas, 0).toLocaleString("pt-BR")}</td>
+          <td class="sales-report-money">${relatorioMoney(item.desconto_total || 0)}</td>
+          <td class="sales-report-money">${relatorioMoney(item.ticket_medio_por_venda || 0)}</td>
+          <td class="sales-report-money"><strong>${relatorioMoney(item.valor_total || 0)}</strong></td>
+        </tr>
+      `;
+    }).join("");
+
+    relatorioEls.itensSubtitle.textContent = `${itens.length} item(ns) agrupado(s).`;
+  }
+
+  async function buscarRelatorioItens() {
+    relatorioEls.btnBuscarRelatorioItens.disabled = true;
+    relatorioEls.btnBuscarRelatorioItens.textContent = "Buscando...";
+
+    try {
+      showRelatorioAlert("Buscando produtos e serviços vendidos...", "info");
+
+      const data = await relatorioRequest(montarUrlRelatorioItens());
+      relatorioState.ultimoRelatorioItens = data;
+
+      renderResumoItens(data);
+      renderTabelaItens(data);
+
+      showRelatorioAlert("Relatório de itens vendidos carregado com sucesso.", "success");
+    } catch (error) {
+      showRelatorioAlert(error.message || "Erro ao buscar itens vendidos.", "error");
+    } finally {
+      relatorioEls.btnBuscarRelatorioItens.disabled = false;
+      relatorioEls.btnBuscarRelatorioItens.textContent = "Buscar itens vendidos";
+    }
+  }
+
+  function abrirModalVenda() {
+    relatorioEls.modalOverlay.classList.remove("sales-report-hidden");
+    relatorioEls.modal.classList.remove("sales-report-hidden");
+    relatorioEls.modal.setAttribute("aria-hidden", "false");
+  }
+
+  function fecharModalVenda() {
+    relatorioEls.modalOverlay.classList.add("sales-report-hidden");
+    relatorioEls.modal.classList.add("sales-report-hidden");
+    relatorioEls.modal.setAttribute("aria-hidden", "true");
+  }
+
+  function renderDetalheVenda(venda) {
+    const itens = Array.isArray(venda?.itens) ? venda.itens : [];
+    const pagamentos = Array.isArray(venda?.pagamentos) ? venda.pagamentos : [];
+    const clienteNome = venda?.cliente?.nome || venda?.nome_cliente_snapshot || "Cliente não informado";
+
+    relatorioEls.modalTitle.textContent = `Venda ${venda.numero_venda || `#${venda.id}`}`;
+    relatorioEls.modalSubtitle.textContent = `${clienteNome} • ${relatorioDate(venda.fechada_em || venda.aberta_em || venda.created_at)}`;
+
+    const itensHtml = itens.length
+      ? itens.map((item) => {
+          return `
+            <tr>
+              <td>${relatorioEscape(item.descricao_snapshot || "Item")}</td>
+              <td>${relatorioEscape(item.tipo_item || "-")}</td>
+              <td class="sales-report-money">${relatorioToNumber(item.quantidade, 0).toLocaleString("pt-BR")}</td>
+              <td class="sales-report-money">${relatorioMoney(item.valor_unitario || 0)}</td>
+              <td class="sales-report-money">${relatorioMoney(item.desconto_valor || 0)}</td>
+              <td class="sales-report-money"><strong>${relatorioMoney(item.valor_total || 0)}</strong></td>
+            </tr>
+          `;
+        }).join("")
+      : `
+        <tr>
+          <td colspan="6" class="sales-report-empty-cell">Nenhum item encontrado.</td>
+        </tr>
+      `;
+
+    const pagamentosHtml = pagamentos.length
+      ? pagamentos.map((pagamento) => {
+          return `
+            <tr>
+              <td>${relatorioEscape(pagamento.forma_pagamento || "-")}</td>
+              <td>${relatorioEscape(pagamento.status || "-")}</td>
+              <td>${relatorioEscape(pagamento.quantidade_parcelas || 1)}x</td>
+              <td>${relatorioDate(pagamento.recebido_em)}</td>
+              <td class="sales-report-money"><strong>${relatorioMoney(pagamento.valor || 0)}</strong></td>
+            </tr>
+          `;
+        }).join("")
+      : `
+        <tr>
+          <td colspan="5" class="sales-report-empty-cell">Nenhum pagamento encontrado.</td>
+        </tr>
+      `;
+
+    relatorioEls.modalBody.innerHTML = `
+      <div class="sales-report-detail-grid">
+        <div class="sales-report-detail-card">
+          <span>Cliente</span>
+          <strong>${relatorioEscape(clienteNome)}</strong>
+        </div>
+
+        <div class="sales-report-detail-card">
+          <span>Status</span>
+          <strong>${relatorioEscape(venda.status || "-")}</strong>
+        </div>
+
+        <div class="sales-report-detail-card">
+          <span>Subtotal</span>
+          <strong>${relatorioMoney(venda.subtotal || 0)}</strong>
+        </div>
+
+        <div class="sales-report-detail-card">
+          <span>Desconto</span>
+          <strong>${relatorioMoney(venda.desconto_valor || 0)}</strong>
+        </div>
+
+        <div class="sales-report-detail-card">
+          <span>Acréscimo</span>
+          <strong>${relatorioMoney(venda.acrescimo_valor || 0)}</strong>
+        </div>
+
+        <div class="sales-report-detail-card">
+          <span>Total</span>
+          <strong>${relatorioMoney(venda.valor_total || 0)}</strong>
+        </div>
+
+        <div class="sales-report-detail-card">
+          <span>Origem</span>
+          <strong>${relatorioEscape(venda.origem || "-")}</strong>
+        </div>
+
+        <div class="sales-report-detail-card">
+          <span>Modo cliente</span>
+          <strong>${relatorioEscape(venda.modo_cliente || "-")}</strong>
+        </div>
+      </div>
+
+      <div class="sales-report-detail-section">
+        <h3>Itens da venda</h3>
+        <div class="sales-report-table-wrap">
+          <table class="sales-report-detail-table">
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th class="sales-report-money">Qtde</th>
+                <th class="sales-report-money">Unitário</th>
+                <th class="sales-report-money">Desconto</th>
+                <th class="sales-report-money">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itensHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sales-report-detail-section">
+        <h3>Pagamentos</h3>
+        <div class="sales-report-table-wrap">
+          <table class="sales-report-detail-table">
+            <thead>
+              <tr>
+                <th>Forma</th>
+                <th>Status</th>
+                <th>Parcelas</th>
+                <th>Recebido em</th>
+                <th class="sales-report-money">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pagamentosHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  async function abrirDetalheVenda(vendaId) {
+    if (!vendaId) return;
+
+    relatorioEls.modalTitle.textContent = "Detalhes da venda";
+    relatorioEls.modalSubtitle.textContent = "Carregando informações...";
+    relatorioEls.modalBody.innerHTML = `<div class="sales-report-empty">Carregando venda...</div>`;
+    abrirModalVenda();
+
+    try {
+      const venda = await relatorioRequest(`/api/pdv/vendas/${vendaId}`);
+      renderDetalheVenda(venda);
+    } catch (error) {
+      relatorioEls.modalBody.innerHTML = `
+        <div class="sales-report-empty">
+          ${relatorioEscape(error.message || "Erro ao carregar detalhes da venda.")}
+        </div>
+      `;
+    }
+  }
+
+  function csvEscape(value) {
+    const text = String(value ?? "").replaceAll('"', '""');
+    return `"${text}"`;
+  }
+
+  async function exportarRelatorioCsv() {
+    const aba = relatorioState.abaAtiva;
+
+    if (aba === "vendas") {
+      const vendas = relatorioState.vendas || [];
+
+      if (!vendas.length) {
+        showRelatorioAlert("Nenhuma venda para exportar.", "warning");
+        return;
+      }
+
+      const clienteFiltrado = !!String(relatorioEls.clienteId.value || "").trim();
+
+      if (!clienteFiltrado) {
+        const linhas = [
+          ["Venda", "Data", "Cliente", "Status", "Pagamento", "Subtotal", "Desconto", "Acrescimo", "Total"],
+          ...vendas.map((venda) => [
+            venda.numero_venda || `#${venda.id}`,
+            relatorioDate(venda.data),
+            venda.cliente_nome || "Cliente n?o informado",
+            venda.status || "",
+            venda.forma_pagamento || "",
+            relatorioToNumber(venda.subtotal, 0).toFixed(2).replace(".", ","),
+            relatorioToNumber(venda.desconto_valor, 0).toFixed(2).replace(".", ","),
+            relatorioToNumber(venda.acrescimo_valor, 0).toFixed(2).replace(".", ","),
+            relatorioToNumber(venda.valor_total, 0).toFixed(2).replace(".", ","),
+          ]),
+        ];
+
+        baixarCsv(linhas, "relatorio-vendas");
+        return;
+      }
+
+      relatorioEls.btnExportar.disabled = true;
+      relatorioEls.btnExportar.textContent = "Exportando...";
+
+      try {
+        showRelatorioAlert("Montando exporta??o detalhada do cliente...", "info");
+
+        const vendasDetalhadas = [];
+
+        for (const vendaResumo of vendas) {
+          const venda = await relatorioRequest(`/api/pdv/vendas/${vendaResumo.id}`);
+          vendasDetalhadas.push(venda);
+        }
+
+        const linhas = [
+          [
+            "Cliente",
+            "Venda",
+            "Data",
+            "Status da venda",
+            "Forma de pagamento",
+            "Produto/Servi?o comprado",
+            "Tipo",
+            "Produto ID",
+            "Atendimento ID",
+            "Quantidade",
+            "Valor unit?rio",
+            "Desconto do item",
+            "Total do item",
+            "Subtotal da venda",
+            "Desconto da venda",
+            "Acr?scimo da venda",
+            "Total da venda",
+          ],
+        ];
+
+        vendasDetalhadas.forEach((venda) => {
+          const clienteNome = venda?.cliente?.nome || venda?.nome_cliente_snapshot || "Cliente n?o informado";
+          const dataVenda = relatorioDate(venda.fechada_em || venda.aberta_em || venda.created_at);
+
+          const pagamentos = Array.isArray(venda?.pagamentos) ? venda.pagamentos : [];
+          const pagamentoRecebido =
+            pagamentos.find((pagamento) => pagamento.status === "RECEBIDO") ||
+            pagamentos[0] ||
+            null;
+
+          const formaPagamento = pagamentoRecebido?.forma_pagamento || "";
+          const itens = Array.isArray(venda?.itens) ? venda.itens : [];
+
+          if (!itens.length) {
+            linhas.push([
+              clienteNome,
+              venda.numero_venda || `#${venda.id}`,
+              dataVenda,
+              venda.status || "",
+              formaPagamento,
+              "Venda sem itens detalhados",
+              "",
+              "",
+              "",
+              "0",
+              "0,00",
+              "0,00",
+              "0,00",
+              relatorioToNumber(venda.subtotal, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(venda.desconto_valor, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(venda.acrescimo_valor, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(venda.valor_total, 0).toFixed(2).replace(".", ","),
+            ]);
+            return;
+          }
+
+          itens.forEach((item) => {
+            const descricaoItem =
+              item.descricao_snapshot ||
+              item.descricao ||
+              item.nome ||
+              item.produto_nome ||
+              item.servico_nome ||
+              "Item sem descri??o";
+
+            const tipoItem =
+              item.tipo_item === "PRODUCT"
+                ? "Produto"
+                : item.tipo_item === "SERVICE"
+                  ? "Servi?o"
+                  : item.tipo_item || "";
+
+            linhas.push([
+              clienteNome,
+              venda.numero_venda || `#${venda.id}`,
+              dataVenda,
+              venda.status || "",
+              formaPagamento,
+              descricaoItem,
+              tipoItem,
+              item.produto_id || "",
+              item.atendimento_clinico_id || "",
+              relatorioToNumber(item.quantidade, 0).toFixed(3).replace(".", ","),
+              relatorioToNumber(item.valor_unitario, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(item.desconto_valor, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(item.valor_total, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(venda.subtotal, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(venda.desconto_valor, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(venda.acrescimo_valor, 0).toFixed(2).replace(".", ","),
+              relatorioToNumber(venda.valor_total, 0).toFixed(2).replace(".", ","),
+            ]);
+          });
+        });
+
+        baixarCsv(linhas, "historico-consumo-cliente");
+      } catch (error) {
+        showRelatorioAlert(error.message || "Erro ao exportar relat?rio detalhado.", "error");
+      } finally {
+        relatorioEls.btnExportar.disabled = false;
+        relatorioEls.btnExportar.textContent = "Exportar CSV/Excel";
+      }
+
+      return;
+    }
+
+    const itens = relatorioState.itens || [];
+
+    if (!itens.length) {
+      showRelatorioAlert("Nenhum item vendido para exportar.", "warning");
+      return;
+    }
+
+    const linhas = [
+      ["Produto/Servi?o vendido", "Tipo", "Quantidade", "Vendas", "Desconto", "Ticket m?dio", "Faturamento"],
+      ...itens.map((item) => [
+        item.descricao || "Item",
+        item.tipo_item === "PRODUCT" ? "Produto" : item.tipo_item === "SERVICE" ? "Servi?o" : item.tipo_item || "",
+        relatorioToNumber(item.quantidade_total, 0).toFixed(3).replace(".", ","),
+        relatorioToNumber(item.quantidade_vendas, 0),
+        relatorioToNumber(item.desconto_total, 0).toFixed(2).replace(".", ","),
+        relatorioToNumber(item.ticket_medio_por_venda, 0).toFixed(2).replace(".", ","),
+        relatorioToNumber(item.valor_total, 0).toFixed(2).replace(".", ","),
+      ]),
+    ];
+
+    baixarCsv(linhas, "relatorio-itens-vendidos");
+  }
+
+  function baixarCsv(linhas, nomeBase) {
+    const csv = "\uFEFF" + linhas.map((linha) => linha.map(csvEscape).join(";")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${nomeBase}-${hoje}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showRelatorioAlert("Arquivo CSV gerado com sucesso.", "success");
+  }
+
+  function imprimirRelatorio() {
+    const temDados = relatorioState.abaAtiva === "vendas"
+      ? (relatorioState.vendas || []).length
+      : (relatorioState.itens || []).length;
+
+    if (!temDados) {
+      showRelatorioAlert("Nenhum dado para imprimir.", "warning");
+      return;
+    }
+
+    window.print();
+  }
+
+  document.querySelectorAll(".sales-report-tab").forEach((button) => {
+    button.addEventListener("click", () => setAbaAtiva(button.dataset.tab));
+  });
+
+  relatorioEls.btnBuscarCliente.addEventListener("click", () => {
+    buscarClientesRelatorio().catch((error) => {
+      showRelatorioAlert(error.message || "Erro ao buscar cliente.", "error");
+    });
+  });
+
+  relatorioEls.clienteBusca.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+    buscarClientesRelatorio().catch((error) => {
+      showRelatorioAlert(error.message || "Erro ao buscar cliente.", "error");
+    });
+  });
+
+  relatorioEls.clientesResultado.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-relatorio-cliente-id]");
+    if (!button) return;
+
+    selecionarClienteRelatorio(button.dataset.relatorioClienteId);
+  });
+
+  relatorioEls.btnBuscarProduto.addEventListener("click", () => {
+    buscarProdutosRelatorio().catch((error) => {
+      showRelatorioAlert(error.message || "Erro ao buscar produto.", "error");
+    });
+  });
+
+  relatorioEls.produtoBusca.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+    buscarProdutosRelatorio().catch((error) => {
+      showRelatorioAlert(error.message || "Erro ao buscar produto.", "error");
+    });
+  });
+
+  relatorioEls.produtosResultado.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-relatorio-produto-id]");
+    if (!button) return;
+
+    selecionarProdutoRelatorio(button.dataset.relatorioProdutoId);
+  });
+
+  relatorioEls.vendasTbody.addEventListener("click", (event) => {
+    const row = event.target.closest("[data-venda-id]");
+    if (!row) return;
+
+    abrirDetalheVenda(row.dataset.vendaId);
+  });
+
+  relatorioEls.btnLimparCliente.addEventListener("click", limparClienteRelatorio);
+  relatorioEls.btnLimparProduto.addEventListener("click", limparProdutoRelatorio);
+  relatorioEls.btnBuscarRelatorioVendas.addEventListener("click", buscarRelatorioVendas);
+  relatorioEls.btnBuscarRelatorioItens.addEventListener("click", buscarRelatorioItens);
+  relatorioEls.btnExportar.addEventListener("click", exportarRelatorioCsv);
+  relatorioEls.btnImprimir.addEventListener("click", imprimirRelatorio);
+  relatorioEls.btnFecharModal.addEventListener("click", fecharModalVenda);
+  relatorioEls.modalOverlay.addEventListener("click", fecharModalVenda);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      fecharModalVenda();
+    }
+  });
+</script>
+{% endblock %}

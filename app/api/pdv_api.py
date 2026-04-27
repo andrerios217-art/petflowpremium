@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
 from app.crud.pdv import (
@@ -19,8 +19,11 @@ from app.crud.pdv import (
     listar_producao_prontos,
     listar_vendas,
     obter_venda,
+    relatorio_vendas as relatorio_vendas_crud,
     remover_item,
 )
+from app.crud.pdv_relatorios import relatorio_itens_vendidos as relatorio_itens_vendidos_crud
+from app.models.assinatura_pet import AssinaturaPet
 from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.pdv_pagamento import PdvPagamento
 from app.models.pdv_venda import PdvVenda
@@ -31,7 +34,6 @@ from app.schemas.pdv import (
     PdvAtendimentoProntoOut,
     PdvCancelRequest,
     PdvCheckoutRequest,
-    PdvClienteBuscaOut,
     PdvOperacaoResponse,
     PdvProducaoProntoOut,
     PdvVendaCreate,
@@ -49,21 +51,52 @@ def _to_float(valor):
     return float(valor or 0)
 
 
-def _serializar_cliente(cliente):
+def _cliente_tem_assinatura_ativa(
+    db: Session | None,
+    empresa_id: int | None,
+    cliente_id: int | None,
+) -> bool:
+    if not db or not empresa_id or not cliente_id:
+        return False
+
+    return (
+        db.query(AssinaturaPet.id)
+        .filter(
+            AssinaturaPet.empresa_id == empresa_id,
+            AssinaturaPet.cliente_id == cliente_id,
+            AssinaturaPet.status == "ATIVA",
+        )
+        .first()
+        is not None
+    )
+
+
+def _serializar_cliente(cliente, db: Session | None = None):
     if not cliente:
         return None
+
+    empresa_id = getattr(cliente, "empresa_id", None)
+    assinatura_ativa = _cliente_tem_assinatura_ativa(
+        db=db,
+        empresa_id=empresa_id,
+        cliente_id=cliente.id,
+    )
+
     return {
         "id": cliente.id,
         "nome": getattr(cliente, "nome", None),
         "cpf": getattr(cliente, "cpf", None),
         "telefone": getattr(cliente, "telefone", None),
         "saldo_cashback": _to_float(getattr(cliente, "saldo_cashback", 0)),
+        "assinante": assinatura_ativa,
+        "assinatura_ativa": assinatura_ativa,
     }
 
 
 def _serializar_produto(produto):
     if not produto:
         return None
+
     return {
         "id": produto.id,
         "empresa_id": produto.empresa_id,
@@ -97,7 +130,7 @@ def _serializar_pagamento(pagamento: PdvPagamento) -> dict:
         "id": pagamento.id,
         "venda_id": pagamento.venda_id,
         "forma_pagamento": pagamento.forma_pagamento,
-        "valor": float(pagamento.valor or 0),
+        "valor": _to_float(pagamento.valor),
         "quantidade_parcelas": pagamento.quantidade_parcelas,
         "status": pagamento.status,
         "referencia": pagamento.referencia,
@@ -109,7 +142,7 @@ def _serializar_pagamento(pagamento: PdvPagamento) -> dict:
     }
 
 
-def _serializar_venda(venda: PdvVenda):
+def _serializar_venda(venda: PdvVenda, db: Session | None = None):
     return {
         "id": venda.id,
         "empresa_id": venda.empresa_id,
@@ -135,7 +168,7 @@ def _serializar_venda(venda: PdvVenda):
         "motivo_cancelamento": venda.motivo_cancelamento,
         "created_at": venda.created_at.isoformat() if venda.created_at else None,
         "updated_at": venda.updated_at.isoformat() if venda.updated_at else None,
-        "cliente": _serializar_cliente(venda.cliente),
+        "cliente": _serializar_cliente(venda.cliente, db=db),
         "itens": [_serializar_item(item) for item in (venda.itens or [])],
         "pagamentos": [_serializar_pagamento(pagamento) for pagamento in (venda.pagamentos or [])],
     }
@@ -160,19 +193,31 @@ def _descricao_atendimento(atendimento: AtendimentoClinico) -> str:
 
     if pet_nome:
         return f"{descricao_base} - {pet_nome}"
+
     return descricao_base
 
 
 def _total_atendimento(atendimento: AtendimentoClinico) -> Decimal:
     total = Decimal("0.00")
+
     for item in getattr(atendimento, "itens", []) or []:
         total += Decimal(str(getattr(item, "valor_total", 0) or 0))
+
     return total
 
 
-def _serializar_atendimento_pronto(atendimento: AtendimentoClinico):
+def _serializar_atendimento_pronto(atendimento: AtendimentoClinico, db: Session | None = None):
     pet = getattr(atendimento, "pet", None)
     cliente = getattr(atendimento, "cliente", None)
+    cliente_id = getattr(atendimento, "cliente_id", None)
+    empresa_id = getattr(atendimento, "empresa_id", None)
+
+    assinatura_ativa = _cliente_tem_assinatura_ativa(
+        db=db,
+        empresa_id=empresa_id,
+        cliente_id=cliente_id,
+    )
+
     return {
         "atendimento_id": atendimento.id,
         "cliente_id": atendimento.cliente_id,
@@ -182,6 +227,8 @@ def _serializar_atendimento_pronto(atendimento: AtendimentoClinico):
         "valor_total": _to_float(_total_atendimento(atendimento)),
         "status": atendimento.status,
         "enviado_pdv": bool(atendimento.enviado_pdv),
+        "assinante": assinatura_ativa,
+        "assinatura_ativa": assinatura_ativa,
     }
 
 
@@ -209,37 +256,51 @@ def _descricao_producao(producao: Producao) -> str:
             nomes.append(nome_servico)
 
     descricao_base = ", ".join(nomes[:5]) if nomes else "Serviços petshop"
+
     if len(nomes) > 5:
         descricao_base += ", ..."
 
     if pet_nome:
         return f"{descricao_base} - {pet_nome}"
+
     return descricao_base
 
 
 def _total_producao(producao: Producao) -> Decimal:
     total = Decimal("0.00")
     agendamento = getattr(producao, "agendamento", None)
+
     for item in getattr(agendamento, "servicos_agendamento", []) or []:
         total += Decimal(str(getattr(item, "preco", 0) or 0))
+
     return total
 
 
-def _serializar_producao_pronta(producao: Producao):
+def _serializar_producao_pronta(producao: Producao, db: Session | None = None):
     agendamento = getattr(producao, "agendamento", None)
     cliente = getattr(agendamento, "cliente", None) if agendamento else None
     pet = getattr(agendamento, "pet", None) if agendamento else None
+    cliente_id = getattr(agendamento, "cliente_id", None) if agendamento else None
+    empresa_id = getattr(agendamento, "empresa_id", None) if agendamento else None
+
+    assinatura_ativa = _cliente_tem_assinatura_ativa(
+        db=db,
+        empresa_id=empresa_id,
+        cliente_id=cliente_id,
+    )
 
     return {
         "producao_id": producao.id,
         "agendamento_id": getattr(producao, "agendamento_id", None),
-        "cliente_id": getattr(agendamento, "cliente_id", None),
+        "cliente_id": cliente_id,
         "cliente_nome": getattr(cliente, "nome", None),
         "pet_nome": getattr(pet, "nome", None) if pet else None,
         "descricao": _descricao_producao(producao),
         "valor_total": _to_float(_total_producao(producao)),
         "finalizado": bool(getattr(producao, "finalizado", False)),
         "enviado_pdv": bool(getattr(producao, "enviado_pdv", False)),
+        "assinante": assinatura_ativa,
+        "assinatura_ativa": assinatura_ativa,
     }
 
 
@@ -283,7 +344,7 @@ def listar_operadores_pdv(
     return [_serializar_operador(usuario) for usuario in operadores]
 
 
-@router.get("/clientes/busca", response_model=list[PdvClienteBuscaOut])
+@router.get("/clientes/busca")
 def buscar_clientes_pdv(
     empresa_id: int = Query(..., ge=1),
     q: str = Query(..., min_length=1),
@@ -291,7 +352,7 @@ def buscar_clientes_pdv(
     db: Session = Depends(get_db),
 ):
     clientes = buscar_clientes(db, empresa_id=empresa_id, termo=q, limite=limite)
-    return [_serializar_cliente(cliente) for cliente in clientes]
+    return [_serializar_cliente(cliente, db=db) for cliente in clientes]
 
 
 @router.get("/produtos/busca")
@@ -305,7 +366,7 @@ def buscar_produtos_pdv(
     return [_serializar_produto(produto) for produto in produtos]
 
 
-@router.get("/atendimentos/prontos", response_model=list[PdvAtendimentoProntoOut])
+@router.get("/atendimentos/prontos")
 def listar_atendimentos_prontos_pdv(
     empresa_id: int = Query(..., ge=1),
     cliente_id: int | None = Query(None, ge=1),
@@ -316,17 +377,69 @@ def listar_atendimentos_prontos_pdv(
         empresa_id=empresa_id,
         cliente_id=cliente_id,
     )
-    return [_serializar_atendimento_pronto(atendimento) for atendimento in atendimentos]
+    return [_serializar_atendimento_pronto(atendimento, db=db) for atendimento in atendimentos]
 
 
-@router.get("/producao/prontos", response_model=list[PdvProducaoProntoOut])
+@router.get("/producao/prontos")
 def listar_producao_prontos_pdv(
     empresa_id: int = Query(..., ge=1),
     cliente_id: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
 ):
     producoes = listar_producao_prontos(db, empresa_id=empresa_id, cliente_id=cliente_id)
-    return [_serializar_producao_pronta(p) for p in producoes]
+    return [_serializar_producao_pronta(producao, db=db) for producao in producoes]
+
+
+@router.get("/relatorio/vendas")
+def relatorio_vendas_pdv(
+    empresa_id: int = Query(..., ge=1),
+    data_inicio: date | None = Query(None),
+    data_fim: date | None = Query(None),
+    cliente_id: int | None = Query(None, ge=1),
+    status: str | None = Query(None),
+    limite: int = Query(500, ge=1, le=2000),
+    db: Session = Depends(get_db),
+):
+    return relatorio_vendas_crud(
+        db,
+        empresa_id=empresa_id,
+        data_inicio=data_inicio.isoformat() if data_inicio else None,
+        data_fim=data_fim.isoformat() if data_fim else None,
+        cliente_id=cliente_id,
+        status=status,
+        limite=limite,
+    )
+
+
+@router.get("/relatorio/itens-vendidos")
+def relatorio_itens_vendidos_pdv(
+    empresa_id: int = Query(..., ge=1),
+    data_inicio: date | None = Query(None),
+    data_fim: date | None = Query(None),
+    cliente_id: int | None = Query(None, ge=1),
+    status: str | None = Query("FECHADA"),
+    tipo_item: str | None = Query(None),
+    produto_id: int | None = Query(None, ge=1),
+    termo: str | None = Query(None),
+    ordenar_por: str = Query("valor_total"),
+    ordem: str = Query("desc"),
+    limite: int = Query(200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+):
+    return relatorio_itens_vendidos_crud(
+        db,
+        empresa_id=empresa_id,
+        data_inicio=data_inicio.isoformat() if data_inicio else None,
+        data_fim=data_fim.isoformat() if data_fim else None,
+        cliente_id=cliente_id,
+        status=status,
+        tipo_item=tipo_item,
+        produto_id=produto_id,
+        termo=termo,
+        ordenar_por=ordenar_por,
+        ordem=ordem,
+        limite=limite,
+    )
 
 
 @router.post("/vendas/producao", response_model=PdvVendaOut)
@@ -335,7 +448,7 @@ def enviar_producao_pdv(
     db: Session = Depends(get_db),
 ):
     venda = enviar_producao_para_pdv(db, payload)
-    return _serializar_venda(venda)
+    return _serializar_venda(venda, db=db)
 
 
 @router.post("/vendas", response_model=PdvVendaOut)
@@ -344,7 +457,7 @@ def criar_venda_pdv(
     db: Session = Depends(get_db),
 ):
     venda = criar_venda(db, payload)
-    return _serializar_venda(venda)
+    return _serializar_venda(venda, db=db)
 
 
 @router.get("/vendas", response_model=list[PdvVendaListOut])
@@ -355,6 +468,7 @@ def listar_vendas_pdv(
     db: Session = Depends(get_db),
 ):
     vendas = listar_vendas(db, empresa_id=empresa_id, status=status, limite=limite)
+
     return [
         {
             "id": venda.id,
@@ -368,7 +482,7 @@ def listar_vendas_pdv(
             "valor_total": _to_float(venda.valor_total),
             "aberta_em": venda.aberta_em.isoformat() if venda.aberta_em else None,
             "fechada_em": venda.fechada_em.isoformat() if venda.fechada_em else None,
-            "cliente": _serializar_cliente(venda.cliente),
+            "cliente": _serializar_cliente(venda.cliente, db=db),
         }
         for venda in vendas
     ]
@@ -380,7 +494,7 @@ def obter_venda_pdv(
     db: Session = Depends(get_db),
 ):
     venda = obter_venda(db, venda_id)
-    return _serializar_venda(venda)
+    return _serializar_venda(venda, db=db)
 
 
 @router.patch("/vendas/{venda_id}", response_model=PdvVendaOut)
@@ -390,7 +504,7 @@ def atualizar_venda_pdv(
     db: Session = Depends(get_db),
 ):
     venda = atualizar_venda(db, venda_id, payload)
-    return _serializar_venda(venda)
+    return _serializar_venda(venda, db=db)
 
 
 @router.post("/vendas/{venda_id}/itens", response_model=PdvVendaOut)
@@ -400,7 +514,7 @@ def adicionar_item_pdv(
     db: Session = Depends(get_db),
 ):
     venda = adicionar_item(db, venda_id, payload)
-    return _serializar_venda(venda)
+    return _serializar_venda(venda, db=db)
 
 
 @router.delete("/vendas/{venda_id}/itens/{item_id}", response_model=PdvVendaOut)
@@ -410,7 +524,7 @@ def remover_item_pdv(
     db: Session = Depends(get_db),
 ):
     venda = remover_item(db, venda_id, item_id)
-    return _serializar_venda(venda)
+    return _serializar_venda(venda, db=db)
 
 
 @router.post("/vendas/{venda_id}/checkout", response_model=PdvOperacaoResponse)
@@ -420,10 +534,11 @@ def checkout_venda_pdv(
     db: Session = Depends(get_db),
 ):
     venda = checkout_venda(db, venda_id, payload)
+
     return {
         "ok": True,
         "mensagem": "Venda finalizada com sucesso.",
-        "venda": _serializar_venda(venda),
+        "venda": _serializar_venda(venda, db=db),
     }
 
 
@@ -434,8 +549,9 @@ def cancelar_venda_pdv(
     db: Session = Depends(get_db),
 ):
     venda = cancelar_venda(db, venda_id, payload)
+
     return {
         "ok": True,
         "mensagem": "Venda cancelada com sucesso.",
-        "venda": _serializar_venda(venda),
+        "venda": _serializar_venda(venda, db=db),
     }

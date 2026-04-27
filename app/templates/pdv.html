@@ -158,9 +158,12 @@
             <strong id="pdv-total-subtotal">R$ 0,00</strong>
           </div>
 
-          <div class="pdv-total-box">
+          <div class="pdv-total-box pdv-total-box-discount">
             <span class="pdv-label">Desconto</span>
             <strong id="pdv-total-desconto">R$ 0,00</strong>
+            <small id="pdv-total-desconto-legenda">
+              Manual ou automático para assinante
+            </small>
           </div>
 
           <div class="pdv-total-box">
@@ -174,9 +177,15 @@
           </div>
         </div>
 
+        <div id="pdv-desconto-assinante-info" class="pdv-subscriber-discount-note">
+          <strong>Desconto automático de assinante:</strong>
+          quando o cliente vinculado tiver assinatura ativa, o sistema aplica a regra configurada separando produtos e serviços.
+          O valor aplicado fica salvo no histórico da venda.
+        </div>
+
         <div class="pdv-discount-row">
           <div class="pdv-field">
-            <label for="pdv-desconto-percent">Desconto (%)</label>
+            <label for="pdv-desconto-percent">Desconto manual (%)</label>
             <input type="number" id="pdv-desconto-percent" min="0" max="100" step="0.01" placeholder="0,00" />
           </div>
 
@@ -758,9 +767,13 @@
     .pdv-caixa-resumo,
     .pdv-totals-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 16px;
+    }
+
+    .pdv-caixa-resumo {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .pdv-kpi,
@@ -772,9 +785,33 @@
       padding: 14px;
     }
 
+    .pdv-total-box small {
+      display: block;
+      margin-top: 6px;
+      color: #64748b;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .pdv-total-box-discount {
+      background: #fffbeb;
+      border-color: #fde68a;
+    }
+
     .pdv-total-box-highlight {
       background: #ecfeff;
       border-color: #a5f3fc;
+    }
+
+    .pdv-subscriber-discount-note {
+      margin: -4px 0 16px;
+      padding: 12px 14px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border-radius: 14px;
+      font-size: 0.92rem;
+      line-height: 1.45;
     }
 
     .pdv-caixa-actions,
@@ -1145,6 +1182,10 @@
     @media (max-width: 1024px) {
       .pdv-grid {
         grid-template-columns: 1fr;
+      }
+
+      .pdv-totals-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 

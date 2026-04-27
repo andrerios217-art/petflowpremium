@@ -19,6 +19,8 @@ class PdvClienteResumo(BaseModel):
     cpf: str | None = None
     telefone: str | None = None
     saldo_cashback: Decimal = Field(default=Decimal("0.00"))
+    assinante: bool = False
+    assinatura_ativa: bool = False
 
     class Config:
         from_attributes = True
@@ -218,6 +220,8 @@ class PdvAtendimentoProntoOut(BaseModel):
     valor_total: Decimal
     status: str
     enviado_pdv: bool
+    assinante: bool = False
+    assinatura_ativa: bool = False
 
     class Config:
         from_attributes = True
@@ -229,6 +233,8 @@ class PdvClienteBuscaOut(BaseModel):
     cpf: str | None = None
     telefone: str | None = None
     saldo_cashback: Decimal = Field(default=Decimal("0.00"))
+    assinante: bool = False
+    assinatura_ativa: bool = False
 
     class Config:
         from_attributes = True
@@ -250,6 +256,8 @@ class PdvProducaoProntoOut(BaseModel):
     valor_total: Decimal
     finalizado: bool
     enviado_pdv: bool
+    assinante: bool = False
+    assinatura_ativa: bool = False
 
     class Config:
         from_attributes = True
