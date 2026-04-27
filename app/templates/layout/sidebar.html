@@ -1,95 +1,102 @@
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <a href="/dashboard" class="sidebar-logo">
+    <a href="/dashboard" class="sidebar-logo" title="{{ system_name if system_name else 'VectorPet' }}">
       <span class="logo-mark">🐾</span>
       <span class="logo-text">{{ system_name if system_name else "VectorPet" }}</span>
     </a>
   </div>
 
   <nav class="sidebar-nav">
-    <a href="/dashboard" class="nav-item">
+    <a href="/dashboard" class="nav-item" title="Dashboard">
       <span class="nav-icon">🏠</span>
       <span class="nav-text">Dashboard</span>
     </a>
 
-    <a href="/clientes" class="nav-item">
-      <span class="nav-icon">👤</span>
-      <span class="nav-text">Clientes</span>
-    </a>
-
-    <a href="/pets" class="nav-item">
-      <span class="nav-icon">🐶</span>
-      <span class="nav-text">Pets</span>
-    </a>
-
-    <a href="/servicos" class="nav-item">
-      <span class="nav-icon">✂️</span>
-      <span class="nav-text">Serviços</span>
-    </a>
-
-    <a href="/assinaturas" class="nav-item">
-      <span class="nav-icon">🧾</span>
-      <span class="nav-text">Assinaturas</span>
-    </a>
-
-    <a href="/agenda" class="nav-item">
-      <span class="nav-icon">📅</span>
-      <span class="nav-text">Agenda</span>
-    </a>
-
-    <a href="/agenda-veterinaria" class="nav-item">
-      <span class="nav-icon">🩺</span>
-      <span class="nav-text">Agenda Veterinária</span>
-    </a>
-
-    <a href="/producao" class="nav-item">
-      <span class="nav-icon">🛁</span>
-      <span class="nav-text">Produção</span>
-    </a>
-
-    <a href="/pdv" class="nav-item">
+    <a href="/pdv" class="nav-item" title="PDV">
       <span class="nav-icon">💳</span>
       <span class="nav-text">PDV</span>
     </a>
 
-    <a href="/estoque" class="nav-item">
+    <a href="/agenda" class="nav-item" title="Agenda">
+      <span class="nav-icon">📅</span>
+      <span class="nav-text">Agenda</span>
+    </a>
+
+    <a href="/producao" class="nav-item" title="Linha de Produção">
+      <span class="nav-icon">🛁</span>
+      <span class="nav-text">Linha de Produção</span>
+    </a>
+
+    <a href="/agenda-veterinaria" class="nav-item" title="Agenda Veterinária">
+      <span class="nav-icon">🩺</span>
+      <span class="nav-text">Agenda Veterinária</span>
+    </a>
+
+    <a href="/clientes" class="nav-item" title="Clientes">
+      <span class="nav-icon">👤</span>
+      <span class="nav-text">Clientes</span>
+    </a>
+
+    <a href="/pets" class="nav-item" title="Pets">
+      <span class="nav-icon">🐶</span>
+      <span class="nav-text">Pets</span>
+    </a>
+
+    <a href="/servicos" class="nav-item" title="Serviços">
+      <span class="nav-icon">✂️</span>
+      <span class="nav-text">Serviços</span>
+    </a>
+
+    <a href="/assinaturas" class="nav-item" title="Assinaturas">
+      <span class="nav-icon">🧾</span>
+      <span class="nav-text">Assinaturas</span>
+    </a>
+
+    <a href="/estoque" class="nav-item" title="Estoque">
       <span class="nav-icon">📦</span>
       <span class="nav-text">Estoque</span>
     </a>
 
-    <a href="/notas-entrada" class="nav-item">
+    <a href="/notas-entrada" class="nav-item" title="Notas de Entrada">
       <span class="nav-icon">🧾</span>
       <span class="nav-text">Notas de Entrada</span>
     </a>
 
-    <a href="/precificacao" class="nav-item">
+    <a href="/precificacao" class="nav-item" title="Precificação">
       <span class="nav-icon">🏷️</span>
       <span class="nav-text">Precificação</span>
     </a>
 
-    <a href="/financeiro" class="nav-item">
+    <a href="/financeiro" class="nav-item" title="Financeiro">
       <span class="nav-icon">💰</span>
       <span class="nav-text">Financeiro</span>
     </a>
 
-    <a href="/dre" class="nav-item">
+    <a href="/dre" class="nav-item" title="DRE">
       <span class="nav-icon">📊</span>
       <span class="nav-text">DRE</span>
     </a>
 
-    <a href="/crm" class="nav-item">
+    <a href="/crm" class="nav-item" title="CRM">
       <span class="nav-icon">📣</span>
       <span class="nav-text">CRM</span>
     </a>
 
-    <a href="/relatorios" class="nav-item">
+    <a href="/relatorios" class="nav-item" title="Relatórios">
       <span class="nav-icon">📑</span>
       <span class="nav-text">Relatórios</span>
     </a>
 
-    <a href="/configuracoes" class="nav-item">
+    <a href="/configuracoes" class="nav-item" title="Configurações">
       <span class="nav-icon">⚙️</span>
       <span class="nav-text">Configurações</span>
     </a>
   </nav>
+
+  <div class="sidebar-footer">
+    <a href="#" class="nav-item nav-item-logout" title="Encerrar sessão">
+      <span class="nav-icon">🚪</span>
+      <span class="nav-text">Encerrar sessão</span>
+    </a>
+  </div>
 </aside>

@@ -382,6 +382,32 @@ function coletarIntercorrencias() {
   return itens;
 }
 
+function formatarListaServicosCompacta(servicos) {
+  const lista = Array.isArray(servicos) ? servicos.filter(Boolean) : [];
+  if (!lista.length) {
+    return `<li>Sem serviços</li>`;
+  }
+
+  return lista.map((s) => `<li title="${escapeHtml(String(s))}">${escapeHtml(String(s))}</li>`).join("");
+}
+
+function obterResumoServicos(servicos) {
+  const lista = Array.isArray(servicos) ? servicos.filter(Boolean) : [];
+  if (!lista.length) return "Sem serviços";
+
+  if (lista.length === 1) return lista[0];
+  return `${lista[0]} +${lista.length - 1}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function renderizarKanban(data) {
   COLUNAS.forEach((coluna) => {
     const container = document.getElementById(`coluna-${coluna}`);
@@ -449,53 +475,62 @@ function renderCard(card) {
   div.className = `card-producao ${corPrioridade(card.prioridade)} ${corStatusCard(card.etapa_status)}`;
   div.dataset.id = card.id;
 
-  const servicos = (card.servicos || [])
-    .map((s) => `<li>${s}</li>`)
-    .join("");
+  const servicosHtml = formatarListaServicosCompacta(card.servicos || []);
+  const resumoServicos = obterResumoServicos(card.servicos || []);
 
   let secagemHtml = "";
   if (card.coluna === "SECAGEM" && card.secagem_inicio && card.secagem_tempo) {
     secagemHtml = `
       <p class="secagem-info" data-inicio="${card.secagem_inicio}" data-minutos="${card.secagem_tempo}">
-        Tempo de secagem: ${card.secagem_tempo} min
+        Secagem: ${card.secagem_tempo} min
       </p>
     `;
   }
 
   const cardSerializado = JSON.stringify(card).replaceAll('"', "&quot;");
 
-  const botaoIniciar = deveExibirBotaoIniciar(card)
-    ? `<button type="button" onclick="abrirAcaoIniciar('${cardSerializado}')">Iniciar</button>`
-    : "";
+  const botoes = [];
 
-  const botaoAvancar = deveExibirBotaoAvancar(card)
-    ? `<button type="button" class="btn-secundario" onclick="abrirAcaoAvancar('${cardSerializado}')">${card.coluna === "SECAGEM" ? "Finalizar secagem" : "Avançar"}</button>`
-    : "";
+  if (deveExibirBotaoIniciar(card)) {
+    botoes.push(
+      `<button type="button" onclick="abrirAcaoIniciar('${cardSerializado}')">Iniciar</button>`
+    );
+  }
+
+  if (deveExibirBotaoAvancar(card)) {
+    botoes.push(
+      `<button type="button" class="btn-secundario" onclick="abrirAcaoAvancar('${cardSerializado}')">${
+        card.coluna === "SECAGEM" ? "Finalizar secagem" : "Avançar"
+      }</button>`
+    );
+  }
 
   div.innerHTML = `
     <div class="card-header">
       <div>
-        <div class="card-codigo">Agendamento #${card.agendamento_id}</div>
-        <h4 class="card-titulo">${card.pet_nome || "Pet"}</h4>
+        <div class="card-codigo">#${card.agendamento_id}</div>
+        <h4 class="card-titulo">${escapeHtml(card.pet_nome || "Pet")}</h4>
       </div>
       ${badgePrioridade(card.prioridade)}
     </div>
 
     <div class="card-info">
-      <p><strong>Tutor:</strong> ${card.tutor_nome || "-"}</p>
-      <p><strong>Responsável:</strong> ${card.funcionario_nome || "-"}</p>
-      <p><strong>Status:</strong> ${textoStatusEtapa(card.etapa_status)}</p>
+      <p><strong>Tutor:</strong> ${escapeHtml(card.tutor_nome || "-")}</p>
+      <p><strong>Resp.:</strong> ${escapeHtml(card.funcionario_nome || "-")}</p>
+      <p><strong>Status:</strong> ${escapeHtml(textoStatusEtapa(card.etapa_status))}</p>
+      <p title="${escapeHtml(resumoServicos)}"><strong>Serv.:</strong> ${escapeHtml(resumoServicos)}</p>
     </div>
 
-    <ul class="card-servicos">${servicos}</ul>
+    <ul class="card-servicos">${servicosHtml}</ul>
 
-    <div class="card-status-etapa">${nomeColuna(card.coluna)}</div>
+    <div class="card-status-etapa">${escapeHtml(nomeColuna(card.coluna))}</div>
     ${secagemHtml}
 
-    <div class="card-actions">
-      ${botaoIniciar}
-      ${botaoAvancar}
-    </div>
+    ${
+      botoes.length
+        ? `<div class="card-actions">${botoes.join("")}</div>`
+        : ""
+    }
   `;
 
   return div;

@@ -180,7 +180,7 @@
 
 <style>
   .pagina-producao {
-    padding: 16px;
+    padding: 12px;
     width: 100%;
     box-sizing: border-box;
   }
@@ -189,41 +189,41 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 10px;
     flex-wrap: wrap;
   }
 
   .producao-topo h1 {
     margin: 0;
-    font-size: 24px;
-    line-height: 1.1;
+    font-size: 22px;
+    line-height: 1.05;
     color: #111827;
   }
 
   .producao-topo p {
     margin: 4px 0 0;
     color: #6b7280;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .btn-atualizar {
     border: none;
     background: #111827;
     color: #fff;
-    padding: 9px 14px;
+    padding: 8px 12px;
     border-radius: 10px;
     cursor: pointer;
     box-shadow: 0 8px 18px rgba(17, 24, 39, 0.12);
     font-weight: 700;
     white-space: nowrap;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .kanban {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
     width: 100%;
     align-items: flex-start;
   }
@@ -231,18 +231,18 @@
   .coluna {
     background: #f8fafc;
     border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 10px;
+    border-radius: 12px;
+    padding: 8px;
     min-width: 0;
     box-sizing: border-box;
   }
 
   .coluna h3 {
-    margin: 0 0 10px;
-    font-size: 13px;
+    margin: 0 0 8px;
+    font-size: 12px;
     font-weight: 800;
     color: #111827;
-    line-height: 1.15;
+    line-height: 1.1;
     text-align: center;
     word-break: break-word;
   }
@@ -250,15 +250,15 @@
   .cards {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-height: 90px;
+    gap: 6px;
+    min-height: 72px;
   }
 
   .card-producao {
-    border-radius: 12px;
-    padding: 10px;
+    border-radius: 10px;
+    padding: 8px;
     border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.05);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     min-width: 0;
     box-sizing: border-box;
@@ -266,7 +266,7 @@
 
   .card-producao:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
   }
 
   .status-aguardando-producao {
@@ -294,30 +294,30 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 6px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .card-codigo {
-    font-size: 10px;
+    font-size: 9px;
     color: #6b7280;
-    margin-bottom: 3px;
-    word-break: break-word;
-    line-height: 1.2;
-  }
-
-  .card-titulo {
-    font-size: 14px;
-    font-weight: 800;
-    color: #111827;
-    margin: 0;
+    margin-bottom: 2px;
     word-break: break-word;
     line-height: 1.15;
   }
 
-  .badge-prioridade {
-    font-size: 9px;
+  .card-titulo {
+    font-size: 13px;
     font-weight: 800;
-    padding: 4px 6px;
+    color: #111827;
+    margin: 0;
+    word-break: break-word;
+    line-height: 1.1;
+  }
+
+  .badge-prioridade {
+    font-size: 8px;
+    font-weight: 800;
+    padding: 3px 5px;
     border-radius: 999px;
     color: #fff;
     white-space: nowrap;
@@ -339,32 +339,34 @@
 
   .card-info {
     display: grid;
-    gap: 4px;
-    margin-bottom: 8px;
+    gap: 3px;
+    margin-bottom: 6px;
   }
 
   .card-info p {
     margin: 0;
-    font-size: 11px;
+    font-size: 10px;
     color: #1f2937;
     word-break: break-word;
-    line-height: 1.25;
+    line-height: 1.2;
   }
 
   .card-servicos {
-    margin: 8px 0;
-    padding-left: 16px;
+    margin: 6px 0;
+    padding-left: 14px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
+    max-height: 66px;
+    overflow-y: auto;
   }
 
   .card-servicos li {
     margin-bottom: 0;
-    font-size: 11px;
+    font-size: 10px;
     color: #374151;
     word-break: break-word;
-    line-height: 1.2;
+    line-height: 1.15;
   }
 
   .card-status-etapa {
@@ -374,32 +376,32 @@
     background: rgba(255, 255, 255, 0.72);
     color: #1f2937;
     border-radius: 999px;
-    padding: 5px 8px;
-    font-size: 10px;
+    padding: 4px 7px;
+    font-size: 9px;
     font-weight: 800;
     margin-top: 2px;
     border: 1px solid rgba(17, 24, 39, 0.06);
     max-width: 100%;
-    line-height: 1.15;
+    line-height: 1.1;
     text-align: center;
   }
 
   .secagem-info {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     color: #92400e;
-    margin-top: 8px;
+    margin-top: 6px;
     background: rgba(255, 255, 255, 0.75);
-    padding: 6px 8px;
+    padding: 5px 7px;
     border-radius: 8px;
     word-break: break-word;
-    line-height: 1.2;
+    line-height: 1.15;
   }
 
   .card-actions {
     display: flex;
-    gap: 6px;
-    margin-top: 10px;
+    gap: 4px;
+    margin-top: 8px;
     flex-wrap: wrap;
   }
 
@@ -407,14 +409,14 @@
     border: none;
     background: #111827;
     color: #fff;
-    padding: 7px 8px;
+    padding: 6px 8px;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 700;
-    flex: 1 1 100%;
+    flex: 1 1 calc(50% - 4px);
     min-width: 0;
-    font-size: 11px;
-    line-height: 1.1;
+    font-size: 10px;
+    line-height: 1.05;
   }
 
   .card-actions button.btn-secundario {
@@ -441,16 +443,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 22px;
+    padding: 18px;
     z-index: 9999;
   }
 
   .premium-modal {
     width: 100%;
-    max-width: 760px;
+    max-width: 700px;
+    max-height: calc(100vh - 36px);
+    overflow-y: auto;
     background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-    border-radius: 28px;
-    overflow: hidden;
+    border-radius: 24px;
     border: 1px solid rgba(226, 232, 240, 0.9);
     box-shadow:
       0 24px 70px rgba(15, 23, 42, 0.18),
@@ -458,37 +461,37 @@
   }
 
   .premium-header {
-    padding: 26px 28px 14px;
+    padding: 20px 22px 12px;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 18px;
+    gap: 16px;
   }
 
   .modal-header-texto h2 {
     margin: 0;
-    font-size: 22px;
-    line-height: 1.1;
+    font-size: 20px;
+    line-height: 1.05;
     color: #172554;
     font-weight: 800;
     letter-spacing: -0.02em;
   }
 
   .modal-header-texto p {
-    margin: 10px 0 0;
+    margin: 8px 0 0;
     color: #64748b;
-    font-size: 15px;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.4;
   }
 
   .premium-close {
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
     border: none;
-    border-radius: 14px;
+    border-radius: 12px;
     background: #f8fafc;
     color: #0f172a;
-    font-size: 28px;
+    font-size: 26px;
     line-height: 1;
     cursor: pointer;
     box-shadow: inset 0 0 0 1px #e2e8f0;
@@ -502,35 +505,35 @@
   }
 
   .premium-body {
-    padding: 8px 28px 20px;
+    padding: 6px 22px 16px;
   }
 
   .premium-section {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 18px;
-    margin-bottom: 14px;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+    border-radius: 18px;
+    padding: 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
   }
 
   .premium-form-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .premium-form-group label {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: #1e293b;
   }
 
   .premium-input {
     width: 100%;
-    min-height: 48px;
-    padding: 12px 14px;
-    border-radius: 14px;
+    min-height: 44px;
+    padding: 11px 13px;
+    border-radius: 12px;
     border: 1px solid #cbd5e1;
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
     color: #0f172a;
@@ -546,12 +549,12 @@
   }
 
   .premium-textarea {
-    min-height: 108px;
+    min-height: 88px;
     resize: vertical;
   }
 
   .section-headline {
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
 
   .section-badge {
@@ -560,18 +563,18 @@
     justify-content: center;
     background: #eff6ff;
     color: #1d4ed8;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    padding: 5px 8px;
+    padding: 4px 7px;
     border-radius: 999px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .section-headline h3 {
-    margin: 0 0 6px;
-    font-size: 18px;
+    margin: 0 0 4px;
+    font-size: 17px;
     font-weight: 800;
     color: #0f172a;
   }
@@ -579,24 +582,24 @@
   .section-headline p {
     margin: 0;
     color: #64748b;
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.4;
   }
 
   .intercorrencias-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 10px;
   }
 
   .intercorrencia-card {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-height: 58px;
-    padding: 14px 16px;
-    border-radius: 16px;
+    gap: 10px;
+    min-height: 52px;
+    padding: 12px 14px;
+    border-radius: 14px;
     border: 1px solid #e2e8f0;
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
     cursor: pointer;
@@ -621,8 +624,8 @@
   }
 
   .intercorrencia-check {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 6px;
     border: 2px solid #cbd5e1;
     background: #ffffff;
@@ -640,10 +643,10 @@
   .intercorrencia-card input:checked + .intercorrencia-check::after {
     content: "";
     position: absolute;
-    left: 5px;
-    top: 1px;
+    left: 4px;
+    top: 0px;
     width: 5px;
-    height: 10px;
+    height: 9px;
     border: solid #ffffff;
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
@@ -655,32 +658,32 @@
   }
 
   .intercorrencia-texto {
-    font-size: 14px;
+    font-size: 13px;
     color: #334155;
     font-weight: 600;
   }
 
   .premium-message {
-    min-height: 20px;
-    margin-bottom: 12px;
+    min-height: 18px;
+    margin-bottom: 10px;
     color: #b91c1c;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
   }
 
   .premium-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    padding: 12px 28px 28px;
+    gap: 10px;
+    padding: 10px 22px 22px;
   }
 
   .premium-btn-primary,
   .premium-btn-secondary {
-    min-width: 128px;
-    height: 48px;
+    min-width: 120px;
+    height: 44px;
     border: none;
-    border-radius: 14px;
+    border-radius: 12px;
     font-weight: 800;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -723,14 +726,14 @@
 
     .premium-modal {
       max-width: 100%;
-      border-radius: 22px;
+      border-radius: 20px;
     }
 
     .premium-header,
     .premium-body,
     .premium-footer {
-      padding-left: 18px;
-      padding-right: 18px;
+      padding-left: 16px;
+      padding-right: 16px;
     }
 
     .intercorrencias-grid {

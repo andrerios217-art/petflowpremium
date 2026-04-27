@@ -12,6 +12,7 @@
         historicoAberto: false,
         atendimentoClinicoId: null,
         atendimentoClinicoModo: "local",
+        servicosExtrasClinicos: [],
     };
 
     const el = {
@@ -51,6 +52,9 @@
         clinicoPetNome: document.getElementById("clinicoPetNome"),
         clinicoPetResumo: document.getElementById("clinicoPetResumo"),
         clinicoServicosPrevistos: document.getElementById("clinicoServicosPrevistos"),
+        clinicoServicoExtraSelect: document.getElementById("clinicoServicoExtraSelect"),
+        btnAdicionarServicoExtraClinico: document.getElementById("btnAdicionarServicoExtraClinico"),
+        clinicoServicosExtrasSelecionados: document.getElementById("clinicoServicosExtrasSelecionados"),
         clinicoHistoricoConteudo: document.getElementById("clinicoHistoricoConteudo"),
         clinicoQueixaPrincipal: document.getElementById("clinicoQueixaPrincipal"),
         clinicoHistoricoAtual: document.getElementById("clinicoHistoricoAtual"),
@@ -158,6 +162,10 @@
             el.btnSalvarRascunhoClinico.addEventListener("click", salvarAtendimentoClinico);
         }
 
+        if (el.btnAdicionarServicoExtraClinico) {
+            el.btnAdicionarServicoExtraClinico.addEventListener("click", adicionarServicoExtraClinico);
+        }
+
         if (el.filtroBuscaAgenda) {
             el.filtroBuscaAgenda.addEventListener("input", renderAgenda);
         }
@@ -241,6 +249,15 @@
                 event.stopPropagation();
                 const servicoId = Number(btnRemoverServico.dataset.servicoId);
                 removerServicoVetSelecionado(servicoId);
+                return;
+            }
+
+            const btnRemoverServicoExtraClinico = event.target.closest("[data-action='remover-servico-extra-clinico']");
+            if (btnRemoverServicoExtraClinico) {
+                event.preventDefault();
+                event.stopPropagation();
+                const servicoId = Number(btnRemoverServicoExtraClinico.dataset.servicoId);
+                removerServicoExtraClinico(servicoId);
             }
         });
 
@@ -631,10 +648,12 @@
 
             state.servicos = Array.isArray(data) ? data : [];
             preencherSelectServicosVet();
+            preencherSelectServicosExtrasClinicos();
         } catch (error) {
             console.error(error);
             state.servicos = [];
             preencherSelectServicosVet();
+            preencherSelectServicosExtrasClinicos();
         }
     }
 
@@ -657,12 +676,51 @@
         `;
     }
 
+    function preencherSelectServicosExtrasClinicos() {
+        if (!el.clinicoServicoExtraSelect) return;
+
+        const previstos = new Set(
+            (Array.isArray(state.agendamentoAtual?.servicos) ? state.agendamentoAtual.servicos : [])
+                .map((item) => Number(item?.id || 0))
+                .filter(Boolean)
+        );
+
+        const extrasSelecionados = new Set(
+            (Array.isArray(state.servicosExtrasClinicos) ? state.servicosExtrasClinicos : [])
+                .map((item) => Number(item?.id || 0))
+                .filter(Boolean)
+        );
+
+        const opcoes = state.servicos.filter((servico) => {
+            const id = Number(servico?.id || 0);
+            if (!id) return false;
+            if (previstos.has(id)) return false;
+            if (extrasSelecionados.has(id)) return false;
+            return true;
+        });
+
+        el.clinicoServicoExtraSelect.innerHTML = `
+            <option value="">Selecione um serviço veterinário extra</option>
+            ${opcoes
+                .map(
+                    (servico) => `
+                        <option value="${Number(servico.id || 0)}">
+                            ${escapeHtml(servico.nome || "")}
+                            ${servico.porte_referencia ? ` • ${escapeHtml(servico.porte_referencia)}` : ""}
+                            • ${formatCurrency(servico.valor || 0)}
+                        </option>
+                    `
+                )
+                .join("")}
+        `;
+    }
+
     function renderServicosSelecionadosVet() {
         if (!el.agVetServicosSelecionados) return;
 
         if (!state.servicosSelecionados.length) {
             el.agVetServicosSelecionados.innerHTML = `
-                <div class="agenda-vet-empty-day">
+                <div class="empty-state">
                     <h4>Nenhum serviço selecionado</h4>
                     <p>Adicione ao menos um serviço veterinário para o agendamento.</p>
                 </div>
@@ -691,6 +749,45 @@
                 `
             )
             .join("");
+    }
+
+    function renderServicosExtrasClinicos() {
+        if (!el.clinicoServicosExtrasSelecionados) return;
+
+        if (!state.servicosExtrasClinicos.length) {
+            el.clinicoServicosExtrasSelecionados.innerHTML = `
+                <div class="empty-state">
+                    <h4>Nenhum serviço extra incluído</h4>
+                    <p>Inclua aqui vacinas, aplicações, medicações ou outros serviços definidos durante a consulta.</p>
+                </div>
+            `;
+            preencherSelectServicosExtrasClinicos();
+            return;
+        }
+
+        el.clinicoServicosExtrasSelecionados.innerHTML = state.servicosExtrasClinicos
+            .map(
+                (servico) => `
+                    <div class="agenda-vet-servico-item">
+                        <span>
+                            ${escapeHtml(servico.nome || "")}
+                            ${servico.porte_referencia ? ` • ${escapeHtml(servico.porte_referencia)}` : ""}
+                            • ${formatCurrency(servico.valor || 0)}
+                        </span>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-danger"
+                            data-action="remover-servico-extra-clinico"
+                            data-servico-id="${Number(servico.id || 0)}"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                `
+            )
+            .join("");
+
+        preencherSelectServicosExtrasClinicos();
     }
 
     function adicionarServicoVetSelecionado() {
@@ -727,6 +824,53 @@
             (item) => Number(item.id) !== Number(servicoId)
         );
         renderServicosSelecionadosVet();
+    }
+
+    function adicionarServicoExtraClinico() {
+        const servicoId = Number(el.clinicoServicoExtraSelect?.value || 0);
+
+        if (!servicoId) {
+            showToast("Selecione um serviço veterinário extra.", "error");
+            return;
+        }
+
+        const servico = state.servicos.find((item) => Number(item.id) === servicoId);
+        if (!servico) {
+            showToast("Serviço veterinário não encontrado.", "error");
+            return;
+        }
+
+        const jaPrevisto = (state.agendamentoAtual?.servicos || []).some(
+            (item) => Number(item?.id || 0) === servicoId
+        );
+        if (jaPrevisto) {
+            showToast("Esse serviço já está previsto no agendamento.", "error");
+            if (el.clinicoServicoExtraSelect) el.clinicoServicoExtraSelect.value = "";
+            return;
+        }
+
+        const jaExtra = state.servicosExtrasClinicos.some((item) => Number(item.id) === servicoId);
+        if (jaExtra) {
+            showToast("Esse serviço extra já foi incluído no atendimento.", "error");
+            if (el.clinicoServicoExtraSelect) el.clinicoServicoExtraSelect.value = "";
+            return;
+        }
+
+        state.servicosExtrasClinicos.push(servico);
+        renderServicosExtrasClinicos();
+        salvarRascunhoClinicoLocal();
+
+        if (el.clinicoServicoExtraSelect) {
+            el.clinicoServicoExtraSelect.value = "";
+        }
+    }
+
+    function removerServicoExtraClinico(servicoId) {
+        state.servicosExtrasClinicos = state.servicosExtrasClinicos.filter(
+            (item) => Number(item.id) !== Number(servicoId)
+        );
+        renderServicosExtrasClinicos();
+        salvarRascunhoClinicoLocal();
     }
 
     function obterServicosSelecionados() {
@@ -847,6 +991,7 @@
             state.agendamentoAtual = data.agendamento || null;
             state.atendimentoClinicoId = null;
             state.atendimentoClinicoModo = "local";
+            state.servicosExtrasClinicos = [];
 
             limparFormularioClinico();
             preencherAtendimentoClinico(state.agendamentoAtual);
@@ -1004,9 +1149,12 @@
         if (el.clinicoServicosPrevistos) {
             el.clinicoServicosPrevistos.innerHTML =
                 (agendamento?.servicos || [])
-                    .map((servico) => escapeHtml(servico.nome || ""))
-                    .join(", ") || "Nenhum serviço previsto";
+                    .map((servico) => `<span class="tag">${escapeHtml(servico.nome || "")}</span>`)
+                    .join("") || `<span class="tag">Nenhum serviço previsto</span>`;
         }
+
+        preencherSelectServicosExtrasClinicos();
+        renderServicosExtrasClinicos();
     }
 
     async function abrirHistoricoPet() {
@@ -1143,7 +1291,7 @@
         if (!el.clinicoHistoricoConteudo) return;
 
         el.clinicoHistoricoConteudo.innerHTML = `
-            <div class="agenda-vet-empty-day">
+            <div class="empty-state">
                 <h4>${escapeHtml(title || "Sem histórico")}</h4>
                 <p>${escapeHtml(description || "Nenhuma informação disponível.")}</p>
             </div>
@@ -1151,11 +1299,17 @@
     }
 
     function obterServicosClinicosFaturaveis() {
-        const servicos = Array.isArray(state.agendamentoAtual?.servicos)
+        const servicosPrevistos = Array.isArray(state.agendamentoAtual?.servicos)
             ? state.agendamentoAtual.servicos
             : [];
 
-        return servicos
+        const servicosExtras = Array.isArray(state.servicosExtrasClinicos)
+            ? state.servicosExtrasClinicos
+            : [];
+
+        const todos = [...servicosPrevistos, ...servicosExtras];
+
+        return todos
             .map((servico) => {
                 const servicoId = Number(servico?.id || 0);
                 const valor = Number(servico?.valor || 0);
@@ -1165,11 +1319,26 @@
                     servico_id: servicoId > 0 ? servicoId : null,
                     descricao: nome || "Serviço veterinário",
                     quantidade: 1,
-                    valor_unitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
+                    valor_unitario: Number.isFinite(valor) && valor > 0 ? Number(valor.toFixed(2)) : 0,
                     tipo_item: "SERVICO_EXECUTADO",
                 };
             })
-            .filter((item) => item.descricao);
+            .filter((item) => item.servico_id && item.descricao);
+    }
+
+    async function carregarItensAtendimentoClinico() {
+        if (!state.atendimentoClinicoId) return [];
+        try {
+            const detalhe = await fetchJsonSafe(
+                `/api/clinico/${state.atendimentoClinicoId}`,
+                {},
+                "Erro ao buscar itens do atendimento clínico."
+            );
+            return Array.isArray(detalhe?.itens) ? detalhe.itens : [];
+        } catch (error) {
+            console.error(error);
+            return [];
+        }
     }
 
     async function criarItensClinicosFaturaveis() {
@@ -1177,13 +1346,23 @@
             throw new Error("Atendimento clínico não iniciado no backend.");
         }
 
-        const itens = obterServicosClinicosFaturaveis();
-
-        if (!itens.length) {
+        const itensDesejados = obterServicosClinicosFaturaveis();
+        if (!itensDesejados.length) {
             throw new Error("Nenhum serviço veterinário encontrado para faturar neste atendimento.");
         }
 
-        for (const item of itens) {
+        const itensExistentes = await carregarItensAtendimentoClinico();
+        const chavesExistentes = new Set(
+            itensExistentes.map((item) => `${Number(item?.servico_id || 0)}::${String(item?.descricao || "").trim().toLowerCase()}`)
+        );
+
+        for (const item of itensDesejados) {
+            const chave = `${Number(item.servico_id || 0)}::${String(item.descricao || "").trim().toLowerCase()}`;
+
+            if (chavesExistentes.has(chave)) {
+                continue;
+            }
+
             await fetchJsonSafe(
                 `/api/clinico/${state.atendimentoClinicoId}/itens`,
                 {
@@ -1285,6 +1464,7 @@
                 await abrirHistoricoPetPorId(state.agendamentoAtual.pet.id);
             }
 
+            limparRascunhoClinicoLocal(state.agendamentoAtual?.id);
             fecharModalAtendimentoClinico();
             showToast("Atendimento clínico salvo e finalizado com sucesso.");
         } catch (error) {
@@ -1313,7 +1493,10 @@
         try {
             const chave = getClinicoStorageKey(agendamentoId);
             const bruto = localStorage.getItem(chave);
-            if (!bruto) return;
+            if (!bruto) {
+                renderServicosExtrasClinicos();
+                return;
+            }
 
             const data = JSON.parse(bruto);
 
@@ -1324,6 +1507,27 @@
             if (el.clinicoMedicacoes) el.clinicoMedicacoes.value = data.medicacoes || "";
             if (el.clinicoExames) el.clinicoExames.value = data.exames || "";
             if (el.clinicoReceita) el.clinicoReceita.value = data.receita || "";
+
+            const extras = Array.isArray(data.servicos_extras) ? data.servicos_extras : [];
+            state.servicosExtrasClinicos = extras
+                .map((item) => {
+                    const servicoId = Number(item?.id || 0);
+                    return state.servicos.find((servico) => Number(servico?.id || 0) === servicoId) || null;
+                })
+                .filter(Boolean);
+
+            renderServicosExtrasClinicos();
+        } catch (error) {
+            console.error(error);
+            state.servicosExtrasClinicos = [];
+            renderServicosExtrasClinicos();
+        }
+    }
+
+    function limparRascunhoClinicoLocal(agendamentoId) {
+        try {
+            if (!agendamentoId) return;
+            localStorage.removeItem(getClinicoStorageKey(agendamentoId));
         } catch (error) {
             console.error(error);
         }
@@ -1337,6 +1541,10 @@
         if (el.clinicoMedicacoes) el.clinicoMedicacoes.value = "";
         if (el.clinicoExames) el.clinicoExames.value = "";
         if (el.clinicoReceita) el.clinicoReceita.value = "";
+        if (el.clinicoServicoExtraSelect) el.clinicoServicoExtraSelect.value = "";
+
+        state.servicosExtrasClinicos = [];
+        renderServicosExtrasClinicos();
     }
 
     function coletarFormularioClinico() {
@@ -1348,6 +1556,10 @@
             medicacoes: el.clinicoMedicacoes?.value || "",
             exames: el.clinicoExames?.value || "",
             receita: el.clinicoReceita?.value || "",
+            servicos_extras: state.servicosExtrasClinicos.map((item) => ({
+                id: Number(item?.id || 0),
+                nome: item?.nome || "",
+            })),
         };
     }
 
@@ -1423,7 +1635,7 @@
         if (!el.agendaVetGrid) return;
 
         el.agendaVetGrid.innerHTML = `
-            <div class="agenda-vet-empty-day">
+            <div class="empty-state">
                 <h3>Erro ao carregar agenda</h3>
                 <p>${escapeHtml(message || "Falha ao montar agenda veterinária.")}</p>
             </div>

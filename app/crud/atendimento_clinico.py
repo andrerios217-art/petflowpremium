@@ -743,8 +743,23 @@ def adicionar_item(
         if not servico:
             raise HTTPException(status_code=404, detail="Serviço não encontrado.")
 
+        preco_agendamento = 0.0
+        if getattr(atendimento, "agendamento_id", None):
+            rel_agendamento = (
+                db.query(AgendamentoServico)
+                .filter(
+                    AgendamentoServico.agendamento_id == atendimento.agendamento_id,
+                    AgendamentoServico.servico_id == payload.servico_id,
+                )
+                .first()
+            )
+
+            if rel_agendamento and hasattr(rel_agendamento, "preco"):
+                preco_agendamento = float(getattr(rel_agendamento, "preco", 0) or 0)
+
         preco_servico = (
-            getattr(servico, "venda", None)
+            preco_agendamento
+            or getattr(servico, "venda", None)
             or getattr(servico, "valor", None)
             or getattr(servico, "preco", None)
             or 0
