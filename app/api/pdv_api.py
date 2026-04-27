@@ -23,6 +23,7 @@ from app.crud.pdv import (
     remover_item,
 )
 from app.crud.pdv_relatorios import relatorio_itens_vendidos as relatorio_itens_vendidos_crud
+from app.crud.ia_compras import analisar_compras_produtos as analisar_compras_produtos_crud
 from app.models.assinatura_pet import AssinaturaPet
 from app.models.atendimento_clinico import AtendimentoClinico
 from app.models.pdv_pagamento import PdvPagamento
@@ -438,6 +439,27 @@ def relatorio_itens_vendidos_pdv(
         termo=termo,
         ordenar_por=ordenar_por,
         ordem=ordem,
+        limite=limite,
+    )
+
+
+@router.get("/ia-compras/analise-produtos")
+def ia_compras_analise_produtos_pdv(
+    empresa_id: int = Query(..., ge=1),
+    data_inicio: date | None = Query(None),
+    data_fim: date | None = Query(None),
+    dias_cobertura: int = Query(30, ge=1, le=180),
+    prazo_reposicao_dias_uteis: int = Query(3, ge=0, le=30),
+    limite: int = Query(300, ge=1, le=1000),
+    db: Session = Depends(get_db),
+):
+    return analisar_compras_produtos_crud(
+        db,
+        empresa_id=empresa_id,
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        dias_cobertura=dias_cobertura,
+        prazo_reposicao_dias_uteis=prazo_reposicao_dias_uteis,
         limite=limite,
     )
 

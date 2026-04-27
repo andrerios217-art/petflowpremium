@@ -199,6 +199,11 @@ def relatorio_vendas_page(request: Request):
     return templates.TemplateResponse(request, "relatorio_vendas.html", {"request": request})
 
 
+@app.get("/ia-compras", response_class=HTMLResponse)
+def ia_compras_page(request: Request):
+    return templates.TemplateResponse(request, "ia_compras.html", {"request": request})
+
+
 @app.get("/crm", response_class=HTMLResponse)
 def crm_page(request: Request):
     return templates.TemplateResponse(request, "crm.html", {"request": request})

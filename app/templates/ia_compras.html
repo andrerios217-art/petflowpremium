@@ -1,0 +1,945 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="purchase-ai-page">
+  <div class="purchase-ai-header">
+    <div>
+      <span class="purchase-ai-kicker">IA de compras • Primeira análise</span>
+      <h1>Análise inteligente de compras</h1>
+      <p>Curva ABC, giro de produtos, estoque atual, previsão de reposição e sugestão inicial de compra.</p>
+    </div>
+  </div>
+
+  <div id="ia-compras-alerta" class="purchase-ai-alert purchase-ai-alert-info">
+    Informe os filtros e clique em analisar.
+  </div>
+
+  <section class="purchase-ai-card purchase-ai-no-print">
+    <div class="purchase-ai-filters">
+      <div class="purchase-ai-field purchase-ai-field-small">
+        <label for="ia-compras-empresa-id">Empresa ID</label>
+        <input type="number" id="ia-compras-empresa-id" value="1" min="1">
+      </div>
+
+      <div class="purchase-ai-field">
+        <label for="ia-compras-meses-analise">Meses para análise</label>
+        <select id="ia-compras-meses-analise">
+          <option value="1">Último mês</option>
+          <option value="3" selected>Últimos 3 meses</option>
+          <option value="6">Últimos 6 meses</option>
+          <option value="12">Últimos 12 meses</option>
+          <option value="custom">Período manual</option>
+        </select>
+      </div>
+
+      <div class="purchase-ai-field">
+        <label for="ia-compras-data-inicio">Data inicial</label>
+        <input type="date" id="ia-compras-data-inicio">
+      </div>
+
+      <div class="purchase-ai-field">
+        <label for="ia-compras-data-fim">Data final</label>
+        <input type="date" id="ia-compras-data-fim">
+      </div>
+
+      <div class="purchase-ai-field">
+        <label for="ia-compras-dias-cobertura">Comprar para quantos dias?</label>
+        <input type="number" id="ia-compras-dias-cobertura" value="30" min="1" max="180">
+      </div>
+
+      <div class="purchase-ai-field">
+        <label for="ia-compras-prazo-reposicao">Prazo reposição dias úteis</label>
+        <input type="number" id="ia-compras-prazo-reposicao" value="3" min="0" max="30">
+      </div>
+
+      <div class="purchase-ai-actions">
+        <button type="button" id="btn-analisar-compras" class="purchase-ai-btn purchase-ai-btn-primary">
+          Analisar produtos
+        </button>
+
+        <button type="button" id="btn-exportar-compras" class="purchase-ai-btn purchase-ai-btn-success">
+          Exportar CSV/Excel
+        </button>
+
+        <button type="button" id="btn-imprimir-compras" class="purchase-ai-btn">
+          Imprimir / PDF
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="purchase-ai-summary-grid">
+    <div class="purchase-ai-summary-card">
+      <span>Produtos analisados</span>
+      <strong id="ia-resumo-produtos">0</strong>
+    </div>
+
+    <div class="purchase-ai-summary-card">
+      <span>Faturamento analisado</span>
+      <strong id="ia-resumo-faturamento">R$ 0,00</strong>
+    </div>
+
+    <div class="purchase-ai-summary-card">
+      <span>Sugestões de compra</span>
+      <strong id="ia-resumo-sugestoes">0</strong>
+    </div>
+
+    <div class="purchase-ai-summary-card">
+      <span>Produtos parados</span>
+      <strong id="ia-resumo-parados">0</strong>
+    </div>
+  </section>
+
+  <section class="purchase-ai-card">
+    <div class="purchase-ai-card-header">
+      <div>
+        <h2>Sugestões de compra</h2>
+        <p id="ia-compras-subtitle">Nenhuma análise realizada.</p>
+      </div>
+    </div>
+
+    <div class="purchase-ai-table-wrap">
+      <table class="purchase-ai-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>SKU</th>
+            <th>ABC</th>
+            <th>Prioridade</th>
+            <th class="purchase-ai-money">Qtd vendida</th>
+            <th class="purchase-ai-money">Média diária</th>
+            <th class="purchase-ai-money">Estoque atual</th>
+            <th class="purchase-ai-money">Estoque alvo</th>
+            <th class="purchase-ai-money">Necessidade</th>
+            <th class="purchase-ai-money">Sugestão compra</th>
+            <th class="purchase-ai-money">Faturamento</th>
+            <th class="purchase-ai-money">Margem estimada</th>
+          </tr>
+        </thead>
+        <tbody id="ia-compras-tbody">
+          <tr>
+            <td colspan="12" class="purchase-ai-empty-cell">
+              Nenhum produto analisado.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="purchase-ai-rank-grid">
+    <div class="purchase-ai-card">
+      <div class="purchase-ai-card-header">
+        <div>
+          <h2>Curva ABC</h2>
+          <p>Quantidade de produtos por classificação.</p>
+        </div>
+      </div>
+
+      <div class="purchase-ai-abc-grid">
+        <div class="purchase-ai-abc-card purchase-ai-abc-a">
+          <span>Curva A</span>
+          <strong id="ia-curva-a">0</strong>
+        </div>
+
+        <div class="purchase-ai-abc-card purchase-ai-abc-b">
+          <span>Curva B</span>
+          <strong id="ia-curva-b">0</strong>
+        </div>
+
+        <div class="purchase-ai-abc-card purchase-ai-abc-c">
+          <span>Curva C</span>
+          <strong id="ia-curva-c">0</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="purchase-ai-card">
+      <div class="purchase-ai-card-header">
+        <div>
+          <h2>Produtos parados</h2>
+          <p>Produtos sem venda há 60 dias ou mais.</p>
+        </div>
+      </div>
+
+      <div id="ia-produtos-parados" class="purchase-ai-list">
+        <div class="purchase-ai-empty">Nenhum produto parado carregado.</div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<style>
+  .purchase-ai-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .purchase-ai-header,
+  .purchase-ai-card,
+  .purchase-ai-summary-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+  }
+
+  .purchase-ai-header {
+    border-radius: 18px;
+    padding: 24px;
+  }
+
+  .purchase-ai-kicker {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: #2563eb;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .purchase-ai-header h1,
+  .purchase-ai-card-header h2 {
+    margin: 0 0 6px;
+    color: #111827;
+  }
+
+  .purchase-ai-header p,
+  .purchase-ai-card-header p {
+    margin: 0;
+    color: #6b7280;
+  }
+
+  .purchase-ai-card {
+    border-radius: 18px;
+    padding: 20px;
+  }
+
+  .purchase-ai-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .purchase-ai-alert {
+    border-radius: 14px;
+    padding: 13px 15px;
+    font-weight: 700;
+  }
+
+  .purchase-ai-alert-info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  .purchase-ai-alert-success {
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+  }
+
+  .purchase-ai-alert-warning {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+  }
+
+  .purchase-ai-alert-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+  }
+
+  .purchase-ai-filters {
+    display: grid;
+    grid-template-columns: 120px repeat(5, minmax(140px, 1fr));
+    gap: 14px;
+    align-items: end;
+  }
+
+  .purchase-ai-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .purchase-ai-field label {
+    color: #374151;
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+
+  .purchase-ai-field input,
+  .purchase-ai-field select {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 0 12px;
+    background: #ffffff;
+    color: #111827;
+    font: inherit;
+    box-sizing: border-box;
+    outline: none;
+  }
+
+  .purchase-ai-field input:focus,
+  .purchase-ai-field select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .purchase-ai-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .purchase-ai-btn {
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    padding: 0 16px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: 0.16s ease;
+  }
+
+  .purchase-ai-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  }
+
+  .purchase-ai-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .purchase-ai-btn-primary {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+  }
+
+  .purchase-ai-btn-success {
+    background: #16a34a;
+    color: #ffffff;
+    border-color: #16a34a;
+  }
+
+  .purchase-ai-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 14px;
+  }
+
+  .purchase-ai-summary-card {
+    border-radius: 16px;
+    padding: 18px;
+  }
+
+  .purchase-ai-summary-card span {
+    display: block;
+    color: #6b7280;
+    font-weight: 800;
+    font-size: 0.86rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+
+  .purchase-ai-summary-card strong {
+    color: #111827;
+    font-size: 1.4rem;
+  }
+
+  .purchase-ai-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .purchase-ai-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1380px;
+  }
+
+  .purchase-ai-table th,
+  .purchase-ai-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .purchase-ai-table th {
+    background: #f9fafb;
+    color: #374151;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .purchase-ai-money {
+    text-align: right !important;
+    white-space: nowrap;
+  }
+
+  .purchase-ai-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .purchase-ai-badge.A,
+  .purchase-ai-badge.ALTA {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .purchase-ai-badge.B,
+  .purchase-ai-badge.MEDIA {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .purchase-ai-badge.C,
+  .purchase-ai-badge.BAIXA {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .purchase-ai-badge.SEM_COMPRA {
+    background: #e5e7eb;
+    color: #374151;
+  }
+
+  .purchase-ai-empty,
+  .purchase-ai-empty-cell {
+    color: #6b7280;
+    text-align: center;
+    padding: 18px;
+  }
+
+  .purchase-ai-rank-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: 14px;
+  }
+
+  .purchase-ai-abc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .purchase-ai-abc-card {
+    border-radius: 14px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .purchase-ai-abc-card span {
+    display: block;
+    font-weight: 800;
+    color: #374151;
+    margin-bottom: 8px;
+  }
+
+  .purchase-ai-abc-card strong {
+    font-size: 1.6rem;
+    color: #111827;
+  }
+
+  .purchase-ai-abc-a {
+    background: #fef2f2;
+  }
+
+  .purchase-ai-abc-b {
+    background: #fffbeb;
+  }
+
+  .purchase-ai-abc-c {
+    background: #f0fdf4;
+  }
+
+  .purchase-ai-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .purchase-ai-list-item {
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .purchase-ai-list-item strong {
+    display: block;
+    color: #111827;
+    margin-bottom: 5px;
+  }
+
+  .purchase-ai-list-item span {
+    display: block;
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 1300px) {
+    .purchase-ai-filters {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 1100px) {
+    .purchase-ai-filters,
+    .purchase-ai-summary-grid,
+    .purchase-ai-rank-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 700px) {
+    .purchase-ai-filters,
+    .purchase-ai-summary-grid,
+    .purchase-ai-rank-grid,
+    .purchase-ai-abc-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .purchase-ai-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .purchase-ai-btn {
+      width: 100%;
+    }
+  }
+
+  @media print {
+    .sidebar,
+    .topbar-global,
+    .purchase-ai-no-print,
+    .purchase-ai-alert {
+      display: none !important;
+    }
+
+    .main-content {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+
+    .purchase-ai-card,
+    .purchase-ai-header,
+    .purchase-ai-summary-card {
+      box-shadow: none !important;
+      border-color: #d1d5db !important;
+    }
+
+    .purchase-ai-table {
+      min-width: 0;
+      font-size: 0.72rem;
+    }
+
+    .purchase-ai-table th,
+    .purchase-ai-table td {
+      padding: 6px 5px;
+    }
+  }
+</style>
+
+<script>
+  const iaComprasState = {
+    ultimoResultado: null,
+    produtos: [],
+  };
+
+  const iaComprasEls = {
+    alerta: document.getElementById("ia-compras-alerta"),
+    empresaId: document.getElementById("ia-compras-empresa-id"),
+    mesesAnalise: document.getElementById("ia-compras-meses-analise"),
+    dataInicio: document.getElementById("ia-compras-data-inicio"),
+    dataFim: document.getElementById("ia-compras-data-fim"),
+    diasCobertura: document.getElementById("ia-compras-dias-cobertura"),
+    prazoReposicao: document.getElementById("ia-compras-prazo-reposicao"),
+    btnAnalisar: document.getElementById("btn-analisar-compras"),
+    btnExportar: document.getElementById("btn-exportar-compras"),
+    btnImprimir: document.getElementById("btn-imprimir-compras"),
+    resumoProdutos: document.getElementById("ia-resumo-produtos"),
+    resumoFaturamento: document.getElementById("ia-resumo-faturamento"),
+    resumoSugestoes: document.getElementById("ia-resumo-sugestoes"),
+    resumoParados: document.getElementById("ia-resumo-parados"),
+    curvaA: document.getElementById("ia-curva-a"),
+    curvaB: document.getElementById("ia-curva-b"),
+    curvaC: document.getElementById("ia-curva-c"),
+    subtitle: document.getElementById("ia-compras-subtitle"),
+    tbody: document.getElementById("ia-compras-tbody"),
+    produtosParados: document.getElementById("ia-produtos-parados"),
+  };
+
+  function iaEscape(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function iaToNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
+  function iaMoney(value) {
+    return iaToNumber(value, 0).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  }
+
+  function iaQuantidade(value, casas = 3) {
+    return iaToNumber(value, 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: casas,
+    });
+  }
+
+  function iaQuantidadeInteira(value) {
+    return String(Math.max(0, Math.ceil(iaToNumber(value, 0))));
+  }
+
+  function iaDate(value) {
+    if (!value) return "-";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+
+    return date.toLocaleDateString("pt-BR");
+  }
+
+  function showIaAlert(message, type = "info") {
+    const classes = {
+      info: "purchase-ai-alert purchase-ai-alert-info",
+      success: "purchase-ai-alert purchase-ai-alert-success",
+      warning: "purchase-ai-alert purchase-ai-alert-warning",
+      error: "purchase-ai-alert purchase-ai-alert-error",
+    };
+
+    iaComprasEls.alerta.textContent = message;
+    iaComprasEls.alerta.className = classes[type] || classes.info;
+  }
+
+  async function iaRequest(url) {
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : await response.text();
+
+    if (!response.ok) {
+      const detail = data?.detail || data?.message || data || "Erro na requisição.";
+      throw new Error(detail);
+    }
+
+    return data;
+  }
+
+  function getEmpresaId() {
+    const empresaId = Number(iaComprasEls.empresaId.value || 1);
+    return Number.isFinite(empresaId) && empresaId > 0 ? empresaId : 1;
+  }
+
+  function formatDateInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function aplicarPeriodoAutomatico() {
+    const valor = String(iaComprasEls.mesesAnalise.value || "3");
+
+    if (valor === "custom") {
+      iaComprasEls.dataInicio.disabled = false;
+      iaComprasEls.dataFim.disabled = false;
+      return;
+    }
+
+    const meses = Math.max(1, Number(valor || 3));
+    const fim = new Date();
+    const inicio = new Date();
+
+    inicio.setMonth(inicio.getMonth() - meses);
+
+    iaComprasEls.dataFim.value = formatDateInput(fim);
+    iaComprasEls.dataInicio.value = formatDateInput(inicio);
+
+    iaComprasEls.dataInicio.disabled = true;
+    iaComprasEls.dataFim.disabled = true;
+  }
+
+  function montarUrlAnalise() {
+    aplicarPeriodoAutomatico();
+
+    const params = new URLSearchParams();
+
+    params.set("empresa_id", String(getEmpresaId()));
+    params.set("dias_cobertura", String(Math.max(1, Number(iaComprasEls.diasCobertura.value || 30))));
+    params.set("prazo_reposicao_dias_uteis", String(Math.max(0, Number(iaComprasEls.prazoReposicao.value || 3))));
+    params.set("limite", "300");
+
+    if (iaComprasEls.dataInicio.value) {
+      params.set("data_inicio", iaComprasEls.dataInicio.value);
+    }
+
+    if (iaComprasEls.dataFim.value) {
+      params.set("data_fim", iaComprasEls.dataFim.value);
+    }
+
+    return `/api/pdv/ia-compras/analise-produtos?${params.toString()}`;
+  }
+
+  function renderResumo(data) {
+    const resumo = data?.resumo || {};
+
+    iaComprasEls.resumoProdutos.textContent = String(resumo.produtos_analisados || 0);
+    iaComprasEls.resumoFaturamento.textContent = iaMoney(resumo.total_faturamento || 0);
+    iaComprasEls.resumoSugestoes.textContent = String(resumo.sugestoes_compra || 0);
+    iaComprasEls.resumoParados.textContent = String(resumo.produtos_parados_60_dias || 0);
+
+    iaComprasEls.curvaA.textContent = String(resumo.produtos_curva_a || 0);
+    iaComprasEls.curvaB.textContent = String(resumo.produtos_curva_b || 0);
+    iaComprasEls.curvaC.textContent = String(resumo.produtos_curva_c || 0);
+  }
+
+  function renderTabela(data) {
+    const produtos = Array.isArray(data?.sugestoes_compra)
+      ? data.sugestoes_compra
+      : [];
+
+    iaComprasState.produtos = produtos;
+
+    if (!produtos.length) {
+      iaComprasEls.tbody.innerHTML = `
+        <tr>
+          <td colspan="12" class="purchase-ai-empty-cell">
+            Nenhuma sugestão de compra encontrada.
+          </td>
+        </tr>
+      `;
+      iaComprasEls.subtitle.textContent = "Nenhuma sugestão encontrada.";
+      return;
+    }
+
+    iaComprasEls.tbody.innerHTML = produtos.map((produto) => {
+      return `
+        <tr>
+          <td>${iaEscape(produto.produto_nome || "Produto")}</td>
+          <td>${iaEscape(produto.sku || "-")}</td>
+          <td>
+            <span class="purchase-ai-badge ${iaEscape(produto.curva_abc || "")}">
+              ${iaEscape(produto.curva_abc || "-")}
+            </span>
+          </td>
+          <td>
+            <span class="purchase-ai-badge ${iaEscape(produto.prioridade || "")}">
+              ${iaEscape(produto.prioridade || "-")}
+            </span>
+          </td>
+          <td class="purchase-ai-money">${iaQuantidade(produto.quantidade_vendida, 3)}</td>
+          <td class="purchase-ai-money">${iaQuantidade(produto.media_diaria, 3)}</td>
+          <td class="purchase-ai-money">${iaQuantidadeInteira(produto.estoque_atual)}</td>
+          <td class="purchase-ai-money">${iaQuantidadeInteira(produto.estoque_alvo)}</td>
+          <td class="purchase-ai-money">${iaQuantidadeInteira(produto.necessidade_liquida)}</td>
+          <td class="purchase-ai-money"><strong>${iaQuantidadeInteira(produto.quantidade_sugerida_compra)}</strong></td>
+          <td class="purchase-ai-money">${iaMoney(produto.faturamento || 0)}</td>
+          <td class="purchase-ai-money">${iaMoney(produto.margem_total_estimada || 0)}</td>
+        </tr>
+      `;
+    }).join("");
+
+    iaComprasEls.subtitle.textContent = `${produtos.length} sugestão(ões) de compra encontrada(s).`;
+  }
+
+  function renderProdutosParados(data) {
+    const produtos = Array.isArray(data?.produtos_parados)
+      ? data.produtos_parados
+      : [];
+
+    if (!produtos.length) {
+      iaComprasEls.produtosParados.innerHTML = `
+        <div class="purchase-ai-empty">Nenhum produto parado encontrado no período.</div>
+      `;
+      return;
+    }
+
+    iaComprasEls.produtosParados.innerHTML = produtos.map((produto) => {
+      return `
+        <div class="purchase-ai-list-item">
+          <strong>${iaEscape(produto.produto_nome || "Produto")}</strong>
+          <span>
+            SKU: ${iaEscape(produto.sku || "-")}
+            • Última venda: ${iaDate(produto.ultima_venda_em)}
+            • ${iaEscape(produto.dias_sem_venda || 0)} dia(s) sem venda
+            • Estoque atual: ${iaQuantidade(produto.estoque_atual, 3)}
+          </span>
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function analisarCompras() {
+    iaComprasEls.btnAnalisar.disabled = true;
+    iaComprasEls.btnAnalisar.textContent = "Analisando...";
+
+    try {
+      showIaAlert("Analisando vendas, estoque e previsão de reposição...", "info");
+
+      const data = await iaRequest(montarUrlAnalise());
+      iaComprasState.ultimoResultado = data;
+
+      renderResumo(data);
+      renderTabela(data);
+      renderProdutosParados(data);
+
+      const filtros = data?.filtros || {};
+      showIaAlert(
+        `Análise carregada. Cobertura: ${filtros.dias_cobertura || 30} dias + reposição: ${filtros.prazo_reposicao_dias_uteis || 3} dias úteis.`,
+        "success"
+      );
+    } catch (error) {
+      showIaAlert(error.message || "Erro ao analisar compras.", "error");
+    } finally {
+      iaComprasEls.btnAnalisar.disabled = false;
+      iaComprasEls.btnAnalisar.textContent = "Analisar produtos";
+    }
+  }
+
+  function csvEscape(value) {
+    const text = String(value ?? "").replaceAll('"', '""');
+    return `"${text}"`;
+  }
+
+  function baixarCsv(linhas, nomeBase) {
+    const csv = "\uFEFF" + linhas.map((linha) => linha.map(csvEscape).join(";")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${nomeBase}-${hoje}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showIaAlert("Arquivo CSV gerado com sucesso.", "success");
+  }
+
+  function exportarCompras() {
+    const produtos = iaComprasState.produtos || [];
+
+    if (!produtos.length) {
+      showIaAlert("Nenhuma sugestão para exportar.", "warning");
+      return;
+    }
+
+    const linhas = [
+      [
+        "Produto",
+        "SKU",
+        "Curva ABC",
+        "Prioridade",
+        "Quantidade vendida",
+        "Média diária",
+        "Dias de cobertura",
+        "Prazo reposição dias úteis",
+        "Previsão venda durante reposição",
+        "Demanda cobertura",
+        "Demanda total planejada",
+        "Estoque atual",
+        "Estoque mínimo",
+        "Estoque alvo",
+        "Necessidade líquida",
+        "Quantidade sugerida compra",
+        "Faturamento",
+        "Desconto total",
+        "Preço venda",
+        "Custo médio",
+        "Margem unitária estimada",
+        "Margem total estimada",
+        "Última venda",
+        "Dias sem venda",
+      ],
+      ...produtos.map((produto) => [
+        produto.produto_nome || "Produto",
+        produto.sku || "",
+        produto.curva_abc || "",
+        produto.prioridade || "",
+        iaToNumber(produto.quantidade_vendida, 0).toFixed(3).replace(".", ","),
+        iaToNumber(produto.media_diaria, 0).toFixed(3).replace(".", ","),
+        produto.dias_cobertura || "",
+        produto.prazo_reposicao_dias_uteis || "",
+        iaToNumber(produto.previsao_venda_durante_reposicao, 0).toFixed(3).replace(".", ","),
+        iaToNumber(produto.demanda_cobertura, 0).toFixed(3).replace(".", ","),
+        iaToNumber(produto.demanda_total_planejada, 0).toFixed(3).replace(".", ","),
+        String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_atual, 0)))),
+        String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_minimo, 0)))),
+        String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_alvo, 0)))),
+        String(Math.max(0, Math.ceil(iaToNumber(produto.necessidade_liquida, 0)))),
+        String(Math.max(0, Math.ceil(iaToNumber(produto.quantidade_sugerida_compra, 0)))),
+        iaToNumber(produto.faturamento, 0).toFixed(2).replace(".", ","),
+        iaToNumber(produto.desconto_total, 0).toFixed(2).replace(".", ","),
+        iaToNumber(produto.preco_venda_atual, 0).toFixed(2).replace(".", ","),
+        iaToNumber(produto.custo_medio_atual, 0).toFixed(2).replace(".", ","),
+        iaToNumber(produto.margem_unitaria_estimada, 0).toFixed(2).replace(".", ","),
+        iaToNumber(produto.margem_total_estimada, 0).toFixed(2).replace(".", ","),
+        iaDate(produto.ultima_venda_em),
+        produto.dias_sem_venda ?? "",
+      ]),
+    ];
+
+    baixarCsv(linhas, "ia-compras-sugestoes");
+  }
+
+  function imprimirCompras() {
+    if (!iaComprasState.ultimoResultado) {
+      showIaAlert("Nenhuma análise para imprimir.", "warning");
+      return;
+    }
+
+    window.print();
+  }
+
+  iaComprasEls.mesesAnalise.addEventListener("change", aplicarPeriodoAutomatico);
+  aplicarPeriodoAutomatico();
+
+  iaComprasEls.btnAnalisar.addEventListener("click", analisarCompras);
+  iaComprasEls.btnExportar.addEventListener("click", exportarCompras);
+  iaComprasEls.btnImprimir.addEventListener("click", imprimirCompras);
+</script>
+{% endblock %}
