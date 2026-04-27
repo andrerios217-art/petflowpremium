@@ -4,9 +4,9 @@
 <section class="purchase-ai-page">
   <div class="purchase-ai-header">
     <div>
-      <span class="purchase-ai-kicker">IA de compras • Primeira análise</span>
+      <span class="purchase-ai-kicker">IA de compras • Análise de estoque</span>
       <h1>Análise inteligente de compras</h1>
-      <p>Curva ABC, giro de produtos, estoque atual, previsão de reposição e sugestão inicial de compra.</p>
+      <p>Curva ABC, giro de produtos, estoque atual, previsão de reposição, produtos parados e sugestão de compra.</p>
     </div>
   </div>
 
@@ -50,6 +50,11 @@
       <div class="purchase-ai-field">
         <label for="ia-compras-prazo-reposicao">Prazo reposição dias úteis</label>
         <input type="number" id="ia-compras-prazo-reposicao" value="3" min="0" max="30">
+      </div>
+
+      <div class="purchase-ai-field">
+        <label for="ia-compras-dias-produto-parado">Produto parado após dias</label>
+        <input type="number" id="ia-compras-dias-produto-parado" value="60" min="1" max="365">
       </div>
 
       <div class="purchase-ai-actions">
@@ -106,6 +111,7 @@
             <th>SKU</th>
             <th>ABC</th>
             <th>Prioridade</th>
+            <th>Ação recomendada</th>
             <th class="purchase-ai-money">Qtd vendida</th>
             <th class="purchase-ai-money">Média diária</th>
             <th class="purchase-ai-money">Estoque atual</th>
@@ -118,7 +124,7 @@
         </thead>
         <tbody id="ia-compras-tbody">
           <tr>
-            <td colspan="12" class="purchase-ai-empty-cell">
+            <td colspan="13" class="purchase-ai-empty-cell">
               Nenhum produto analisado.
             </td>
           </tr>
@@ -158,7 +164,7 @@
       <div class="purchase-ai-card-header">
         <div>
           <h2>Produtos parados</h2>
-          <p>Produtos sem venda há 60 dias ou mais.</p>
+          <p>Produtos com baixa movimentação. Simule desconto promocional para giro de estoque.</p>
         </div>
       </div>
 
@@ -256,7 +262,7 @@
 
   .purchase-ai-filters {
     display: grid;
-    grid-template-columns: 120px repeat(5, minmax(140px, 1fr));
+    grid-template-columns: 120px repeat(6, minmax(140px, 1fr));
     gap: 14px;
     align-items: end;
   }
@@ -288,7 +294,8 @@
   }
 
   .purchase-ai-field input:focus,
-  .purchase-ai-field select:focus {
+  .purchase-ai-field select:focus,
+  .purchase-ai-promo-field input:focus {
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
   }
@@ -370,7 +377,7 @@
   .purchase-ai-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 1380px;
+    min-width: 1580px;
   }
 
   .purchase-ai-table th,
@@ -394,7 +401,8 @@
     white-space: nowrap;
   }
 
-  .purchase-ai-badge {
+  .purchase-ai-badge,
+  .purchase-ai-action {
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
@@ -402,27 +410,32 @@
     font-size: 0.78rem;
     font-weight: 800;
     text-transform: uppercase;
+    white-space: nowrap;
   }
 
   .purchase-ai-badge.A,
-  .purchase-ai-badge.ALTA {
+  .purchase-ai-badge.ALTA,
+  .purchase-ai-action.comprar {
     background: #fee2e2;
     color: #991b1b;
   }
 
   .purchase-ai-badge.B,
-  .purchase-ai-badge.MEDIA {
+  .purchase-ai-badge.MEDIA,
+  .purchase-ai-action.monitorar {
     background: #fef3c7;
     color: #92400e;
   }
 
   .purchase-ai-badge.C,
-  .purchase-ai-badge.BAIXA {
+  .purchase-ai-badge.BAIXA,
+  .purchase-ai-action.nao-comprar {
     background: #dcfce7;
     color: #166534;
   }
 
-  .purchase-ai-badge.SEM_COMPRA {
+  .purchase-ai-badge.SEM_COMPRA,
+  .purchase-ai-action.parado {
     background: #e5e7eb;
     color: #374151;
   }
@@ -500,16 +513,59 @@
     font-size: 0.9rem;
   }
 
-  @media (max-width: 1300px) {
+  .purchase-ai-promo-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+    align-items: end;
+  }
+
+  .purchase-ai-promo-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .purchase-ai-promo-field label {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #374151;
+  }
+
+  .purchase-ai-promo-field input {
+    min-height: 38px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 0 10px;
+    font: inherit;
+    outline: none;
+    background: #ffffff;
+    color: #111827;
+  }
+
+  .purchase-ai-promo-price {
+    border: 1px solid #bbf7d0;
+    background: #ecfdf5;
+    color: #166534;
+    border-radius: 10px;
+    padding: 9px 10px;
+    font-weight: 900;
+    min-height: 38px;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 1500px) {
     .purchase-ai-filters {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
 
   @media (max-width: 1100px) {
     .purchase-ai-filters,
     .purchase-ai-summary-grid,
-    .purchase-ai-rank-grid {
+    .purchase-ai-rank-grid,
+    .purchase-ai-promo-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
@@ -518,7 +574,8 @@
     .purchase-ai-filters,
     .purchase-ai-summary-grid,
     .purchase-ai-rank-grid,
-    .purchase-ai-abc-grid {
+    .purchase-ai-abc-grid,
+    .purchase-ai-promo-row {
       grid-template-columns: 1fr;
     }
 
@@ -579,6 +636,7 @@
     dataFim: document.getElementById("ia-compras-data-fim"),
     diasCobertura: document.getElementById("ia-compras-dias-cobertura"),
     prazoReposicao: document.getElementById("ia-compras-prazo-reposicao"),
+    diasProdutoParado: document.getElementById("ia-compras-dias-produto-parado"),
     btnAnalisar: document.getElementById("btn-analisar-compras"),
     btnExportar: document.getElementById("btn-exportar-compras"),
     btnImprimir: document.getElementById("btn-imprimir-compras"),
@@ -593,6 +651,24 @@
     tbody: document.getElementById("ia-compras-tbody"),
     produtosParados: document.getElementById("ia-produtos-parados"),
   };
+
+  function iaTexto(value) {
+    return String(value ?? "")
+      .replaceAll("Ra??o", "Ração")
+      .replaceAll("C?es", "Cães")
+      .replaceAll("Sanit?ria", "Sanitária")
+      .replaceAll("Higi?nico", "Higiênico")
+      .replaceAll("Antirr?bica", "Antirrábica")
+      .replaceAll("?ltima", "Última")
+      .replaceAll("Pre?o", "Preço")
+      .replaceAll("promo??o", "promoção")
+      .replaceAll("A??o", "Ação")
+      .replaceAll("m?s", "mês")
+      .replaceAll("?ltimo", "Último")
+      .replaceAll("?ltimos", "Últimos")
+      .replaceAll("Per?odo", "Período")
+      .replaceAll("an?lise", "análise");
+  }
 
   function iaEscape(value) {
     return String(value ?? "")
@@ -722,6 +798,44 @@
     return `/api/pdv/ia-compras/analise-produtos?${params.toString()}`;
   }
 
+  function getAcaoRecomendada(produto) {
+    const sugestao = Math.ceil(iaToNumber(produto?.quantidade_sugerida_compra, 0));
+    const diasSemVenda = iaToNumber(produto?.dias_sem_venda, 0);
+    const prioridade = String(produto?.prioridade || "");
+
+    if (diasSemVenda >= 90) {
+      return {
+        texto: "Produto parado",
+        classe: "parado",
+      };
+    }
+
+    if (sugestao <= 0 || prioridade === "SEM_COMPRA") {
+      return {
+        texto: "Não comprar",
+        classe: "nao-comprar",
+      };
+    }
+
+    if (prioridade === "ALTA") {
+      return {
+        texto: "Comprar agora",
+        classe: "comprar",
+      };
+    }
+
+    return {
+      texto: "Monitorar compra",
+      classe: "monitorar",
+    };
+  }
+
+  function calcularPrecoPromocional(preco, descontoPercentual) {
+    const valor = iaToNumber(preco, 0);
+    const desconto = Math.max(0, Math.min(100, iaToNumber(descontoPercentual, 0)));
+    return valor - (valor * desconto / 100);
+  }
+
   function renderResumo(data) {
     const resumo = data?.resumo || {};
 
@@ -745,7 +859,7 @@
     if (!produtos.length) {
       iaComprasEls.tbody.innerHTML = `
         <tr>
-          <td colspan="12" class="purchase-ai-empty-cell">
+          <td colspan="13" class="purchase-ai-empty-cell">
             Nenhuma sugestão de compra encontrada.
           </td>
         </tr>
@@ -755,9 +869,11 @@
     }
 
     iaComprasEls.tbody.innerHTML = produtos.map((produto) => {
+      const acao = getAcaoRecomendada(produto);
+
       return `
         <tr>
-          <td>${iaEscape(produto.produto_nome || "Produto")}</td>
+          <td>${iaEscape(iaTexto(produto.produto_nome || "Produto"))}</td>
           <td>${iaEscape(produto.sku || "-")}</td>
           <td>
             <span class="purchase-ai-badge ${iaEscape(produto.curva_abc || "")}">
@@ -767,6 +883,11 @@
           <td>
             <span class="purchase-ai-badge ${iaEscape(produto.prioridade || "")}">
               ${iaEscape(produto.prioridade || "-")}
+            </span>
+          </td>
+          <td>
+            <span class="purchase-ai-action ${iaEscape(acao.classe)}">
+              ${iaEscape(acao.texto)}
             </span>
           </td>
           <td class="purchase-ai-money">${iaQuantidade(produto.quantidade_vendida, 3)}</td>
@@ -785,30 +906,95 @@
   }
 
   function renderProdutosParados(data) {
-    const produtos = Array.isArray(data?.produtos_parados)
-      ? data.produtos_parados
+    const limiteDias = Math.max(1, Number(iaComprasEls.diasProdutoParado?.value || 60));
+
+    const produtosBase = Array.isArray(data?.produtos)
+      ? data.produtos
       : [];
 
+    const produtos = produtosBase
+      .filter((produto) => iaToNumber(produto.dias_sem_venda, 0) >= limiteDias)
+      .sort((a, b) => iaToNumber(b.dias_sem_venda, 0) - iaToNumber(a.dias_sem_venda, 0));
+
     if (!produtos.length) {
+      const maisProximos = [...produtosBase]
+        .sort((a, b) => iaToNumber(b.dias_sem_venda, 0) - iaToNumber(a.dias_sem_venda, 0))
+        .slice(0, 5);
+
+      if (!maisProximos.length) {
+        iaComprasEls.produtosParados.innerHTML = `
+          <div class="purchase-ai-empty">
+            Nenhum produto encontrado na análise.
+          </div>
+        `;
+        return;
+      }
+
       iaComprasEls.produtosParados.innerHTML = `
-        <div class="purchase-ai-empty">Nenhum produto parado encontrado no período.</div>
+        <div class="purchase-ai-empty">
+          Nenhum produto parado com ${limiteDias} dia(s). Abaixo estão os produtos há mais tempo sem venda.
+        </div>
+        ${maisProximos.map((produto) => renderCardProdutoParado(produto, false)).join("")}
       `;
       return;
     }
 
-    iaComprasEls.produtosParados.innerHTML = produtos.map((produto) => {
-      return `
-        <div class="purchase-ai-list-item">
-          <strong>${iaEscape(produto.produto_nome || "Produto")}</strong>
-          <span>
-            SKU: ${iaEscape(produto.sku || "-")}
-            • Última venda: ${iaDate(produto.ultima_venda_em)}
-            • ${iaEscape(produto.dias_sem_venda || 0)} dia(s) sem venda
-            • Estoque atual: ${iaQuantidade(produto.estoque_atual, 3)}
-          </span>
+    iaComprasEls.produtosParados.innerHTML = produtos
+      .map((produto) => renderCardProdutoParado(produto, true))
+      .join("");
+  }
+
+  function renderCardProdutoParado(produto, parado) {
+    const precoAtual = iaToNumber(produto.preco_venda_atual, 0);
+    const descontoPadrao = parado ? 10 : 5;
+    const precoPromocional = calcularPrecoPromocional(precoAtual, descontoPadrao);
+    const nomeProduto = iaTexto(produto.produto_nome || "Produto");
+
+    return `
+      <div class="purchase-ai-list-item" data-produto-parado-id="${iaEscape(produto.produto_id)}">
+        <strong>${iaEscape(nomeProduto)}</strong>
+        <span>
+          SKU: ${iaEscape(produto.sku || "-")}
+          • Última venda: ${iaDate(produto.ultima_venda_em)}
+          • ${iaEscape(produto.dias_sem_venda || 0)} dia(s) sem venda
+          • Estoque atual: ${iaQuantidadeInteira(produto.estoque_atual)}
+        </span>
+
+        <div class="purchase-ai-promo-row">
+          <div class="purchase-ai-promo-field">
+            <label>Preço atual</label>
+            <div class="purchase-ai-promo-price">${iaMoney(precoAtual)}</div>
+          </div>
+
+          <div class="purchase-ai-promo-field">
+            <label>Desconto promoção (%)</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value="${descontoPadrao}"
+              data-promo-desconto
+              data-preco-atual="${iaEscape(precoAtual)}"
+            >
+          </div>
+
+          <div class="purchase-ai-promo-field">
+            <label>Preço promocional</label>
+            <div class="purchase-ai-promo-price" data-promo-preco>
+              ${iaMoney(precoPromocional)}
+            </div>
+          </div>
+
+          <div class="purchase-ai-promo-field">
+            <label>Ação sugerida</label>
+            <div class="purchase-ai-promo-price">
+              ${parado ? "Promover giro" : "Monitorar"}
+            </div>
+          </div>
         </div>
-      `;
-    }).join("");
+      </div>
+    `;
   }
 
   async function analisarCompras() {
@@ -874,6 +1060,7 @@
         "SKU",
         "Curva ABC",
         "Prioridade",
+        "Ação recomendada",
         "Quantidade vendida",
         "Média diária",
         "Dias de cobertura",
@@ -895,32 +1082,37 @@
         "Última venda",
         "Dias sem venda",
       ],
-      ...produtos.map((produto) => [
-        produto.produto_nome || "Produto",
-        produto.sku || "",
-        produto.curva_abc || "",
-        produto.prioridade || "",
-        iaToNumber(produto.quantidade_vendida, 0).toFixed(3).replace(".", ","),
-        iaToNumber(produto.media_diaria, 0).toFixed(3).replace(".", ","),
-        produto.dias_cobertura || "",
-        produto.prazo_reposicao_dias_uteis || "",
-        iaToNumber(produto.previsao_venda_durante_reposicao, 0).toFixed(3).replace(".", ","),
-        iaToNumber(produto.demanda_cobertura, 0).toFixed(3).replace(".", ","),
-        iaToNumber(produto.demanda_total_planejada, 0).toFixed(3).replace(".", ","),
-        String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_atual, 0)))),
-        String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_minimo, 0)))),
-        String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_alvo, 0)))),
-        String(Math.max(0, Math.ceil(iaToNumber(produto.necessidade_liquida, 0)))),
-        String(Math.max(0, Math.ceil(iaToNumber(produto.quantidade_sugerida_compra, 0)))),
-        iaToNumber(produto.faturamento, 0).toFixed(2).replace(".", ","),
-        iaToNumber(produto.desconto_total, 0).toFixed(2).replace(".", ","),
-        iaToNumber(produto.preco_venda_atual, 0).toFixed(2).replace(".", ","),
-        iaToNumber(produto.custo_medio_atual, 0).toFixed(2).replace(".", ","),
-        iaToNumber(produto.margem_unitaria_estimada, 0).toFixed(2).replace(".", ","),
-        iaToNumber(produto.margem_total_estimada, 0).toFixed(2).replace(".", ","),
-        iaDate(produto.ultima_venda_em),
-        produto.dias_sem_venda ?? "",
-      ]),
+      ...produtos.map((produto) => {
+        const acao = getAcaoRecomendada(produto);
+
+        return [
+          iaTexto(produto.produto_nome || "Produto"),
+          produto.sku || "",
+          produto.curva_abc || "",
+          produto.prioridade || "",
+          acao.texto,
+          iaToNumber(produto.quantidade_vendida, 0).toFixed(3).replace(".", ","),
+          iaToNumber(produto.media_diaria, 0).toFixed(3).replace(".", ","),
+          produto.dias_cobertura || "",
+          produto.prazo_reposicao_dias_uteis || "",
+          iaToNumber(produto.previsao_venda_durante_reposicao, 0).toFixed(3).replace(".", ","),
+          iaToNumber(produto.demanda_cobertura, 0).toFixed(3).replace(".", ","),
+          iaToNumber(produto.demanda_total_planejada, 0).toFixed(3).replace(".", ","),
+          String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_atual, 0)))),
+          String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_minimo, 0)))),
+          String(Math.max(0, Math.ceil(iaToNumber(produto.estoque_alvo, 0)))),
+          String(Math.max(0, Math.ceil(iaToNumber(produto.necessidade_liquida, 0)))),
+          String(Math.max(0, Math.ceil(iaToNumber(produto.quantidade_sugerida_compra, 0)))),
+          iaToNumber(produto.faturamento, 0).toFixed(2).replace(".", ","),
+          iaToNumber(produto.desconto_total, 0).toFixed(2).replace(".", ","),
+          iaToNumber(produto.preco_venda_atual, 0).toFixed(2).replace(".", ","),
+          iaToNumber(produto.custo_medio_atual, 0).toFixed(2).replace(".", ","),
+          iaToNumber(produto.margem_unitaria_estimada, 0).toFixed(2).replace(".", ","),
+          iaToNumber(produto.margem_total_estimada, 0).toFixed(2).replace(".", ","),
+          iaDate(produto.ultima_venda_em),
+          produto.dias_sem_venda ?? "",
+        ];
+      }),
     ];
 
     baixarCsv(linhas, "ia-compras-sugestoes");
@@ -935,11 +1127,51 @@
     window.print();
   }
 
-  iaComprasEls.mesesAnalise.addEventListener("change", aplicarPeriodoAutomatico);
+  if (iaComprasEls.mesesAnalise) {
+    iaComprasEls.mesesAnalise.addEventListener("change", aplicarPeriodoAutomatico);
+  }
+
+  if (iaComprasEls.diasProdutoParado) {
+    iaComprasEls.diasProdutoParado.addEventListener("input", () => {
+      if (iaComprasState.ultimoResultado) {
+        renderProdutosParados(iaComprasState.ultimoResultado);
+      }
+    });
+  }
+
+  if (iaComprasEls.produtosParados) {
+    iaComprasEls.produtosParados.addEventListener("input", (event) => {
+      const target = event.target;
+      if (!target || !target.closest) return;
+
+      const input = target.closest("[data-promo-desconto]");
+      if (!input) return;
+
+      const desconto = Math.max(0, Math.min(100, Number(input.value || 0)));
+      input.value = desconto;
+
+      const item = input.closest("[data-produto-parado-id]");
+      const precoEl = item ? item.querySelector("[data-promo-preco]") : null;
+      const precoAtual = Number(input.dataset.precoAtual || 0);
+
+      if (precoEl) {
+        precoEl.textContent = iaMoney(calcularPrecoPromocional(precoAtual, desconto));
+      }
+    });
+  }
+
   aplicarPeriodoAutomatico();
 
-  iaComprasEls.btnAnalisar.addEventListener("click", analisarCompras);
-  iaComprasEls.btnExportar.addEventListener("click", exportarCompras);
-  iaComprasEls.btnImprimir.addEventListener("click", imprimirCompras);
+  if (iaComprasEls.btnAnalisar) {
+    iaComprasEls.btnAnalisar.addEventListener("click", analisarCompras);
+  }
+
+  if (iaComprasEls.btnExportar) {
+    iaComprasEls.btnExportar.addEventListener("click", exportarCompras);
+  }
+
+  if (iaComprasEls.btnImprimir) {
+    iaComprasEls.btnImprimir.addEventListener("click", imprimirCompras);
+  }
 </script>
 {% endblock %}

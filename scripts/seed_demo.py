@@ -16,6 +16,7 @@ from app.models.servico import Servico
 from app.models.pdv_venda import PdvVenda
 from app.models.pdv_venda_item import PdvVendaItem
 from app.models.pdv_pagamento import PdvPagamento
+from app.models.estoque_saldo import EstoqueSaldo
 
 
 DEMO_EMPRESA_NOME = "VectorPet Demo"
@@ -49,6 +50,7 @@ def limpar_empresa_demo(db, empresa_id: int):
     db.query(Pet).filter(Pet.empresa_id == empresa_id).delete(synchronize_session=False)
     db.query(Cliente).filter(Cliente.empresa_id == empresa_id).delete(synchronize_session=False)
     db.query(Servico).filter(Servico.empresa_id == empresa_id).delete(synchronize_session=False)
+    db.query(EstoqueSaldo).filter(EstoqueSaldo.empresa_id == empresa_id).delete(synchronize_session=False)
     db.query(Produto).filter(Produto.empresa_id == empresa_id).delete(synchronize_session=False)
 
     inspector = inspect(db.bind)
@@ -242,6 +244,109 @@ def criar_servicos(db, empresa_id: int):
         db.refresh(servico)
 
     return servicos
+
+
+
+def criar_deposito_demo(db, empresa_id: int):
+    inspector = inspect(db.bind)
+
+    if "estoque_depositos" not in inspector.get_table_names():
+        raise RuntimeError("Tabela estoque_depositos n?o encontrada.")
+
+    existente = db.execute(
+        text("SELECT id FROM estoque_depositos WHERE empresa_id = :empresa_id ORDER BY id ASC LIMIT 1"),
+        {"empresa_id": empresa_id},
+    ).scalar()
+
+    if existente:
+        return existente
+
+    colunas = {col["name"]: col for col in inspector.get_columns("estoque_depositos")}
+    dados = {}
+
+    def set_if_coluna(nome, valor):
+        if nome in colunas:
+            dados[nome] = valor
+
+    set_if_coluna("empresa_id", empresa_id)
+    set_if_coluna("nome", "Dep?sito Demo")
+    set_if_coluna("descricao", "Dep?sito fict?cio para testes da IA de compras.")
+    set_if_coluna("ativo", True)
+    set_if_coluna("padrao", True)
+    set_if_coluna("created_at", agora())
+    set_if_coluna("updated_at", agora())
+
+    for nome, col in colunas.items():
+        if nome == "id" or nome in dados:
+            continue
+
+        if not col.get("nullable", True) and col.get("default") is None:
+            tipo = str(col.get("type", "")).upper()
+
+            if "INT" in tipo:
+                dados[nome] = 0
+            elif "NUMERIC" in tipo or "DECIMAL" in tipo:
+                dados[nome] = Decimal("0.00")
+            elif "BOOL" in tipo:
+                dados[nome] = True
+            elif "DATE" in tipo or "TIME" in tipo:
+                dados[nome] = agora()
+            else:
+                dados[nome] = "DEMO"
+
+    colunas_insert = ", ".join(dados.keys())
+    valores_insert = ", ".join(f":{key}" for key in dados.keys())
+
+    result = db.execute(
+        text(f"INSERT INTO estoque_depositos ({colunas_insert}) VALUES ({valores_insert}) RETURNING id"),
+        dados,
+    )
+
+    deposito_id = result.scalar()
+    db.commit()
+
+    return deposito_id
+
+
+def criar_saldos_estoque_demo(db, empresa_id: int, produtos):
+    deposito_id = criar_deposito_demo(db, empresa_id)
+
+    faixas = [
+        (0, 2),    # ruptura/quase sem estoque
+        (3, 8),    # baixo
+        (9, 20),   # m?dio
+        (21, 45),  # confort?vel
+    ]
+
+    saldos_criados = 0
+
+    for produto in produtos:
+        minimo = int(Decimal(str(produto.estoque_minimo or 0)))
+        faixa = random.choices(faixas, weights=[25, 35, 30, 10])[0]
+
+        quantidade = random.randint(faixa[0], faixa[1])
+
+        # Alguns produtos ficam abaixo do m?nimo para testar sugest?o de compra.
+        if random.random() < 0.45:
+            quantidade = max(0, minimo - random.randint(0, max(1, minimo + 3)))
+
+        saldo = EstoqueSaldo(
+            empresa_id=empresa_id,
+            deposito_id=deposito_id,
+            produto_id=produto.id,
+            quantidade_atual=Decimal(str(quantidade)),
+        )
+
+        if hasattr(saldo, "created_at"):
+            saldo.created_at = agora()
+        if hasattr(saldo, "updated_at"):
+            saldo.updated_at = agora()
+
+        db.add(saldo)
+        saldos_criados += 1
+
+    db.commit()
+    return saldos_criados
 
 
 def criar_caixa_demo(db, empresa_id: int):
@@ -460,6 +565,9 @@ def main():
 
         produtos = criar_produtos(db, empresa.id)
         print(f"Produtos criados: {len(produtos)}")
+
+        saldos = criar_saldos_estoque_demo(db, empresa.id, produtos)
+        print(f"Saldos de estoque criados: {saldos}")
 
         servicos = criar_servicos(db, empresa.id)
         print(f"Servi?os criados: {len(servicos)}")
