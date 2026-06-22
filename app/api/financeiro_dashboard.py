@@ -368,3 +368,174 @@ def dashboard_financeiro(
         "dre_despesas_por_subcategoria": despesas_por_subcategoria,
         "grafico_7_dias": grafico_7_dias,
     }
+
+def _classificar_conta_critica(descricao: str | None, fornecedor: str | None, grupo: str | None, categoria: str | None, subcategoria: str | None) -> bool:
+    texto = " ".join([
+        str(descricao or ""),
+        str(fornecedor or ""),
+        str(grupo or ""),
+        str(categoria or ""),
+        str(subcategoria or ""),
+    ]).lower()
+
+    palavras_criticas = [
+        "imposto",
+        "simples",
+        "iss",
+        "icms",
+        "pis",
+        "cofins",
+        "aluguel",
+        "condom?nio",
+        "condominio",
+        "sal?rio",
+        "salario",
+        "folha",
+        "encargo",
+        "comiss?o",
+        "comissao",
+        "cart?o",
+        "cartao",
+        "maquininha",
+        "fornecedor",
+        "cmv",
+        "mercadoria",
+        "energia",
+        "?gua",
+        "agua",
+        "internet",
+    ]
+
+    return any(palavra in texto for palavra in palavras_criticas)
+
+
+def _serializar_alerta_conta(conta: FinanceiroPagar, hoje: date) -> dict:
+    vencimento = conta.vencimento
+    dias = (vencimento - hoje).days if vencimento else None
+
+    classificacao = getattr(conta, "classificacao_dre", None)
+
+    grupo = classificacao.grupo if classificacao else None
+    categoria = classificacao.categoria if classificacao else None
+    subcategoria = classificacao.subcategoria if classificacao else None
+
+    if dias is None:
+        faixa = "SEM_VENCIMENTO"
+    elif dias < 0:
+        faixa = "VENCIDA"
+    elif dias == 0:
+        faixa = "VENCE_HOJE"
+    elif dias <= 7:
+        faixa = "PROXIMOS_7_DIAS"
+    elif dias <= 15:
+        faixa = "PROXIMOS_15_DIAS"
+    else:
+        faixa = "FUTURO"
+
+    return {
+        "id": conta.id,
+        "descricao": conta.descricao,
+        "fornecedor": conta.fornecedor,
+        "valor": _to_float(conta.valor),
+        "valor_pago": _to_float(conta.valor_pago),
+        "vencimento": conta.vencimento.isoformat() if conta.vencimento else None,
+        "status": conta.status,
+        "dias_para_vencer": dias,
+        "faixa": faixa,
+        "classificacao_dre_id": conta.classificacao_dre_id,
+        "grupo_dre": grupo,
+        "categoria_dre": categoria,
+        "subcategoria_dre": subcategoria,
+        "critica": _classificar_conta_critica(
+            conta.descricao,
+            conta.fornecedor,
+            grupo,
+            categoria,
+            subcategoria,
+        ),
+    }
+
+
+@router.get("/alertas")
+def alertas_financeiros_dashboard(
+    empresa_id: int = Query(..., ge=1),
+    dias: int = Query(15, ge=1, le=90),
+    limite: int = Query(12, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    hoje = date.today()
+    data_limite = hoje + timedelta(days=dias)
+
+    contas = (
+        db.query(FinanceiroPagar)
+        .outerjoin(
+            FinanceiroPlanoDRE,
+            FinanceiroPlanoDRE.id == FinanceiroPagar.classificacao_dre_id,
+        )
+        .filter(
+            FinanceiroPagar.empresa_id == empresa_id,
+            FinanceiroPagar.status == "PENDENTE",
+            FinanceiroPagar.vencimento <= data_limite,
+        )
+        .order_by(FinanceiroPagar.vencimento.asc(), FinanceiroPagar.valor.desc())
+        .all()
+    )
+
+    itens = [_serializar_alerta_conta(conta, hoje) for conta in contas]
+
+    vencidas = [item for item in itens if item["faixa"] == "VENCIDA"]
+    vence_hoje = [item for item in itens if item["faixa"] == "VENCE_HOJE"]
+    proximos_7 = [item for item in itens if item["faixa"] == "PROXIMOS_7_DIAS"]
+    proximos_15 = [item for item in itens if item["faixa"] in ("PROXIMOS_7_DIAS", "PROXIMOS_15_DIAS")]
+    criticas = [item for item in itens if item["critica"]]
+
+    total_vencidas = sum(item["valor"] for item in vencidas)
+    total_hoje = sum(item["valor"] for item in vence_hoje)
+    total_7 = sum(item["valor"] for item in proximos_7)
+    total_15 = sum(item["valor"] for item in proximos_15)
+    total_criticas = sum(item["valor"] for item in criticas)
+
+    principais = sorted(
+        itens,
+        key=lambda item: (
+            0 if item["dias_para_vencer"] is not None and item["dias_para_vencer"] < 0 else 1,
+            item["dias_para_vencer"] if item["dias_para_vencer"] is not None else 999,
+            -item["valor"],
+        ),
+    )[:limite]
+
+    mensagem = "Nenhuma conta cr?tica a vencer nos pr?ximos dias."
+
+    if total_vencidas > 0:
+        mensagem = f"Aten??o: existem R$ {total_vencidas:,.2f} em contas vencidas.".replace(",", "X").replace(".", ",").replace("X", ".").replace(",", "X").replace(".", ",").replace("X", ".")
+    elif total_hoje > 0:
+        mensagem = f"Aten??o: existem R$ {total_hoje:,.2f} em contas vencendo hoje.".replace(",", "X").replace(".", ",").replace("X", ".").replace(",", "X").replace(".", ",").replace("X", ".")
+    elif total_7 > 0:
+        mensagem = f"Nos pr?ximos 7 dias h? R$ {total_7:,.2f} em contas a pagar.".replace(",", "X").replace(".", ",").replace("X", ".").replace(",", "X").replace(".", ",").replace("X", ".")
+    elif total_15 > 0:
+        mensagem = f"Nos pr?ximos 15 dias h? R$ {total_15:,.2f} em contas a pagar.".replace(",", "X").replace(".", ",").replace("X", ".").replace(",", "X").replace(".", ",").replace("X", ".")
+
+    return {
+        "empresa_id": empresa_id,
+        "hoje": hoje.isoformat(),
+        "dias_analisados": dias,
+        "resumo": {
+            "quantidade_vencidas": len(vencidas),
+            "quantidade_vence_hoje": len(vence_hoje),
+            "quantidade_proximos_7_dias": len(proximos_7),
+            "quantidade_proximos_15_dias": len(proximos_15),
+            "quantidade_criticas": len(criticas),
+            "total_vencidas": total_vencidas,
+            "total_vence_hoje": total_hoje,
+            "total_proximos_7_dias": total_7,
+            "total_proximos_15_dias": total_15,
+            "total_criticas": total_criticas,
+            "mensagem": mensagem,
+        },
+        "principais": principais,
+        "vencidas": vencidas[:limite],
+        "vence_hoje": vence_hoje[:limite],
+        "proximos_7_dias": proximos_7[:limite],
+        "proximos_15_dias": proximos_15[:limite],
+        "criticas": criticas[:limite],
+    }

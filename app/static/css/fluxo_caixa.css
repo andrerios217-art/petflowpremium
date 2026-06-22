@@ -1,0 +1,122 @@
+﻿.fluxo-caixa-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.fluxo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fluxo-header h1 {
+    margin: 0;
+}
+
+.fluxo-header p {
+    margin-top: 8px;
+    color: #7a7a7a;
+}
+
+.fluxo-filtros-card {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+}
+
+.fluxo-resumo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+    gap: 20px;
+}
+
+.fluxo-card {
+    background: #fff;
+    padding: 24px;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+}
+
+.fluxo-card span {
+    display: block;
+    color: #666;
+    margin-bottom: 10px;
+    font-size: .95rem;
+}
+
+.fluxo-card strong {
+    font-size: 1.7rem;
+    font-weight: 700;
+}
+
+.valor-positivo {
+    color: #198754;
+}
+
+.valor-negativo {
+    color: #dc3545;
+}
+
+.fluxo-extrato-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+}
+
+.card-header {
+    margin-bottom: 20px;
+}
+
+.card-header h2 {
+    margin: 0;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.fluxo-tabela {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.fluxo-tabela thead {
+    background: #f5f7fb;
+}
+
+.fluxo-tabela th {
+    padding: 14px;
+    text-align: left;
+    font-size: .9rem;
+}
+
+.fluxo-tabela td {
+    padding: 14px;
+    border-top: 1px solid #ececec;
+}
+
+.fluxo-tabela tbody tr:nth-child(even) {
+    background: #fafafa;
+}
+
+.fluxo-tabela tbody tr:hover {
+    background: #f1f6ff;
+}
+
+@media (max-width: 768px) {
+
+    .fluxo-resumo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .fluxo-filtros-card {
+        grid-template-columns: 1fr;
+    }
+
+}

@@ -1,8 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
+    const empresaSelect = document.getElementById("dreEmpresaId");
     const competenciaInicioInput = document.getElementById("dreCompetenciaInicio");
     const competenciaFimInput = document.getElementById("dreCompetenciaFim");
     const modoVisualizacaoSelect = document.getElementById("dreModoVisualizacao");
     const btnAplicarFiltros = document.getElementById("btnAplicarFiltrosDre");
+    const btnExportarConferencia = document.getElementById("btnExportarConferenciaDre");
 
     const resumoReceita = document.getElementById("dreResumoReceita");
     const resumoDespesa = document.getElementById("dreResumoDespesa");
@@ -23,6 +25,18 @@ document.addEventListener("DOMContentLoaded", () => {
     function registrarEventos() {
         if (btnAplicarFiltros) {
             btnAplicarFiltros.addEventListener("click", carregarDre);
+        }
+
+        if (btnExportarConferencia) {
+            btnExportarConferencia.addEventListener("click", exportarConferenciaDre);
+        }
+
+        if (empresaSelect) {
+            empresaSelect.addEventListener("change", () => {
+                localStorage.setItem("empresa_id", empresaSelect.value);
+                estado.expandido.clear();
+                carregarDre();
+            });
         }
 
         if (modoVisualizacaoSelect) {
@@ -52,6 +66,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function inicializarCompetencias() {
+        if (empresaSelect) {
+            empresaSelect.value = String(obterEmpresaId());
+        }
+
         const hoje = new Date();
         const ano = hoje.getFullYear();
         const mes = String(hoje.getMonth() + 1).padStart(2, "0");
@@ -112,7 +130,37 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function exportarConferenciaDre() {
+        const empresaId = obterEmpresaId();
+
+        if (!empresaId) {
+            alert("Empresa n?o identificada.");
+            return;
+        }
+
+        const competenciaInicio = competenciaInicioInput?.value || "";
+        const competenciaFim = competenciaFimInput?.value || "";
+
+        const params = new URLSearchParams();
+        params.append("empresa_id", String(empresaId));
+
+        if (competenciaInicio) {
+            params.append("competencia_inicio", competenciaInicio);
+        }
+
+        if (competenciaFim) {
+            params.append("competencia_fim", competenciaFim);
+        }
+
+        window.open(`/api/financeiro/dre/conferencia.xlsx?${params.toString()}`, "_blank");
+    }
+
     function obterEmpresaId() {
+        const empresaSelecionada = Number(empresaSelect?.value || 0);
+        if (empresaSelecionada > 0) {
+            return empresaSelecionada;
+        }
+
         const candidatos = [
             localStorage.getItem("empresa_id"),
             localStorage.getItem("empresaId"),
@@ -133,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return numero;
             }
         } catch (error) {
-            console.warn("[DRE] Não foi possível ler empresa do localStorage.", error);
+            console.warn("[DRE] N?o foi poss?vel ler empresa do localStorage.", error);
         }
 
         return 1;

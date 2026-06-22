@@ -1,426 +1,426 @@
-{% extends "layout/base.html" %}
+﻿{% extends "layout/base.html" %}
 
-{% block content %}
-<section class="page-header">
-  <div>
-    <h1>Relatórios</h1>
-    <p>Central de auditoria, faturamento e análises operacionais.</p>
-  </div>
-</section>
-
-<section class="relatorios-grid">
-  <article class="glass-card relatorio-card">
-    <div class="relatorio-card-top">
-      <div>
-        <span class="status-badge status-ok">Disponível</span>
-        <h2>Auditoria de Comissão</h2>
-        <p>Validar lançamentos mensais e fechar comissão por competência.</p>
-      </div>
-      <a href="/relatorios/comissao" class="primary-btn no-underline">Abrir Auditoria de Comissão</a>
-    </div>
-  </article>
-
-  <article class="glass-card relatorio-card">
-    <div class="relatorio-card-top">
-      <div>
-        <span class="status-badge status-ok">Ativo</span>
-        <h2>Faturamento por Período</h2>
-        <p>Fonte: vendas fechadas do PDV por intervalo.</p>
-      </div>
-    </div>
-
-    <div class="form-grid">
-      <div class="field">
-        <label for="faturamento-data-inicial">Período Inicial</label>
-        <input type="date" id="faturamento-data-inicial" class="search-input">
-      </div>
-      <div class="field">
-        <label for="faturamento-data-final">Período Final</label>
-        <input type="date" id="faturamento-data-final" class="search-input">
-      </div>
-    </div>
-
-    <div class="card-actions">
-      <button type="button" class="primary-btn" onclick="carregarFaturamento()">Carregar Faturamento</button>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-box">
-        <span class="stat-label">Qtd. de Vendas</span>
-        <strong id="faturamento-qtd">0</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Total Faturado</span>
-        <strong id="faturamento-total">R$ 0,00</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Ticket Médio</span>
-        <strong id="faturamento-ticket">R$ 0,00</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Status</span>
-        <strong id="faturamento-status">Aguardando carregamento</strong>
-      </div>
-    </div>
-
-    <div class="placeholder-box" id="faturamento-placeholder">
-      <h3>Faturamento ainda não carregado</h3>
-      <p>Selecione um período e carregue os dados para visualizar o resumo e as vendas fechadas.</p>
-    </div>
-  </article>
-
-  <article class="glass-card relatorio-card">
-    <div class="relatorio-card-top">
-      <div>
-        <span class="status-badge status-ok">Ativo</span>
-        <h2>Relatório de Vendas</h2>
-        <p>Fonte: vendas fechadas do PDV com itens, pagamentos e consolidação por origem.</p>
-      </div>
-    </div>
-
-    <div class="form-grid">
-      <div class="field">
-        <label for="vendas-data-inicial">Período Inicial</label>
-        <input type="date" id="vendas-data-inicial" class="search-input">
-      </div>
-      <div class="field">
-        <label for="vendas-data-final">Período Final</label>
-        <input type="date" id="vendas-data-final" class="search-input">
-      </div>
-    </div>
-
-    <div class="card-actions">
-      <button type="button" class="primary-btn" onclick="carregarRelatorioVendas()">Carregar Relatório de Vendas</button>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-box">
-        <span class="stat-label">Qtd. de Vendas</span>
-        <strong id="vendas-qtd">0</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Total Faturado</span>
-        <strong id="vendas-total">R$ 0,00</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Ticket Médio</span>
-        <strong id="vendas-ticket">R$ 0,00</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Total de Descontos</span>
-        <strong id="vendas-descontos">R$ 0,00</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Total de Acréscimos</span>
-        <strong id="vendas-acrescimos">R$ 0,00</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Status</span>
-        <strong id="vendas-status">Aguardando carregamento</strong>
-      </div>
-    </div>
-
-    <div class="placeholder-box" id="vendas-placeholder">
-      <h3>Relatório de vendas ainda não carregado</h3>
-      <p>Selecione um período e carregue os dados para visualizar a consolidação das vendas realizadas.</p>
-    </div>
-  </article>
-
-  <article class="glass-card relatorio-card relatorio-exportacao">
-    <div class="relatorio-card-top">
-      <div>
-        <span class="status-badge status-destaque">Novo</span>
-        <h2>Banho e Tosa</h2>
-        <p>Exportação operacional direta em Excel, sem tela intermediária.</p>
-      </div>
-    </div>
-
-    <div class="form-grid">
-      <div class="field">
-        <label for="banho-tosa-data-inicial">Data Inicial</label>
-        <input type="date" id="banho-tosa-data-inicial" class="search-input">
-      </div>
-      <div class="field">
-        <label for="banho-tosa-data-final">Data Final</label>
-        <input type="date" id="banho-tosa-data-final" class="search-input">
-      </div>
-    </div>
-
-    <div class="card-actions">
-      <button type="button" class="primary-btn" id="btn-exportar-banho-tosa" onclick="baixarRelatorioBanhoTosa()">
-        Baixar Excel
-      </button>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-box">
-        <span class="stat-label">Formato</span>
-        <strong>XLSX</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Entrega</span>
-        <strong>Download direto</strong>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Status</span>
-        <strong id="banho-tosa-status">Aguardando período</strong>
-      </div>
-    </div>
-
-    <div class="placeholder-box destaque" id="banho-tosa-placeholder">
-      <h3>Exportação pronta para uso</h3>
-      <p>Selecione o período e clique em <strong>Baixar Excel</strong> para gerar o relatório operacional de banho e tosa.</p>
-    </div>
-  </article>
-</section>
-
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/relatorios.css">
 <style>
-  .relatorios-grid {
+  .relatorios-clean-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .relatorios-clean-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 24px;
+    padding: 24px 28px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  }
+
+  .relatorios-clean-header h1 {
+    margin: 0 0 6px;
+    font-size: 2.1rem;
+    line-height: 1.1;
+    color: #1f2a44;
+  }
+
+  .relatorios-clean-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 1rem;
+  }
+
+  .relatorios-clean-grid {
     display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 20px;
   }
 
-  .relatorio-card {
+  .relatorios-clean-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
     display: flex;
     flex-direction: column;
     gap: 18px;
+    min-height: 320px;
   }
 
-  .relatorio-card-top {
+  .relatorios-clean-top {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 16px;
-    flex-wrap: wrap;
   }
 
-  .relatorio-card-top h2 {
-    margin: 10px 0 6px;
-    font-size: 22px;
+  .relatorios-clean-top h2 {
+    margin: 10px 0 8px;
+    font-size: 1.5rem;
+    color: #1f2a44;
   }
 
-  .relatorio-card-top p {
+  .relatorios-clean-top p {
     margin: 0;
     color: #64748b;
+    line-height: 1.5;
   }
 
-  .status-badge {
+  .relatorios-clean-badge {
     display: inline-flex;
     align-items: center;
-    padding: 6px 12px;
+    justify-content: center;
+    min-height: 28px;
+    padding: 0 12px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 0.78rem;
     font-weight: 800;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
   }
 
-  .status-ok {
-    background: rgba(16, 185, 129, 0.14);
-    color: #059669;
+  .relatorios-clean-badge-ok {
+    background: #dcfce7;
+    color: #166534;
   }
 
-  .status-destaque {
-    background: linear-gradient(135deg, #2563eb, #38bdf8);
-    color: #fff;
-    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+  .relatorios-clean-badge-new {
+    background: #dbeafe;
+    color: #1d4ed8;
   }
 
-  .relatorio-exportacao {
-    border: 1px solid rgba(37, 99, 235, 0.14);
-    background: linear-gradient(180deg, rgba(37, 99, 235, 0.04), rgba(56, 189, 248, 0.02));
+  .relatorios-clean-btn,
+  .relatorios-clean-btn:visited {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 0.96rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
   }
 
-  .form-grid {
+  .relatorios-clean-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 26px rgba(37, 99, 235, 0.28);
+  }
+
+  .relatorios-clean-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .relatorios-clean-form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
   }
 
-  .field {
+  .relatorios-clean-field {
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
 
-  .field label {
-    font-size: 13px;
+  .relatorios-clean-field label {
+    font-size: 0.92rem;
     font-weight: 700;
     color: #334155;
   }
 
-  .card-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+  .relatorios-clean-field input {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid #dbe2ea;
+    border-radius: 14px;
+    padding: 0 14px;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
-  .stats-grid {
+  .relatorios-clean-field input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+  }
+
+  .relatorios-clean-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .relatorios-clean-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
   }
 
-  .stat-box {
-    padding: 14px 16px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.68);
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  .relatorios-clean-stat {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 16px;
   }
 
-  .stat-label {
-    font-size: 12px;
-    font-weight: 700;
+  .relatorios-clean-stat span {
+    display: block;
+    font-size: 0.76rem;
+    font-weight: 800;
     color: #64748b;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
   }
 
-  .stat-box strong {
-    font-size: 18px;
+  .relatorios-clean-stat strong {
+    display: block;
+    font-size: 1.05rem;
     color: #0f172a;
+    line-height: 1.3;
   }
 
-  .placeholder-box {
-    padding: 18px;
+  .relatorios-clean-helper {
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
+    border: 1px dashed #bfdbfe;
     border-radius: 18px;
-    background: rgba(148, 163, 184, 0.08);
-    border: 1px dashed rgba(148, 163, 184, 0.24);
+    padding: 18px;
   }
 
-  .placeholder-box.destaque {
-    background: rgba(37, 99, 235, 0.06);
-    border-color: rgba(37, 99, 235, 0.22);
+  .relatorios-clean-helper h3 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    color: #1e3a8a;
   }
 
-  .placeholder-box h3 {
-    margin: 0 0 6px;
-    font-size: 18px;
-  }
-
-  .placeholder-box p {
+  .relatorios-clean-helper p {
     margin: 0;
     color: #475569;
+    line-height: 1.55;
   }
 
-  @media (max-width: 720px) {
-    .relatorio-card-top {
+  @media (max-width: 1100px) {
+    .relatorios-clean-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .relatorios-clean-header,
+    .relatorios-clean-top,
+    .relatorios-clean-actions,
+    .relatorios-clean-form-grid,
+    .relatorios-clean-stats {
+      grid-template-columns: 1fr;
       flex-direction: column;
+    }
+
+    .relatorios-clean-btn,
+    .relatorios-clean-btn:visited {
+      width: 100%;
     }
   }
 </style>
+{% endblock %}
+
+{% block content %}
+<section class="relatorios-clean-page">
+  <header class="relatorios-clean-header">
+    <div>
+      <h1>Relatórios</h1>
+      <p>Central de auditoria, comissão e relatórios operacionais.</p>
+    </div>
+  </header>
+
+  <section class="relatorios-clean-grid">
+    <article class="relatorios-clean-card">
+      <div class="relatorios-clean-top">
+        <div>
+          <span class="relatorios-clean-badge relatorios-clean-badge-ok">Disponível</span>
+          <h2>Auditoria de Comissão</h2>
+          <p>Validar lançamentos mensais e fechar comissões por competência.</p>
+        </div>
+      </div>
+
+      <div class="relatorios-clean-actions">
+        <a href="/relatorios/comissao" class="relatorios-clean-btn">
+          Abrir Auditoria de Comissão
+        </a>
+      </div>
+
+      <div class="relatorios-clean-helper">
+        <h3>Controle disponível</h3>
+        <p>
+          Use esta área para analisar lançamentos, revisar totais e abrir o demonstrativo
+          de fechamento de comissão.
+        </p>
+      </div>
+    </article>
+
+    <article class="relatorios-clean-card">
+      <div class="relatorios-clean-top">
+        <div>
+          <span class="relatorios-clean-badge relatorios-clean-badge-new">Novo</span>
+          <h2>Banho e Tosa</h2>
+          <p>Exportação operacional direta em Excel, sem tela intermediária.</p>
+        </div>
+      </div>
+
+      <div class="relatorios-clean-form-grid">
+        <div class="relatorios-clean-field">
+          <label for="banho-tosa-data-inicial">Data inicial</label>
+          <input type="date" id="banho-tosa-data-inicial">
+        </div>
+
+        <div class="relatorios-clean-field">
+          <label for="banho-tosa-data-final">Data final</label>
+          <input type="date" id="banho-tosa-data-final">
+        </div>
+      </div>
+
+      <div class="relatorios-clean-actions">
+        <button type="button" class="relatorios-clean-btn" id="btn-exportar-banho-tosa" onclick="baixarRelatorioBanhoTosa()">
+          Baixar Excel
+        </button>
+      </div>
+
+      <div class="relatorios-clean-stats">
+        <div class="relatorios-clean-stat">
+          <span>Formato</span>
+          <strong>XLSX</strong>
+        </div>
+
+        <div class="relatorios-clean-stat">
+          <span>Entrega</span>
+          <strong>Download direto</strong>
+        </div>
+
+        <div class="relatorios-clean-stat">
+          <span>Status</span>
+          <strong id="banho-tosa-status">Aguardando período</strong>
+        </div>
+      </div>
+
+      <div class="relatorios-clean-helper">
+        <h3>Exportação pronta para uso</h3>
+        <p>
+          Selecione o período e clique em <strong>Baixar Excel</strong> para gerar
+          o relatório operacional de banho e tosa.
+        </p>
+      </div>
+    </article>
+  </section>
+</section>
 
 <script>
-  function obterTokenProjeto() {
-    return (
-      localStorage.getItem("petflow_token") ||
-      localStorage.getItem("token") ||
-      localStorage.getItem("access_token") ||
-      sessionStorage.getItem("petflow_token") ||
-      sessionStorage.getItem("token") ||
-      sessionStorage.getItem("access_token") ||
-      ""
-    );
-  }
-
-  function formatarDataHoje() {
-    const hoje = new Date();
-    const ano = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-    const dia = String(hoje.getDate()).padStart(2, "0");
+  function formatDateInput(date) {
+    const ano = date.getFullYear();
+    const mes = String(date.getMonth() + 1).padStart(2, "0");
+    const dia = String(date.getDate()).padStart(2, "0");
     return `${ano}-${mes}-${dia}`;
   }
 
-  function definirPeriodoPadraoBanhoTosa() {
-    const dataHoje = formatarDataHoje();
-    const inicial = document.getElementById("banho-tosa-data-inicial");
-    const final = document.getElementById("banho-tosa-data-final");
+  function inicializarDatasBanhoTosa() {
+    const hoje = new Date();
+    const dataInicial = document.getElementById("banho-tosa-data-inicial");
+    const dataFinal = document.getElementById("banho-tosa-data-final");
 
-    if (inicial && !inicial.value) inicial.value = dataHoje;
-    if (final && !final.value) final.value = dataHoje;
-  }
+    if (dataInicial && !dataInicial.value) {
+      dataInicial.value = formatDateInput(hoje);
+    }
 
-  function atualizarStatusBanhoTosa(texto) {
-    const el = document.getElementById("banho-tosa-status");
-    if (el) el.textContent = texto;
+    if (dataFinal && !dataFinal.value) {
+      dataFinal.value = formatDateInput(hoje);
+    }
   }
 
   async function baixarRelatorioBanhoTosa() {
-    const dataInicial = document.getElementById("banho-tosa-data-inicial").value;
-    const dataFinal = document.getElementById("banho-tosa-data-final").value;
+    const dataInicial = document.getElementById("banho-tosa-data-inicial")?.value || "";
+    const dataFinal = document.getElementById("banho-tosa-data-final")?.value || "";
+    const status = document.getElementById("banho-tosa-status");
     const botao = document.getElementById("btn-exportar-banho-tosa");
-    const token = obterTokenProjeto();
 
     if (!dataInicial || !dataFinal) {
+      if (status) status.textContent = "Informe o período";
       alert("Informe a data inicial e a data final.");
       return;
     }
 
     if (dataFinal < dataInicial) {
+      if (status) status.textContent = "Período inválido";
       alert("A data final não pode ser menor que a data inicial.");
       return;
     }
 
-    if (!token) {
-      alert("Token de autenticação não encontrado. Faça login novamente.");
-      return;
-    }
-
-    const url = `/api/relatorios/banho-tosa/exportar?data_inicial=${encodeURIComponent(dataInicial)}&data_final=${encodeURIComponent(dataFinal)}`;
-
     try {
-      botao.disabled = true;
-      botao.textContent = "Baixando...";
-      atualizarStatusBanhoTosa("Gerando arquivo");
+      if (botao) {
+        botao.disabled = true;
+        botao.textContent = "Gerando...";
+      }
+
+      if (status) {
+        status.textContent = "Gerando arquivo";
+      }
+
+      const token = localStorage.getItem("token") || "";
+      const url = `/api/relatorios/banho-tosa/exportar?data_inicial=${encodeURIComponent(dataInicial)}&data_final=${encodeURIComponent(dataFinal)}`;
 
       const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
       if (!response.ok) {
-        const detalhe = await response.text();
-        throw new Error(detalhe || "Erro ao gerar relatório.");
+        throw new Error("Não foi possível gerar o relatório.");
       }
 
       const blob = await response.blob();
-      const disposition = response.headers.get("content-disposition") || "";
-      const match = disposition.match(/filename="([^"]+)"/i);
-      const nomeArquivo = match ? match[1] : `relatorio_banho_tosa_${dataInicial}_${dataFinal}.xlsx`;
+      const downloadUrl = URL.createObjectURL(blob);
 
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = downloadUrl;
-      a.download = nomeArquivo;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `relatorio-banho-tosa-${dataInicial}-a-${dataFinal}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      atualizarStatusBanhoTosa("Download concluído");
+      URL.revokeObjectURL(downloadUrl);
+
+      if (status) {
+        status.textContent = "Arquivo baixado";
+      }
     } catch (error) {
-      console.error(error);
-      atualizarStatusBanhoTosa("Erro na exportação");
-      alert("Não foi possível baixar o relatório de banho e tosa.");
+      console.error("[Relatórios] Erro ao baixar relatório de banho e tosa:", error);
+      if (status) {
+        status.textContent = "Erro ao gerar";
+      }
+      alert(error.message || "Erro ao gerar relatório de banho e tosa.");
     } finally {
-      botao.disabled = false;
-      botao.textContent = "Baixar Excel";
+      if (botao) {
+        botao.disabled = false;
+        botao.textContent = "Baixar Excel";
+      }
     }
   }
 
-  async function carregarFaturamento() {
-    alert("Fluxo mantido como placeholder nesta entrega.");
-  }
-
-  async function carregarRelatorioVendas() {
-    alert("Fluxo mantido como placeholder nesta entrega.");
-  }
-
-  definirPeriodoPadraoBanhoTosa();
+  document.addEventListener("DOMContentLoaded", inicializarDatasBanhoTosa);
 </script>
 {% endblock %}

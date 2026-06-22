@@ -28,6 +28,8 @@ def _serializar(conta: FinanceiroPagar):
         "descricao": conta.descricao,
         "observacao": conta.observacao,
         "classificacao_dre_id": conta.classificacao_dre_id,
+        "forma_pagamento": conta.forma_pagamento,
+        "observacao_baixa": conta.observacao_baixa,
         "grupo_dre": conta.grupo_dre,
         "categoria_dre": conta.categoria_dre,
         "subcategoria_dre": conta.subcategoria_dre,
@@ -49,7 +51,10 @@ def _buscar_classificacao_valida(
     classificacao_dre_id: int | None,
 ) -> FinanceiroPlanoDRE | None:
     if not classificacao_dre_id:
-        return None
+        raise HTTPException(
+            status_code=400,
+            detail="Classifica??o DRE ? obrigat?ria para contas a pagar.",
+        )
 
     classificacao = (
         db.query(FinanceiroPlanoDRE)
@@ -232,6 +237,8 @@ def baixar_conta_pagar(
     conta.status = "PAGO"
     conta.data_pagamento = payload.data_pagamento or date.today()
     conta.valor_pago = Decimal(payload.valor_pago or conta.valor or 0)
+    conta.forma_pagamento = payload.forma_pagamento
+    conta.observacao_baixa = payload.observacao_baixa
 
     db.commit()
     db.refresh(conta)

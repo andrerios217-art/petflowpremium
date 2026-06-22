@@ -1,206 +1,298 @@
-{% extends "layout/base.html" %}
+﻿{% extends "layout/base.html" %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="/static/css/financeiro.css">
+<style>
+  .financeiro-page-clean {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .financeiro-toolbar-clean {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .financeiro-toolbar-left h1 {
+    margin: 0 0 6px;
+  }
+
+  .financeiro-toolbar-left p {
+    margin: 0;
+    color: #64748b;
+  }
+
+  .financeiro-toolbar-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .financeiro-operacao-card {
+    display: grid;
+    grid-template-columns: 220px 120px 120px auto;
+    gap: 14px;
+    align-items: end;
+  }
+
+  .financeiro-tabs-clean {
+    display: flex;
+    gap: 8px;
+  }
+
+  .financeiro-resumo-clean {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .financeiro-kpi-clean {
+    padding: 18px;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  }
+
+  .financeiro-kpi-clean span {
+    display: block;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+
+  .financeiro-kpi-clean strong {
+    display: block;
+    color: #111827;
+    font-size: 1.35rem;
+  }
+
+  .financeiro-lista-header-clean {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .financeiro-lista-header-clean h2 {
+    margin: 0 0 4px;
+  }
+
+  .financeiro-lista-header-clean p {
+    margin: 0;
+    color: #64748b;
+  }
+
+  .financeiro-atalhos-clean {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 1100px) {
+    .financeiro-operacao-card,
+    .financeiro-resumo-clean {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 700px) {
+    .financeiro-operacao-card,
+    .financeiro-resumo-clean {
+      grid-template-columns: 1fr;
+    }
+
+    .financeiro-toolbar-actions,
+    .financeiro-tabs-clean,
+    .financeiro-atalhos-clean {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .financeiro-toolbar-actions .btn,
+    .financeiro-tabs-clean .btn,
+    .financeiro-atalhos-clean .btn {
+      width: 100%;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<section class="financeiro-page">
-  <header class="financeiro-header">
-    <div>
+<section class="financeiro-page financeiro-page-clean">
+  <header class="financeiro-header financeiro-toolbar-clean">
+    <div class="financeiro-toolbar-left">
       <h1>Financeiro</h1>
-      <p>Contas a receber e a pagar com visão operacional e análise financeira.</p>
+      <p>Controle operacional de contas a receber e contas a pagar.</p>
     </div>
 
-    <div class="financeiro-header-actions">
-      <button type="button" class="btn btn-secondary" id="btn-tab-receber">Receber</button>
-      <button type="button" class="btn btn-secondary" id="btn-tab-pagar">Pagar</button>
+    <div class="financeiro-toolbar-actions">
+      <select id="financeiro-empresa-id" class="form-control financeiro-empresa-select">
+        <option value="1">Empresa 1 - Principal</option>
+        <option value="2">Empresa 2 - Demo</option>
+      </select>
+
       <button type="button" class="btn btn-primary" id="btn-nova-conta">Nova Conta</button>
       <button type="button" class="btn btn-outline" id="btn-recarregar-financeiro">Recarregar</button>
+      <a href="/dre" class="btn btn-outline">Abrir DRE</a>
     </div>
   </header>
 
-  <section class="card financeiro-competencia-card">
-    <div class="financeiro-card-header">
-      <div>
-        <h2>Acompanhamento por Mês</h2>
-        <p class="text-muted">Use a competência para atualizar indicadores e contas.</p>
+  <section class="card financeiro-operacao-card">
+    <div class="form-group">
+      <label>Tipo de operação</label>
+      <div class="financeiro-tabs-clean">
+        <button type="button" class="btn btn-secondary" id="btn-tab-receber">Receber</button>
+        <button type="button" class="btn btn-secondary" id="btn-tab-pagar">Pagar</button>
       </div>
     </div>
 
-    <div class="financeiro-competencia-grid">
-      <div class="form-group">
-        <label for="financeiro-mes">Mês</label>
-        <select id="financeiro-mes" class="form-control">
-          <option value="1">Janeiro</option>
-          <option value="2">Fevereiro</option>
-          <option value="3">Março</option>
-          <option value="4">Abril</option>
-          <option value="5">Maio</option>
-          <option value="6">Junho</option>
-          <option value="7">Julho</option>
-          <option value="8">Agosto</option>
-          <option value="9">Setembro</option>
-          <option value="10">Outubro</option>
-          <option value="11">Novembro</option>
-          <option value="12">Dezembro</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="financeiro-ano">Ano</label>
-        <input type="number" id="financeiro-ano" class="form-control" min="2000" max="2100" step="1">
-      </div>
-
-      <div class="financeiro-competencia-actions">
-        <button type="button" class="btn btn-primary" id="btn-aplicar-competencia-financeiro">Buscar Mês</button>
-        <button type="button" class="btn btn-secondary" id="btn-mes-atual-financeiro">Mês Atual</button>
-      </div>
+    <div class="form-group">
+      <label for="financeiro-mes">Mês</label>
+      <select id="financeiro-mes" class="form-control">
+        <option value="1">Janeiro</option>
+        <option value="2">Fevereiro</option>
+        <option value="3">Março</option>
+        <option value="4">Abril</option>
+        <option value="5">Maio</option>
+        <option value="6">Junho</option>
+        <option value="7">Julho</option>
+        <option value="8">Agosto</option>
+        <option value="9">Setembro</option>
+        <option value="10">Outubro</option>
+        <option value="11">Novembro</option>
+        <option value="12">Dezembro</option>
+      </select>
     </div>
 
-    <div class="financeiro-competencia-info">
+    <div class="form-group">
+      <label for="financeiro-ano">Ano</label>
+      <input type="number" id="financeiro-ano" class="form-control" min="2000" max="2100" step="1">
+    </div>
+
+    <div class="financeiro-competencia-actions">
+      <button type="button" class="btn btn-primary" id="btn-aplicar-competencia-financeiro">Buscar</button>
+      <button type="button" class="btn btn-secondary" id="btn-mes-atual-financeiro">Mês Atual</button>
+    </div>
+
+    <div class="financeiro-competencia-info" style="grid-column: 1 / -1;">
       <span class="text-muted">Período em acompanhamento</span>
       <strong id="financeiro-competencia-label">Mês atual</strong>
     </div>
   </section>
 
-  <section class="financeiro-kpis-grid">
-    <article class="card financeiro-kpi-card">
-      <span class="financeiro-kpi-label">Entradas Hoje</span>
-      <strong class="financeiro-kpi-value" id="financeiro-entradas-hoje">R$ 0,00</strong>
-      <small class="text-muted">Total recebido hoje</small>
+  <section class="financeiro-resumo-clean">
+    <article class="financeiro-kpi-clean">
+      <span>Entradas Hoje</span>
+      <strong id="financeiro-entradas-hoje">R$ 0,00</strong>
     </article>
 
-    <article class="card financeiro-kpi-card">
-      <span class="financeiro-kpi-label">Saídas Hoje</span>
-      <strong class="financeiro-kpi-value" id="financeiro-saidas-hoje">R$ 0,00</strong>
-      <small class="text-muted">Total pago hoje</small>
+    <article class="financeiro-kpi-clean">
+      <span>Saídas Hoje</span>
+      <strong id="financeiro-saidas-hoje">R$ 0,00</strong>
     </article>
 
-    <article class="card financeiro-kpi-card">
-      <span class="financeiro-kpi-label">Lucro Hoje</span>
-      <strong class="financeiro-kpi-value" id="financeiro-lucro-hoje">R$ 0,00</strong>
-      <small class="text-muted">Entradas - saídas do dia</small>
+    <article class="financeiro-kpi-clean">
+      <span>Lucro Hoje</span>
+      <strong id="financeiro-lucro-hoje">R$ 0,00</strong>
     </article>
 
-    <article class="card financeiro-kpi-card">
-      <span class="financeiro-kpi-label">Lucro do Mês</span>
-      <strong class="financeiro-kpi-value" id="financeiro-lucro-mes">R$ 0,00</strong>
-      <small class="text-muted">Resultado acumulado no mês atual</small>
+    <article class="financeiro-kpi-clean">
+      <span>Lucro do Mês</span>
+      <strong id="financeiro-lucro-mes">R$ 0,00</strong>
     </article>
 
-    <article class="card financeiro-kpi-card">
-      <span class="financeiro-kpi-label">Receita do Mês</span>
-      <strong class="financeiro-kpi-value" id="financeiro-dre-receita">R$ 0,00</strong>
-      <small class="text-muted">Total recebido no mês</small>
+    <article class="financeiro-kpi-clean">
+      <span>Receita do Mês</span>
+      <strong id="financeiro-dre-receita">R$ 0,00</strong>
     </article>
 
-    <article class="card financeiro-kpi-card">
-      <span class="financeiro-kpi-label">Despesa do Mês</span>
-      <strong class="financeiro-kpi-value" id="financeiro-dre-despesa">R$ 0,00</strong>
-      <small class="text-muted">Total pago no mês</small>
+    <article class="financeiro-kpi-clean">
+      <span>Despesa do Mês</span>
+      <strong id="financeiro-dre-despesa">R$ 0,00</strong>
     </article>
-  </section>
 
-  <section class="financeiro-duplo-grid">
-    <section class="card financeiro-dre-card">
-      <div class="financeiro-card-header">
-        <div>
-          <h2>DRE Simplificado</h2>
-          <p class="text-muted">Resumo rápido para operação.</p>
-        </div>
-        <a href="/dre" class="btn btn-outline">Abrir DRE</a>
-      </div>
+    <article class="financeiro-kpi-clean">
+      <span>Receber em Aberto</span>
+      <strong id="financeiro-receber-aberto">R$ 0,00</strong>
+    </article>
 
-      <div class="financeiro-dre-resumo-grid">
-        <article class="financeiro-dre-item">
-          <span>Receita</span>
-          <strong id="financeiro-dre-receita-resumo">R$ 0,00</strong>
-        </article>
-
-        <article class="financeiro-dre-item">
-          <span>Despesa</span>
-          <strong id="financeiro-dre-despesa-resumo">R$ 0,00</strong>
-        </article>
-
-        <article class="financeiro-dre-item">
-          <span>Lucro / Prejuízo</span>
-          <strong id="financeiro-dre-lucro">R$ 0,00</strong>
-        </article>
-
-        <article class="financeiro-dre-item">
-          <span>Receber em Aberto</span>
-          <strong id="financeiro-receber-aberto">R$ 0,00</strong>
-        </article>
-
-        <article class="financeiro-dre-item">
-          <span>Pago / Recebido</span>
-          <strong id="financeiro-pago-recebido">R$ 0,00</strong>
-        </article>
-
-        <article class="financeiro-dre-item">
-          <span>Vencido</span>
-          <strong id="financeiro-vencido">R$ 0,00</strong>
-        </article>
-      </div>
-    </section>
-
-    <section class="card financeiro-dre-cta-card">
-      <div class="financeiro-card-header">
-        <div>
-          <h2>DRE Detalhado</h2>
-          <p class="text-muted">A análise detalhada agora fica em tela própria.</p>
-        </div>
-      </div>
-
-      <div class="financeiro-dre-cta-content">
-        <p>Para análise por grupo, categoria e subcategoria, use a tela dedicada de DRE.</p>
-        <a href="/dre" class="btn btn-primary">Ir para análise DRE</a>
-      </div>
-    </section>
-  </section>
-
-  <section class="card financeiro-fluxo-card">
-    <div class="financeiro-card-header">
-      <div>
-        <h2>Fluxo dos Últimos 7 Dias</h2>
-        <p class="text-muted">Entradas e saídas recentes.</p>
-      </div>
-    </div>
-
-    <div class="financeiro-chart-wrapper">
-      <div id="financeiro-chart-empty" class="financeiro-chart-empty">
-        Nenhum movimento registrado nos últimos 7 dias.
-      </div>
-      <div id="financeiro-chart-bars" class="financeiro-chart-bars"></div>
-    </div>
-
-    <div class="financeiro-status-grid">
-      <article class="financeiro-status-item">
-        <span>Qtd. Pendentes</span>
-        <strong id="financeiro-qtd-pendentes">0 conta(s)</strong>
-        <small class="text-muted">Títulos em aberto</small>
-      </article>
-
-      <article class="financeiro-status-item">
-        <span>Qtd. Pagas</span>
-        <strong id="financeiro-qtd-pagas">0 conta(s)</strong>
-        <small class="text-muted">Títulos baixados</small>
-      </article>
-
-      <article class="financeiro-status-item">
-        <span>Qtd. Vencidas</span>
-        <strong id="financeiro-qtd-vencidas">0 conta(s)</strong>
-        <small class="text-muted">Títulos atrasados</small>
-      </article>
-    </div>
+    <article class="financeiro-kpi-clean">
+      <span>Vencido</span>
+      <strong id="financeiro-vencido">R$ 0,00</strong>
+    </article>
   </section>
 
   <section class="card financeiro-contas-card">
-    <div class="financeiro-card-header">
+    <div class="financeiro-lista-header-clean">
       <div>
         <h2 id="financeiro-contas-titulo">Contas a Receber</h2>
-        <p class="text-muted">Visão operacional.</p>
+        <p class="text-muted">Use os filtros para consultar e baixar contas rapidamente.</p>
+      </div>
+
+      <div class="financeiro-atalhos-clean">
+        <a href="/dre" class="btn btn-outline">DRE detalhado</a>
+      </div>
+    </div>
+
+    <div id="financeiro-filtros-pagar" class="financeiro-filtros-pagar" style="display: none;">
+      <div class="form-group">
+        <label for="financeiro-filtro-grupo-dre">Grupo DRE</label>
+        <select id="financeiro-filtro-grupo-dre" class="form-control">
+          <option value="">Todos os grupos</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="financeiro-filtro-categoria-dre">Categoria DRE</label>
+        <select id="financeiro-filtro-categoria-dre" class="form-control">
+          <option value="">Todas as categorias</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="financeiro-filtro-subcategoria-dre">Subcategoria DRE</label>
+        <select id="financeiro-filtro-subcategoria-dre" class="form-control">
+          <option value="">Todas as subcategorias</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="financeiro-filtro-status">Status</label>
+        <select id="financeiro-filtro-status" class="form-control">
+          <option value="">Todos os status</option>
+          <option value="PENDENTE">Pendente</option>
+          <option value="PAGO">Pago</option>
+          <option value="VENCIDO">Vencido</option>
+          <option value="CANCELADO">Cancelado</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="financeiro-filtro-forma-pagamento">Forma de pagamento</label>
+        <select id="financeiro-filtro-forma-pagamento" class="form-control">
+          <option value="">Todas as formas</option>
+          <option value="PIX">PIX</option>
+          <option value="DINHEIRO">Dinheiro</option>
+          <option value="CONTA_BANCARIA">Conta banc&#225;ria</option>
+          <option value="CARTAO_CREDITO">Cart&#227;o de cr&#233;dito</option>
+          <option value="CARTAO_DEBITO">Cart&#227;o de d&#233;bito</option>
+          <option value="BOLETO">Boleto</option>
+          <option value="OUTRO">Outro</option>
+        </select>
+      </div>
+
+      <div class="financeiro-filtros-actions">
+        <button type="button" class="btn btn-primary" id="btn-aplicar-filtros-pagar">Aplicar Filtros</button>
+        <button type="button" class="btn btn-outline" id="btn-limpar-filtros-pagar">Limpar</button>
       </div>
     </div>
 
@@ -232,12 +324,12 @@
     <div class="financeiro-modal-body">
       <section class="financeiro-step-panel" data-step-panel="1">
         <div class="financeiro-form-grid">
-          <div class="form-group">
-            <label for="financeiro-cliente-id">Cliente ID</label>
+          <div class="form-group" id="financeiro-field-cliente-id">
+            <label for="financeiro-cliente-id" id="financeiro-label-cliente-id">Cliente ID</label>
             <input type="number" id="financeiro-cliente-id" class="form-control">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" id="financeiro-field-fornecedor">
             <label for="financeiro-fornecedor">Fornecedor</label>
             <input type="text" id="financeiro-fornecedor" class="form-control">
           </div>
@@ -272,7 +364,7 @@
       </section>
 
       <section class="financeiro-step-panel" data-step-panel="2" style="display: none;">
-        <div class="financeiro-form-grid">
+        <div class="financeiro-form-grid" id="financeiro-dre-fields">
           <div class="form-group">
             <label for="financeiro-grupo-dre">Grupo DRE</label>
             <select id="financeiro-grupo-dre" class="form-control">
@@ -295,7 +387,7 @@
           </div>
         </div>
 
-        <div class="financeiro-dre-nao-aplica">
+        <div class="financeiro-dre-nao-aplica" id="financeiro-step-2-empty">
           <h3>DRE não se aplica</h3>
           <p>Para contas a receber, a etapa de classificação DRE não é necessária.</p>
         </div>
@@ -358,6 +450,28 @@
       <button type="button" class="btn btn-primary" id="btn-salvar-conta">Salvar Conta</button>
     </div>
   </div>
+</div>
+
+<!-- IDs ocultos preservados para compatibilidade com financeiro.js -->
+<div style="display: none;">
+  <span id="financeiro-dre-receita-resumo">R$ 0,00</span>
+  <span id="financeiro-dre-despesa-resumo">R$ 0,00</span>
+  <span id="financeiro-dre-lucro">R$ 0,00</span>
+  <span id="financeiro-pago-recebido">R$ 0,00</span>
+  <span id="financeiro-total-pendente">R$ 0,00</span>
+  <span id="financeiro-total-pago">R$ 0,00</span>
+  <span id="financeiro-total-vencido">R$ 0,00</span>
+  <span id="financeiro-qtd-pendente">0 conta(s)</span>
+  <span id="financeiro-qtd-pago">0 conta(s)</span>
+  <span id="financeiro-qtd-vencido">0 conta(s)</span>
+  <span id="financeiro-qtd-pendentes">0 conta(s)</span>
+  <span id="financeiro-qtd-pagas">0 conta(s)</span>
+  <span id="financeiro-qtd-vencidas">0 conta(s)</span>
+  <div id="financeiro-chart-empty"></div>
+  <div id="financeiro-chart-bars"></div>
+  <div id="financeiro-dre-grupos"></div>
+  <div id="financeiro-dre-categorias"></div>
+  <div id="financeiro-dre-subcategorias"></div>
 </div>
 
 <script src="/static/js/financeiro.js"></script>

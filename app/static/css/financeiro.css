@@ -1163,3 +1163,170 @@ body.financeiro-modal-open {
         width: 100%;
     }
 }
+
+/* Corre??o: toast/alerta acima do modal financeiro, sem blur */
+.toast-container,
+.toast-wrapper,
+.toast,
+.app-toast,
+.notification,
+.alert-toast,
+#toast-container,
+#toastContainer {
+  z-index: 99999 !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.toast,
+.app-toast,
+.notification,
+.alert-toast {
+  opacity: 1 !important;
+  text-shadow: none !important;
+  transform: none;
+  will-change: auto;
+}
+
+.financeiro-modal-overlay {
+  z-index: 9000;
+}
+
+.financeiro-modal {
+  z-index: 9010;
+}
+
+
+.financeiro-filtros-pagar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 14px;
+  align-items: end;
+  margin: 16px 0 20px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.financeiro-filtros-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1100px) {
+  .financeiro-filtros-pagar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .financeiro-filtros-pagar {
+    grid-template-columns: 1fr;
+  }
+
+  .financeiro-filtros-actions {
+    flex-direction: column;
+  }
+
+  .financeiro-filtros-actions .btn {
+    width: 100%;
+  }
+}
+
+
+.financeiro-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.financeiro-confirm-modal {
+  width: min(440px, 100%);
+  background: #ffffff;
+  border-radius: 22px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  padding: 24px;
+  animation: financeiroConfirmIn 0.16s ease-out;
+}
+
+.financeiro-confirm-header h3 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 1.25rem;
+}
+
+.financeiro-confirm-header p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.financeiro-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+@keyframes financeiroConfirmIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 600px) {
+  .financeiro-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .financeiro-confirm-actions .btn {
+    width: 100%;
+  }
+}
+
+
+.financeiro-empresa-select {
+  min-width: 210px;
+  min-height: 42px;
+  border-radius: 14px;
+  font-weight: 700;
+}
+
+
+.financeiro-baixa-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.financeiro-baixa-grid .form-group-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 600px) {
+  .financeiro-baixa-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .financeiro-baixa-grid .form-group-full {
+    grid-column: auto;
+  }
+}

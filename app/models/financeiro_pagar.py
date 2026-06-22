@@ -33,6 +33,8 @@ class FinanceiroPagar(Base):
     )
 
     valor = Column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
+    forma_pagamento = Column(String(40), nullable=True, index=True)
+    observacao_baixa = Column(Text, nullable=True)
     valor_pago = Column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
 
     vencimento = Column(Date, nullable=False, index=True)

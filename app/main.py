@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+﻿from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -27,6 +27,8 @@ from app.api.financeiro_dashboard import router as financeiro_dashboard_router
 from app.api.financeiro_dre_api import router as financeiro_dre_router
 from app.api.financeiro_extrato_api import router as financeiro_extrato_router
 from app.api.financeiro_pagar_api import router as financeiro_pagar_router
+from app.api.fluxo_caixa_api import router as fluxo_caixa_router
+from app.api.conciliacao_bancaria_api import router as conciliacao_bancaria_router
 from app.api.nota_entrada_api import router as nota_entrada_router
 from app.api.pdv_api import router as pdv_router
 from app.api.producao_api import router as producao_router
@@ -62,11 +64,14 @@ app.include_router(financeiro_dashboard_router)
 app.include_router(financeiro_dre_router)
 app.include_router(financeiro_extrato_router)
 app.include_router(financeiro_pagar_router)
+app.include_router(fluxo_caixa_router)
+app.include_router(conciliacao_bancaria_router)
 app.include_router(pdv_router)
 app.include_router(caixa_router)
 app.include_router(cashback_router)
 app.include_router(precificacao_api.router)
 app.include_router(relatorios_banho_tosa_router)
+app.include_router(assinaturas_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -184,6 +189,11 @@ def financeiro_page(request: Request):
     return templates.TemplateResponse(request, "financeiro.html", {"request": request})
 
 
+@app.get("/fluxo-caixa", response_class=HTMLResponse)
+def fluxo_caixa_page(request: Request):
+    return templates.TemplateResponse(request, "fluxo_caixa.html", {"request": request})
+
+
 @app.get("/dre", response_class=HTMLResponse)
 def dre_page(request: Request):
     return templates.TemplateResponse(request, "dre.html", {"request": request})
@@ -254,5 +264,11 @@ def assinaturas_edit_page(request: Request, assinatura_id: int):
         {"request": request, "assinatura_id": assinatura_id},
     )
 
+@app.get("/conciliacao-bancaria", response_class=HTMLResponse)
+def conciliacao_bancaria_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "conciliacao_bancaria.html",
+        {"request": request},
+    )
 
-app.include_router(assinaturas_router)

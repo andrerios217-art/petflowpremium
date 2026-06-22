@@ -6,7 +6,13 @@
     <h1>Dashboard</h1>
     <p>Bem-vindo ao Pet Flow Premium</p>
   </div>
+
   <div class="page-header-actions">
+    <select id="dashboard-empresa-id" class="dashboard-empresa-select">
+      <option value="1">Empresa 1 - Principal</option>
+      <option value="2">Empresa 2 - Demo</option>
+    </select>
+
     <button class="primary-btn" type="button">Novo Agendamento</button>
   </div>
 </section>
@@ -78,6 +84,46 @@
         <span>Pagar em aberto</span>
         <span id="fin-pagar-aberto">R$ 0,00</span>
       </li>
+    </ul>
+  </div>
+
+  <div class="glass-card dashboard-alertas-card" id="dashboard-alertas-financeiros">
+    <div class="dashboard-alertas-header">
+      <div>
+        <h2>Alertas Financeiros</h2>
+        <p>Contas a pagar vencidas e próximas do vencimento.</p>
+      </div>
+      <span class="dashboard-alertas-badge" id="alertas-financeiros-status">Carregando</span>
+    </div>
+
+    <div class="dashboard-alertas-grid">
+      <div class="dashboard-alerta-metrica alerta-vencida dashboard-alerta-click" data-alerta-financeiro-link="vencidas" title="Abrir contas vencidas">
+        <span>Vencidas</span>
+        <strong id="alertas-total-vencidas">R$ 0,00</strong>
+      </div>
+
+      <div class="dashboard-alerta-metrica alerta-hoje dashboard-alerta-click" data-alerta-financeiro-link="hoje" title="Abrir contas vencendo hoje">
+        <span>Vencem Hoje</span>
+        <strong id="alertas-total-hoje">R$ 0,00</strong>
+      </div>
+
+      <div class="dashboard-alerta-metrica alerta-proximas dashboard-alerta-click" data-alerta-financeiro-link="proximos7" title="Abrir pr?ximas contas">
+        <span>Próximos 7 Dias</span>
+        <strong id="alertas-total-7">R$ 0,00</strong>
+      </div>
+
+      <div class="dashboard-alerta-metrica alerta-criticas dashboard-alerta-click" data-alerta-financeiro-link="criticas" title="Abrir contas cr?ticas">
+        <span>Críticas</span>
+        <strong id="alertas-total-criticas">R$ 0,00</strong>
+      </div>
+    </div>
+
+    <div class="dashboard-alertas-mensagem" id="alertas-financeiros-mensagem">
+      Nenhum alerta carregado.
+    </div>
+
+    <ul class="dashboard-alertas-lista" id="alertas-financeiros-lista">
+      <li>Nenhuma conta crítica encontrada.</li>
     </ul>
   </div>
 </section>

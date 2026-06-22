@@ -1,4 +1,4 @@
-function formatarMoeda(valor) {
+﻿function formatarMoeda(valor) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL"
@@ -6,7 +6,71 @@ function formatarMoeda(valor) {
 }
 
 function obterEmpresaId() {
-  return localStorage.getItem("empresa_id") || 1;
+  const selectEmpresa = document.getElementById("dashboard-empresa-id");
+  const valorSelect = Number(selectEmpresa?.value || 0);
+
+  if (valorSelect > 0) {
+    return valorSelect;
+  }
+
+  return Number(localStorage.getItem("empresa_id") || 1);
+}
+
+function normalizarTextoDashboard(valor) {
+  return String(valor ?? "")
+    .replaceAll("Aten??o", "Atenção")
+    .replaceAll("pr?ximas", "próximas")
+    .replaceAll("pr?ximos", "próximos")
+    .replaceAll("cr?ticas", "críticas")
+    .replaceAll("vencida h?", "vencida há")
+    .replaceAll("Pr?x.", "Próx.");
+}
+
+function escapeHtmlDashboard(valor) {
+  return String(valor ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatarDataBr(valor) {
+  if (!valor) return "-";
+
+  const texto = String(valor);
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+    const [ano, mes, dia] = texto.split("-");
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  return texto;
+}
+
+function formatarDataIso(data) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+function formatarDiasVencimento(dias) {
+  const numero = Number(dias);
+
+  if (!Number.isFinite(numero)) {
+    return "sem vencimento";
+  }
+
+  if (numero < 0) {
+    return `vencida há ${Math.abs(numero)} dia(s)`;
+  }
+
+  if (numero === 0) {
+    return "vence hoje";
+  }
+
+  return `vence em ${numero} dia(s)`;
 }
 
 function aplicarClasseLucro(elemento, valor) {
@@ -37,17 +101,60 @@ function aplicarStatusCaixa(elemento, status) {
   }
 }
 
-function formatarDataIso(data) {
-  const ano = data.getFullYear();
-  const mes = String(data.getMonth() + 1).padStart(2, "0");
-  const dia = String(data.getDate()).padStart(2, "0");
-  return `${ano}-${mes}-${dia}`;
+function atualizarStatusAlertaFinanceiro(resumo) {
+  const status = document.getElementById("alertas-financeiros-status");
+  if (!status) return;
+
+  status.classList.remove("is-danger", "is-warning", "is-ok");
+
+  const totalVencidas = Number(resumo.total_vencidas || 0);
+  const totalHoje = Number(resumo.total_vence_hoje || 0);
+  const total7 = Number(resumo.total_proximos_7_dias || 0);
+
+  if (totalVencidas > 0) {
+    status.textContent = "Atenção";
+    status.classList.add("is-danger");
+    return;
+  }
+
+  if (totalHoje > 0 || total7 > 0) {
+    status.textContent = "Monitorar";
+    status.classList.add("is-warning");
+    return;
+  }
+
+  status.textContent = "Em dia";
+  status.classList.add("is-ok");
+}
+
+function montarMensagemAlertas(resumo) {
+  const totalVencidas = Number(resumo.total_vencidas || 0);
+  const totalHoje = Number(resumo.total_vence_hoje || 0);
+  const total7 = Number(resumo.total_proximos_7_dias || 0);
+  const total15 = Number(resumo.total_proximos_15_dias || 0);
+
+  if (totalVencidas > 0) {
+    return `Atenção: existem ${formatarMoeda(totalVencidas)} em contas vencidas.`;
+  }
+
+  if (totalHoje > 0) {
+    return `Atenção: existem ${formatarMoeda(totalHoje)} em contas vencendo hoje.`;
+  }
+
+  if (total7 > 0) {
+    return `Nos próximos 7 dias há ${formatarMoeda(total7)} em contas a pagar.`;
+  }
+
+  if (total15 > 0) {
+    return `Nos próximos 15 dias há ${formatarMoeda(total15)} em contas a pagar.`;
+  }
+
+  return "Nenhuma conta crítica a vencer nos próximos dias.";
 }
 
 async function carregarDashboardFinanceiro() {
   try {
     const empresaId = obterEmpresaId();
-
     const response = await fetch(`/api/financeiro/dashboard/?empresa_id=${empresaId}`);
 
     if (!response.ok) {
@@ -92,6 +199,102 @@ async function carregarDashboardFinanceiro() {
     }
   } catch (error) {
     console.error("Erro ao carregar resumo financeiro:", error);
+  }
+}
+
+async function carregarAlertasFinanceiros() {
+  try {
+    const empresaId = obterEmpresaId();
+    const response = await fetch(`/api/financeiro/dashboard/alertas?empresa_id=${empresaId}&dias=15&limite=6`);
+
+    if (!response.ok) {
+      throw new Error("Erro ao carregar alertas financeiros");
+    }
+
+    const data = await response.json();
+    const resumo = data.resumo || {};
+    const principais = Array.isArray(data.principais) ? data.principais : [];
+
+    const totalVencidas = document.getElementById("alertas-total-vencidas");
+    const totalHoje = document.getElementById("alertas-total-hoje");
+    const total7 = document.getElementById("alertas-total-7");
+    const totalCriticas = document.getElementById("alertas-total-criticas");
+    const mensagem = document.getElementById("alertas-financeiros-mensagem");
+    const lista = document.getElementById("alertas-financeiros-lista");
+
+    if (totalVencidas) {
+      totalVencidas.textContent = formatarMoeda(resumo.total_vencidas || 0);
+    }
+
+    if (totalHoje) {
+      totalHoje.textContent = formatarMoeda(resumo.total_vence_hoje || 0);
+    }
+
+    if (total7) {
+      total7.textContent = formatarMoeda(resumo.total_proximos_7_dias || 0);
+    }
+
+    if (totalCriticas) {
+      totalCriticas.textContent = formatarMoeda(resumo.total_criticas || 0);
+    }
+
+    if (mensagem) {
+      mensagem.textContent = normalizarTextoDashboard(montarMensagemAlertas(resumo));
+    }
+
+    atualizarStatusAlertaFinanceiro(resumo);
+
+    if (!lista) return;
+
+    if (!principais.length) {
+      lista.innerHTML = `<li>Nenhuma conta a vencer encontrada.</li>`;
+      return;
+    }
+
+    lista.innerHTML = principais.map((conta) => {
+      const classificacao = [
+        conta.grupo_dre,
+        conta.categoria_dre,
+        conta.subcategoria_dre
+      ].filter(Boolean).join(" › ");
+
+      return `
+        <li>
+          <div class="dashboard-alerta-conta-info">
+            <strong>${escapeHtmlDashboard(conta.descricao || "Conta a pagar")}</strong>
+            <span>
+              ${escapeHtmlDashboard(conta.fornecedor || "Fornecedor não informado")}
+              - ${escapeHtmlDashboard(formatarDiasVencimento(conta.dias_para_vencer))}
+              - ${escapeHtmlDashboard(formatarDataBr(conta.vencimento))}
+              ${classificacao ? " - " + escapeHtmlDashboard(classificacao) : ""}
+            </span>
+          </div>
+          <div class="dashboard-alerta-conta-valor">
+            ${formatarMoeda(conta.valor || 0)}
+          </div>
+        </li>
+      `;
+    }).join("");
+  } catch (error) {
+    console.error("Erro ao carregar alertas financeiros:", error);
+
+    const status = document.getElementById("alertas-financeiros-status");
+    const mensagem = document.getElementById("alertas-financeiros-mensagem");
+    const lista = document.getElementById("alertas-financeiros-lista");
+
+    if (status) {
+      status.textContent = "Erro";
+      status.classList.remove("is-ok", "is-warning");
+      status.classList.add("is-danger");
+    }
+
+    if (mensagem) {
+      mensagem.textContent = "Não foi possível carregar os alertas financeiros.";
+    }
+
+    if (lista) {
+      lista.innerHTML = `<li>Verifique o endpoint de alertas financeiros.</li>`;
+    }
   }
 }
 
@@ -186,7 +389,6 @@ async function carregarDashboardClientes() {
 async function carregarDashboardProducao() {
   try {
     const empresaId = obterEmpresaId();
-
     const response = await fetch(`/api/producao/?empresa_id=${empresaId}`);
 
     if (!response.ok) {
@@ -237,9 +439,62 @@ async function carregarDashboardProducao() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function configurarLinksAlertasFinanceiros() {
+  document.querySelectorAll("[data-alerta-financeiro-link]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const tipo = card.dataset.alertaFinanceiroLink || "";
+      const empresaId = obterEmpresaId();
+
+      const params = new URLSearchParams();
+      params.set("empresa_id", String(empresaId));
+      params.set("modo", "pagar");
+
+      if (tipo === "vencidas") {
+        params.set("status", "VENCIDO");
+      }
+
+      if (tipo === "hoje") {
+        params.set("status", "PENDENTE");
+        params.set("vencimento", "hoje");
+      }
+
+      if (tipo === "proximos7") {
+        params.set("status", "PENDENTE");
+        params.set("vencimento", "proximos7");
+      }
+
+      if (tipo === "criticas") {
+        params.set("status", "PENDENTE");
+        params.set("alerta", "criticas");
+      }
+
+      window.location.href = `/financeiro?${params.toString()}`;
+    });
+  });
+}
+
+function recarregarDashboard() {
   carregarDashboardFinanceiro();
+  carregarAlertasFinanceiros();
   carregarDashboardAgenda();
   carregarDashboardClientes();
   carregarDashboardProducao();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const selectEmpresa = document.getElementById("dashboard-empresa-id");
+
+  configurarLinksAlertasFinanceiros();
+
+  if (selectEmpresa) {
+    const empresaSalva = Number(localStorage.getItem("empresa_id") || 1);
+    selectEmpresa.value = String(empresaSalva > 0 ? empresaSalva : 1);
+
+    selectEmpresa.addEventListener("change", () => {
+      localStorage.setItem("empresa_id", selectEmpresa.value);
+      recarregarDashboard();
+    });
+  }
+
+  recarregarDashboard();
 });

@@ -1,10 +1,17 @@
-const FINANCEIRO_EMPRESA_ID = obterEmpresaId();
+let FINANCEIRO_EMPRESA_ID = obterEmpresaId();
 
 let financeiroContas = [];
 let financeiroModo = "receber"; // receber | pagar
 let financeiroCompetencia = obterCompetenciaAtual();
 let financeiroPlanoDre = [];
 let financeiroWizardStep = 1;
+
+let financeiroFiltrosPagar = {
+    grupo_dre: "",
+    categoria_dre: "",
+    subcategoria_dre: "",
+    status: ""
+};
 
 document.addEventListener("DOMContentLoaded", () => {
     const btnNovaConta = document.getElementById("btn-nova-conta");
@@ -22,13 +29,42 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnVoltarStep = document.getElementById("btn-voltar-step-financeiro");
     const btnAvancarStep = document.getElementById("btn-avancar-step-financeiro");
     const modalOverlay = document.getElementById("financeiro-modal-overlay");
+    const selectEmpresaFinanceiro = document.getElementById("financeiro-empresa-id");
 
     const selectGrupoDre = document.getElementById("financeiro-grupo-dre");
     const selectCategoriaDre = document.getElementById("financeiro-categoria-dre");
     const inputValor = document.getElementById("financeiro-valor");
 
+    const filtroGrupoDre = document.getElementById("financeiro-filtro-grupo-dre");
+    const filtroCategoriaDre = document.getElementById("financeiro-filtro-categoria-dre");
+    const filtroSubcategoriaDre = document.getElementById("financeiro-filtro-subcategoria-dre");
+    const filtroStatus = document.getElementById("financeiro-filtro-status");
+    const btnAplicarFiltrosPagar = document.getElementById("btn-aplicar-filtros-pagar");
+    const btnLimparFiltrosPagar = document.getElementById("btn-limpar-filtros-pagar");
+
+    if (selectEmpresaFinanceiro) {
+        const empresaSalva = Number(localStorage.getItem("empresa_id") || FINANCEIRO_EMPRESA_ID || 1);
+        selectEmpresaFinanceiro.value = String(empresaSalva > 0 ? empresaSalva : 1);
+        FINANCEIRO_EMPRESA_ID = Number(selectEmpresaFinanceiro.value || 1);
+
+        selectEmpresaFinanceiro.addEventListener("change", async () => {
+            FINANCEIRO_EMPRESA_ID = Number(selectEmpresaFinanceiro.value || 1);
+            localStorage.setItem("empresa_id", String(FINANCEIRO_EMPRESA_ID));
+
+            financeiroPlanoDre = [];
+            financeiroContas = [];
+
+            if (financeiroModo === "pagar") {
+                await carregarPlanoDre();
+                preencherFiltrosDrePagar();
+            }
+
+            carregarFinanceiro();
+        });
+    }
+
     if (btnNovaConta) {
-        btnNovaConta.onclick = abrirFormularioConta;
+        btnNovaConta.onclick = () => abrirFormularioConta();
     }
 
     if (btnCancelarConta) {
@@ -60,6 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
             atualizarRotulosFormulario();
             fecharFormularioConta();
             await carregarPlanoDre();
+            preencherFiltrosDrePagar();
             carregarFinanceiro();
         };
     }
@@ -128,6 +165,31 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
+    if (filtroGrupoDre) {
+        filtroGrupoDre.onchange = () => {
+            preencherFiltroCategoriasDre();
+            preencherFiltroSubcategoriasDre();
+        };
+    }
+
+    if (filtroCategoriaDre) {
+        filtroCategoriaDre.onchange = preencherFiltroSubcategoriasDre;
+    }
+
+    if (btnAplicarFiltrosPagar) {
+        btnAplicarFiltrosPagar.onclick = () => {
+            atualizarFiltrosPagarDosCampos();
+            carregarFinanceiro();
+        };
+    }
+
+    if (btnLimparFiltrosPagar) {
+        btnLimparFiltrosPagar.onclick = () => {
+            limparFiltrosPagar();
+            carregarFinanceiro();
+        };
+    }
+
     if (inputValor) {
         inputValor.addEventListener("input", () => {
             aplicarMascaraMoeda("financeiro-valor");
@@ -188,6 +250,13 @@ async function carregarFinanceiro() {
 
         financeiroContas = Array.isArray(contasData.contas) ? contasData.contas : [];
 
+        if (financeiroModo === "pagar" && financeiroFiltrosPagar.status) {
+            financeiroContas = financeiroContas.filter((conta) => {
+                const status = String(conta.status_atual || conta.status || "").toUpperCase();
+                return status === financeiroFiltrosPagar.status;
+            });
+        }
+
         preencherResumo(contasData.resumo || {});
         preencherDashboardPremium(dashboardData || {});
         renderizarGrafico7Dias(dashboardData.grafico_7_dias || []);
@@ -222,6 +291,7 @@ async function carregarPlanoDre() {
         preencherGruposDre();
         preencherCategoriasDre();
         preencherSubcategoriasDre();
+        preencherFiltrosDrePagar();
     } catch (error) {
         console.error("[FINANCEIRO] Erro ao carregar plano DRE:", error);
         financeiroPlanoDre = [];
@@ -230,6 +300,121 @@ async function carregarPlanoDre() {
         preencherSubcategoriasDre();
         notifyToast(error.message || "Erro ao carregar plano DRE.", "error");
     }
+}
+
+function preencherFiltrosDrePagar() {
+    preencherFiltroGruposDre();
+    preencherFiltroCategoriasDre();
+    preencherFiltroSubcategoriasDre();
+}
+
+function preencherFiltroGruposDre() {
+    const select = document.getElementById("financeiro-filtro-grupo-dre");
+    if (!select) return;
+
+    const valorAtual = select.value;
+
+    const grupos = [...new Set(
+        financeiroPlanoDre
+            .map((item) => String(item.grupo || "").trim())
+            .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    select.innerHTML = `<option value="">Todos os grupos</option>`;
+
+    grupos.forEach((grupo) => {
+        const option = document.createElement("option");
+        option.value = grupo;
+        option.textContent = grupo;
+        select.appendChild(option);
+    });
+
+    select.value = grupos.includes(valorAtual) ? valorAtual : "";
+}
+
+function preencherFiltroCategoriasDre() {
+    const selectGrupo = document.getElementById("financeiro-filtro-grupo-dre");
+    const selectCategoria = document.getElementById("financeiro-filtro-categoria-dre");
+    if (!selectGrupo || !selectCategoria) return;
+
+    const grupoSelecionado = String(selectGrupo.value || "").trim();
+    const valorAtual = selectCategoria.value;
+
+    const categorias = [...new Set(
+        financeiroPlanoDre
+            .filter((item) => !grupoSelecionado || String(item.grupo || "").trim() === grupoSelecionado)
+            .map((item) => String(item.categoria || "").trim())
+            .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    selectCategoria.innerHTML = `<option value="">Todas as categorias</option>`;
+
+    categorias.forEach((categoria) => {
+        const option = document.createElement("option");
+        option.value = categoria;
+        option.textContent = categoria;
+        selectCategoria.appendChild(option);
+    });
+
+    selectCategoria.disabled = categorias.length === 0;
+    selectCategoria.value = categorias.includes(valorAtual) ? valorAtual : "";
+}
+
+function preencherFiltroSubcategoriasDre() {
+    const selectGrupo = document.getElementById("financeiro-filtro-grupo-dre");
+    const selectCategoria = document.getElementById("financeiro-filtro-categoria-dre");
+    const selectSubcategoria = document.getElementById("financeiro-filtro-subcategoria-dre");
+
+    if (!selectGrupo || !selectCategoria || !selectSubcategoria) return;
+
+    const grupoSelecionado = String(selectGrupo.value || "").trim();
+    const categoriaSelecionada = String(selectCategoria.value || "").trim();
+    const valorAtual = selectSubcategoria.value;
+
+    const subcategorias = [...new Set(
+        financeiroPlanoDre
+            .filter((item) => !grupoSelecionado || String(item.grupo || "").trim() === grupoSelecionado)
+            .filter((item) => !categoriaSelecionada || String(item.categoria || "").trim() === categoriaSelecionada)
+            .map((item) => String(item.subcategoria || "").trim())
+            .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    selectSubcategoria.innerHTML = `<option value="">Todas as subcategorias</option>`;
+
+    subcategorias.forEach((subcategoria) => {
+        const option = document.createElement("option");
+        option.value = subcategoria;
+        option.textContent = subcategoria;
+        selectSubcategoria.appendChild(option);
+    });
+
+    selectSubcategoria.disabled = subcategorias.length === 0;
+    selectSubcategoria.value = subcategorias.includes(valorAtual) ? valorAtual : "";
+}
+
+function atualizarFiltrosPagarDosCampos() {
+    financeiroFiltrosPagar = {
+        grupo_dre: String(document.getElementById("financeiro-filtro-grupo-dre")?.value || "").trim(),
+        categoria_dre: String(document.getElementById("financeiro-filtro-categoria-dre")?.value || "").trim(),
+        subcategoria_dre: String(document.getElementById("financeiro-filtro-subcategoria-dre")?.value || "").trim(),
+        status: String(document.getElementById("financeiro-filtro-status")?.value || "").trim().toUpperCase()
+    };
+}
+
+function limparFiltrosPagar() {
+    financeiroFiltrosPagar = {
+        grupo_dre: "",
+        categoria_dre: "",
+        subcategoria_dre: "",
+        status: ""
+    };
+
+    setValue("financeiro-filtro-grupo-dre", "");
+    preencherFiltroCategoriasDre();
+    setValue("financeiro-filtro-categoria-dre", "");
+    preencherFiltroSubcategoriasDre();
+    setValue("financeiro-filtro-subcategoria-dre", "");
+    setValue("financeiro-filtro-status", "");
 }
 
 function preencherGruposDre() {
@@ -646,6 +831,17 @@ function renderizarContas() {
                     <span class="financeiro-info-value">${escapeHtml(conta.data_pagamento ? formatarData(conta.data_pagamento) : "Sem baixa")}</span>
                 </div>
 
+                ${
+                    financeiroModo === "pagar"
+                        ? `
+                        <div class="financeiro-info">
+                            <span class="financeiro-info-label">Forma de pagamento</span>
+                            <span class="financeiro-info-value">${escapeHtml(formatarFormaPagamento(conta.forma_pagamento))}</span>
+                        </div>
+                        `
+                        : ""
+                }
+
                 ${blocoDre}
 
                 <div class="financeiro-info">
@@ -664,6 +860,8 @@ function renderizarContas() {
 }
 
 async function salvarConta() {
+    sincronizarModoFinanceiroPelaTela();
+
     const descricao = getValue("financeiro-descricao");
     const valor = getNumericValue("financeiro-valor");
     const vencimento = getValue("financeiro-vencimento");
@@ -746,14 +944,141 @@ async function salvarConta() {
     }
 }
 
-async function baixarConta(contaId) {
-    const confirmar = window.confirm(
-        financeiroModo === "receber"
-            ? "Confirma a baixa deste recebimento?"
-            : "Confirma a baixa deste pagamento?"
-    );
+function confirmarAcaoFinanceiro({ titulo, mensagem, textoConfirmar = "Confirmar", textoCancelar = "Cancelar" }) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.className = "financeiro-confirm-overlay";
+        overlay.innerHTML = `
+            <div class="financeiro-confirm-modal">
+                <div class="financeiro-confirm-header">
+                    <h3>${escapeHtml(titulo || "Confirmar a??o")}</h3>
+                    <p>${escapeHtml(mensagem || "Deseja continuar?")}</p>
+                </div>
 
-    if (!confirmar) return;
+                <div class="financeiro-confirm-actions">
+                    <button type="button" class="btn btn-outline" data-confirm-cancel>
+                        ${escapeHtml(textoCancelar)}
+                    </button>
+                    <button type="button" class="btn btn-primary" data-confirm-ok>
+                        ${escapeHtml(textoConfirmar)}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const finalizar = (resultado) => {
+            overlay.remove();
+            resolve(resultado);
+        };
+
+        overlay.querySelector("[data-confirm-ok]").addEventListener("click", () => finalizar(true));
+        overlay.querySelector("[data-confirm-cancel]").addEventListener("click", () => finalizar(false));
+
+        overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) {
+                finalizar(false);
+            }
+        });
+
+        const escHandler = (event) => {
+            if (event.key === "Escape") {
+                document.removeEventListener("keydown", escHandler);
+                finalizar(false);
+            }
+        };
+
+        document.addEventListener("keydown", escHandler);
+    });
+}
+
+function confirmarBaixaPagamentoFinanceiro() {
+    return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.className = "financeiro-confirm-overlay";
+        overlay.innerHTML = `
+            <div class="financeiro-confirm-modal">
+                <div class="financeiro-confirm-header">
+                    <h3>Baixar pagamento</h3>
+                    <p>Informe como esta conta foi paga para manter a rastreabilidade financeira.</p>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label for="financeiro-confirm-forma-pagamento">Forma de pagamento</label>
+                    <select id="financeiro-confirm-forma-pagamento" class="form-control">
+                        <option value="">Selecione</option>
+                        <option value="PIX">PIX</option>
+                        <option value="DINHEIRO">Dinheiro</option>
+                        <option value="CONTA_BANCARIA">Conta banc\u00e1ria</option>
+                        <option value="CARTAO_CREDITO">Cart\u00e3o de cr\u00e9dito</option>
+                        <option value="CARTAO_DEBITO">Cart\u00e3o de d\u00e9bito</option>
+                        <option value="BOLETO">Boleto</option>
+                        <option value="OUTRO">Outro</option>
+                    </select>
+                </div>
+
+                <div class="financeiro-confirm-actions">
+                    <button type="button" class="btn btn-outline" data-confirm-cancel>Cancelar</button>
+                    <button type="button" class="btn btn-primary" data-confirm-ok>Baixar pagamento</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const finalizar = (resultado) => {
+            overlay.remove();
+            resolve(resultado);
+        };
+
+        overlay.querySelector("[data-confirm-ok]").addEventListener("click", () => {
+            const formaPagamento = document.getElementById("financeiro-confirm-forma-pagamento")?.value || "";
+
+            if (!formaPagamento) {
+                notifyToast("Selecione a forma de pagamento.", "error");
+                return;
+            }
+
+            finalizar({
+                confirmado: true,
+                forma_pagamento: formaPagamento
+            });
+        });
+
+        overlay.querySelector("[data-confirm-cancel]").addEventListener("click", () => {
+            finalizar({ confirmado: false, forma_pagamento: null });
+        });
+
+        overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) {
+                finalizar({ confirmado: false, forma_pagamento: null });
+            }
+        });
+    });
+}
+
+async function baixarConta(contaId) {
+    let formaPagamento = null;
+
+    if (financeiroModo === "pagar") {
+        const resultadoConfirmacao = await confirmarBaixaPagamentoFinanceiro();
+
+        if (!resultadoConfirmacao.confirmado) {
+            return;
+        }
+
+        formaPagamento = resultadoConfirmacao.forma_pagamento;
+    } else {
+        const confirmar = await confirmarAcaoFinanceiro({
+            titulo: "Baixar recebimento",
+            mensagem: "Confirma a baixa deste recebimento?",
+            textoConfirmar: "Baixar recebimento",
+            textoCancelar: "Cancelar"
+        });
+
+        if (!confirmar) return;
+    }
 
     try {
         const endpoint =
@@ -764,7 +1089,11 @@ async function baixarConta(contaId) {
         await fetchJsonSafe(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({})
+            body: JSON.stringify(
+                financeiroModo === "pagar"
+                    ? { forma_pagamento: formaPagamento }
+                    : {}
+            )
         });
 
         notifyToast(
@@ -780,7 +1109,32 @@ async function baixarConta(contaId) {
     }
 }
 
-function abrirFormularioConta() {
+function sincronizarModoFinanceiroPelaTela() {
+    const btnPagar = document.getElementById("btn-tab-pagar");
+    const btnReceber = document.getElementById("btn-tab-receber");
+    const tituloLista = document.getElementById("financeiro-contas-titulo");
+
+    const pagarAtivo = btnPagar && btnPagar.classList.contains("is-active");
+    const receberAtivo = btnReceber && btnReceber.classList.contains("is-active");
+    const titulo = String(tituloLista?.textContent || "").toLowerCase();
+
+    if (pagarAtivo || titulo.includes("pagar")) {
+        financeiroModo = "pagar";
+        return;
+    }
+
+    if (receberAtivo || titulo.includes("receber")) {
+        financeiroModo = "receber";
+    }
+}
+
+async function abrirFormularioConta() {
+    sincronizarModoFinanceiroPelaTela();
+
+    if (financeiroModo === "pagar") {
+        await carregarPlanoDre();
+    }
+
     const overlay = document.getElementById("financeiro-modal-overlay");
 
     if (!overlay) {
@@ -837,6 +1191,13 @@ function definirVencimentoPadrao() {
     input.value = `${ano}-${mes}-${dia}`;
 }
 
+function atualizarVisibilidadeFiltrosPagar() {
+    const filtros = document.getElementById("financeiro-filtros-pagar");
+    if (!filtros) return;
+
+    filtros.style.display = financeiroModo === "pagar" ? "grid" : "none";
+}
+
 function atualizarAbasFinanceiro() {
     const btnReceber = document.getElementById("btn-tab-receber");
     const btnPagar = document.getElementById("btn-tab-pagar");
@@ -848,6 +1209,8 @@ function atualizarAbasFinanceiro() {
     if (btnPagar) {
         btnPagar.classList.toggle("is-active", financeiroModo === "pagar");
     }
+
+    atualizarVisibilidadeFiltrosPagar();
 }
 
 function atualizarRotulosFormulario() {
@@ -923,8 +1286,10 @@ function avancarStepFinanceiro() {
         return;
     }
 
-    if (financeiroModo === "receber" && financeiroWizardStep === 1) {
-        financeiroWizardStep = 3;
+    sincronizarModoFinanceiroPelaTela();
+
+    if (financeiroWizardStep === 1) {
+        financeiroWizardStep = financeiroModo === "pagar" ? 2 : 3;
     } else {
         financeiroWizardStep += 1;
     }
@@ -958,6 +1323,8 @@ function irParaStepFinanceiro(step) {
 }
 
 function validarStepAtualFinanceiro() {
+    sincronizarModoFinanceiroPelaTela();
+
     if (financeiroWizardStep === 1) {
         const descricao = getValue("financeiro-descricao");
         const valor = getNumericValue("financeiro-valor");
@@ -1166,6 +1533,21 @@ function montarQueryFinanceiro() {
     params.set("empresa_id", String(FINANCEIRO_EMPRESA_ID));
     params.set("mes", String(financeiroCompetencia.mes));
     params.set("ano", String(financeiroCompetencia.ano));
+
+    if (financeiroModo === "pagar") {
+        if (financeiroFiltrosPagar.grupo_dre) {
+            params.set("grupo_dre", financeiroFiltrosPagar.grupo_dre);
+        }
+
+        if (financeiroFiltrosPagar.categoria_dre) {
+            params.set("categoria_dre", financeiroFiltrosPagar.categoria_dre);
+        }
+
+        if (financeiroFiltrosPagar.subcategoria_dre) {
+            params.set("subcategoria_dre", financeiroFiltrosPagar.subcategoria_dre);
+        }
+    }
+
     return params.toString();
 }
 
@@ -1211,6 +1593,21 @@ function obterNomeMes(mes) {
     ];
 
     return meses[Number(mes) - 1] || "Mês";
+}
+
+function formatarFormaPagamento(valor) {
+    const mapa = {
+        DINHEIRO: "Dinheiro",
+        PIX: "PIX",
+        CONTA_BANCARIA: "Conta banc\u00e1ria",
+        CARTAO_CREDITO: "Cart\u00e3o de cr\u00e9dito",
+        CARTAO_DEBITO: "Cart\u00e3o de d\u00e9bito",
+        BOLETO: "Boleto",
+        OUTRO: "Outro"
+    };
+
+    const chave = String(valor || "").toUpperCase();
+    return mapa[chave] || "N?o informado";
 }
 
 function obterClasseStatus(status) {
