@@ -4,10 +4,10 @@
 <section class="page-header">
   <div>
     <h1>Clientes</h1>
-    <p>Gestão de tutores, endereços, pets e identificação rápida de assinantes.</p>
+    <p>Cadastre tutores, contatos, endereços, pets e identifique assinantes rapidamente.</p>
   </div>
   <div class="header-actions">
-    <a href="/clientes/novo" class="primary-btn no-underline">Novo Cliente</a>
+    <a href="/clientes/novo" class="primary-btn no-underline">Novo cliente</a>
   </div>
 </section>
 
@@ -31,8 +31,8 @@
     <table class="premium-table tabela-clientes">
       <thead>
         <tr>
-          <th>Nome</th>
-          <th>CPF</th>
+          <th>Tutor</th>
+          <th>CPF/CNPJ</th>
           <th>E-mail</th>
           <th>Telefone</th>
           <th>Assinatura</th>
@@ -379,5 +379,148 @@
   document.getElementById("filtro-assinatura").addEventListener("change", carregarClientes);
 
   carregarClientes();
+</script>
+<script id="clientes-ajuste-ux-operador">
+  document.addEventListener("DOMContentLoaded", function () {
+    function trocarTextosSoltos() {
+      const trocas = [
+        ["Novo Cliente", "Novo cliente"],
+        ["Salvar Cliente", "Salvar cliente"],
+        ["Editar Cliente", "Editar cliente"],
+        ["Gestão de tutores, endereços, pets e identificação rápida de assinantes.", "Cadastre tutores, contatos, endereços, pets e identifique assinantes rapidamente."],
+        ["Buscar cliente", "Buscar tutor"],
+        ["Buscar Cliente", "Buscar tutor"],
+        ["Nome do cliente", "Nome do tutor"],
+        ["Dados do Cliente", "Dados do cliente"],
+        ["Endereço do Cliente", "Endereço do cliente"]
+      ];
+
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
+      }
+
+      nodes.forEach(function (node) {
+        let texto = node.nodeValue || "";
+
+        trocas.forEach(function (item) {
+          texto = texto.replaceAll(item[0], item[1]);
+        });
+
+        node.nodeValue = texto;
+      });
+    }
+
+    function ajustarCabecalhosTabela() {
+      document.querySelectorAll("th").forEach(function (th) {
+        const texto = (th.textContent || "").trim();
+
+        if (texto === "Nome") {
+          th.textContent = "Tutor";
+        }
+
+        if (texto === "CPF") {
+          th.textContent = "CPF/CNPJ";
+        }
+      });
+    }
+
+    function ajustarLabels() {
+      document.querySelectorAll("label").forEach(function (label) {
+        const texto = (label.textContent || "").trim();
+
+        if (texto === "Nome") {
+          label.childNodes.forEach(function (node) {
+            if (node.nodeType === Node.TEXT_NODE && node.nodeValue.includes("Nome")) {
+              node.nodeValue = node.nodeValue.replace("Nome", "Nome do tutor");
+            }
+          });
+        }
+
+        if (texto === "CPF") {
+          label.childNodes.forEach(function (node) {
+            if (node.nodeType === Node.TEXT_NODE && node.nodeValue.includes("CPF")) {
+              node.nodeValue = node.nodeValue.replace("CPF", "CPF/CNPJ");
+            }
+          });
+        }
+      });
+    }
+
+    function ajustarPlaceholders() {
+      document.querySelectorAll("input").forEach(function (input) {
+        const placeholder = input.getAttribute("placeholder") || "";
+        const id = (input.id || "").toLowerCase();
+        const name = (input.name || "").toLowerCase();
+
+        if (placeholder.toLowerCase().includes("cliente")) {
+          input.setAttribute("placeholder", placeholder.replace(/cliente/gi, "tutor"));
+        }
+
+        if (id.includes("nome") || name.includes("nome")) {
+          if (!placeholder || placeholder.toLowerCase() === "nome") {
+            input.setAttribute("placeholder", "Nome do tutor");
+          }
+        }
+
+        if (id.includes("cpf") || name.includes("cpf")) {
+          if (!placeholder || placeholder.toLowerCase() === "cpf") {
+            input.setAttribute("placeholder", "CPF ou CNPJ");
+          }
+        }
+
+        if (id.includes("telefone") || name.includes("telefone")) {
+          if (!placeholder) {
+            input.setAttribute("placeholder", "(00) 00000-0000");
+          }
+        }
+
+        if (id.includes("email") || name.includes("email")) {
+          if (!placeholder) {
+            input.setAttribute("placeholder", "email@exemplo.com");
+          }
+        }
+      });
+    }
+
+    function ajustarBotoes() {
+      document.querySelectorAll("button, a").forEach(function (el) {
+        const texto = (el.textContent || "").trim();
+
+        if (texto === "Novo Cliente") {
+          el.textContent = "Novo cliente";
+        }
+
+        if (texto === "Salvar Cliente") {
+          el.textContent = "Salvar cliente";
+        }
+
+        if (texto === "Buscar cliente" || texto === "Buscar Cliente") {
+          el.textContent = "Buscar tutor";
+        }
+      });
+    }
+
+    function aplicarAjustes() {
+      trocarTextosSoltos();
+      ajustarCabecalhosTabela();
+      ajustarLabels();
+      ajustarPlaceholders();
+      ajustarBotoes();
+    }
+
+    aplicarAjustes();
+
+    const observer = new MutationObserver(function () {
+      aplicarAjustes();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  });
 </script>
 {% endblock %}
