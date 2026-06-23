@@ -6,13 +6,19 @@ import csv
 import re
 import unicodedata
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
+from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 from app.core.deps import get_db
 from app.models.financeiro_pagar import FinanceiroPagar
 from app.models.financeiro_receber import FinanceiroReceber
+from app.models.conciliacao_bancaria import ConciliacaoBancaria
 
 
 router = APIRouter(prefix="/api/conciliacao-bancaria", tags=["Conciliação Bancária"])
@@ -34,14 +40,20 @@ CABECALHOS_DESCRICAO = [
     "descrição",
     "historico",
     "histórico",
+    "lancamento",
+    "lançamento",
+    "movimento",
     "memo",
     "detalhe",
     "detalhes",
     "nome",
     "favorecido",
+    "beneficiario",
+    "beneficiário",
     "pagador",
-    "fornecedor",
-    "cliente",
+    "recebedor",
+    "razao social",
+    "razão social",
 ]
 
 CABECALHOS_VALOR = [
@@ -407,94 +419,288 @@ def _detectar_dialeto_csv(texto: str):
         return DialetoFallback
 
 
+def _descricao_csv_por_fallback(
+    linha: list[str],
+    cabecalhos: list[str],
+    coluna_data: str | None,
+    coluna_valor: str | None,
+    coluna_entrada: str | None,
+    coluna_saida: str | None,
+    coluna_tipo: str | None,
+    coluna_documento: str | None,
+) -> str:
+    ignorar = {
+        _limpar_texto(coluna_data or ""),
+        _limpar_texto(coluna_valor or ""),
+        _limpar_texto(coluna_entrada or ""),
+        _limpar_texto(coluna_saida or ""),
+        _limpar_texto(coluna_tipo or ""),
+        _limpar_texto(coluna_documento or ""),
+        "saldo",
+        "saldo r",
+        "saldo rs",
+        "valor",
+        "valor r",
+        "valor rs",
+        "data",
+        "cpf cnpj",
+        "cpfcnpj",
+    }
+
+    partes_prioritarias: list[str] = []
+    partes_secundarias: list[str] = []
+
+    for indice, valor in enumerate(linha):
+        texto = str(valor or "").strip()
+
+        if not texto:
+            continue
+
+        cabecalho = cabecalhos[indice] if indice < len(cabecalhos) else ""
+        cabecalho_limpo = _limpar_texto(cabecalho)
+
+        if cabecalho_limpo in ignorar:
+            continue
+
+        if _parse_data(texto):
+            continue
+
+        if _decimal(texto) != Decimal("0.00"):
+            continue
+
+        texto_normalizado = " ".join(texto.split())
+
+        if cabecalho_limpo in [
+            "lancamento",
+            "lançamento",
+            "historico",
+            "histórico",
+            "descricao",
+            "descrição",
+            "movimento",
+        ]:
+            partes_prioritarias.append(texto_normalizado)
+            continue
+
+        if cabecalho_limpo in [
+            "razao social",
+            "razão social",
+            "nome",
+            "favorecido",
+            "beneficiario",
+            "beneficiário",
+            "pagador",
+            "recebedor",
+        ]:
+            partes_secundarias.append(texto_normalizado)
+            continue
+
+        # Fallback prático: em extratos, a segunda coluna costuma ser o lançamento.
+        if indice == 1:
+            partes_prioritarias.append(texto_normalizado)
+
+    partes = []
+
+    for texto in partes_prioritarias + partes_secundarias:
+        if texto and texto not in partes:
+            partes.append(texto)
+
+    return " - ".join(partes).strip()
+
+
 def _parse_csv(texto: str) -> list[dict[str, Any]]:
+    import unicodedata
+
     texto = texto.replace("\ufeff", "").strip()
 
     if not texto:
         raise HTTPException(status_code=400, detail="CSV vazio.")
 
-    dialeto = _detectar_dialeto_csv(texto)
-    reader = csv.DictReader(StringIO(texto), dialect=dialeto)
+    def normalizar(valor: Any) -> str:
+        texto_local = str(valor or "").strip().lower()
+        texto_local = unicodedata.normalize("NFD", texto_local)
+        texto_local = "".join(ch for ch in texto_local if unicodedata.category(ch) != "Mn")
+        texto_local = texto_local.replace("(", " ").replace(")", " ")
+        texto_local = texto_local.replace("/", " ").replace("\\", " ").replace("-", " ")
+        texto_local = texto_local.replace("$", " ").replace(".", " ")
+        texto_local = " ".join(texto_local.split())
+        return texto_local
 
-    if not reader.fieldnames:
+    def decimal_csv(valor: Any) -> Decimal:
+        raw = str(valor or "").strip()
+
+        if not raw:
+            return Decimal("0.00")
+
+        raw = raw.replace("R$", "")
+        raw = raw.replace("\xa0", "")
+        raw = raw.replace(" ", "")
+
+        negativo = False
+
+        if raw.startswith("(") and raw.endswith(")"):
+            negativo = True
+            raw = raw[1:-1]
+
+        if raw.startswith("-"):
+            negativo = True
+            raw = raw[1:]
+
+        raw = raw.replace("+", "")
+
+        if "," in raw:
+            raw = raw.replace(".", "").replace(",", ".")
+        else:
+            raw = raw.replace(",", "")
+
+        try:
+            numero = Decimal(raw or "0")
+        except Exception:
+            return Decimal("0.00")
+
+        return -numero if negativo else numero
+
+    def valor_celula(linha: list[str], indice: int | None) -> str:
+        if indice is None:
+            return ""
+
+        if indice < 0 or indice >= len(linha):
+            return ""
+
+        return str(linha[indice] or "").strip()
+
+    dialeto = _detectar_dialeto_csv(texto)
+    reader = csv.reader(StringIO(texto), dialect=dialeto)
+    linhas_brutas = [linha for linha in reader if any(str(campo).strip() for campo in linha)]
+
+    if not linhas_brutas:
+        raise HTTPException(status_code=400, detail="CSV vazio.")
+
+    indice_cabecalho = None
+    cabecalhos: list[str] = []
+
+    for indice, linha in enumerate(linhas_brutas):
+        normalizados = [normalizar(campo) for campo in linha]
+
+        tem_data = any(campo == "data" or campo.startswith("data ") for campo in normalizados)
+        tem_valor = any("valor" in campo and "saldo" not in campo for campo in normalizados)
+
+        if tem_data and tem_valor:
+            indice_cabecalho = indice
+            cabecalhos = [str(campo).strip() for campo in linha]
+            break
+
+    if indice_cabecalho is None:
         raise HTTPException(
             status_code=400,
-            detail="CSV sem cabeçalho. Use colunas como Data, Descrição e Valor.",
+            detail="Não encontrei a linha de cabeçalho do extrato. O CSV precisa ter colunas como Data, Lançamento e Valor.",
         )
 
-    cabecalhos = [cabecalho for cabecalho in reader.fieldnames if cabecalho]
+    cabecalhos_normalizados = [normalizar(campo) for campo in cabecalhos]
 
-    coluna_data = _detectar_coluna(cabecalhos, CABECALHOS_DATA)
-    coluna_descricao = _detectar_coluna(cabecalhos, CABECALHOS_DESCRICAO)
-    coluna_valor = _detectar_coluna(cabecalhos, CABECALHOS_VALOR)
-    coluna_entrada = _detectar_coluna(cabecalhos, CABECALHOS_ENTRADA)
-    coluna_saida = _detectar_coluna(cabecalhos, CABECALHOS_SAIDA)
-    coluna_tipo = _detectar_coluna(cabecalhos, CABECALHOS_TIPO)
-    coluna_documento = _detectar_coluna(cabecalhos, CABECALHOS_DOCUMENTO)
+    def achar_coluna(*termos: str, contem: bool = False, excluir: list[str] | None = None) -> int | None:
+        excluir = excluir or []
+        termos_norm = [normalizar(termo) for termo in termos]
+        excluir_norm = [normalizar(termo) for termo in excluir]
 
-    if not coluna_data:
+        for posicao, cabecalho in enumerate(cabecalhos_normalizados):
+            if any(item and item in cabecalho for item in excluir_norm):
+                continue
+
+            if contem:
+                if any(termo and termo in cabecalho for termo in termos_norm):
+                    return posicao
+            else:
+                if cabecalho in termos_norm:
+                    return posicao
+
+        return None
+
+    coluna_data = achar_coluna("data", "dt")
+    coluna_lancamento = achar_coluna(
+        "lancamento",
+        "lançamento",
+        "historico",
+        "histórico",
+        "descricao",
+        "descrição",
+        "movimento",
+    )
+    coluna_razao_social = achar_coluna(
+        "razao social",
+        "razão social",
+        "nome",
+        "favorecido",
+        "beneficiario",
+        "beneficiário",
+        "pagador",
+        "recebedor",
+    )
+    coluna_documento = achar_coluna("cpf cnpj", "cpf/cnpj", "documento", "doc", "cpf", "cnpj")
+    coluna_valor = achar_coluna("valor", "valor r", "valor rs", contem=True, excluir=["saldo"])
+
+    if coluna_data is None:
         raise HTTPException(
             status_code=400,
             detail="Não encontrei a coluna de data no CSV.",
         )
 
-    if not coluna_valor and not coluna_entrada and not coluna_saida:
+    if coluna_valor is None:
         raise HTTPException(
             status_code=400,
-            detail="Não encontrei coluna de valor, entrada ou saída no CSV.",
+            detail="Não encontrei a coluna de valor no CSV.",
         )
 
     movimentos: list[dict[str, Any]] = []
 
-    for numero_linha, linha in enumerate(reader, start=2):
-        data_movimento = _parse_data(linha.get(coluna_data))
+    for numero_linha, linha in enumerate(linhas_brutas[indice_cabecalho + 1:], start=indice_cabecalho + 2):
+        if not any(str(campo).strip() for campo in linha):
+            continue
+
+        data_movimento = _parse_data(valor_celula(linha, coluna_data))
 
         if not data_movimento:
             continue
 
-        descricao = str(linha.get(coluna_descricao) or "").strip() if coluna_descricao else ""
-        documento = str(linha.get(coluna_documento) or "").strip() if coluna_documento else ""
-        tipo_texto = str(linha.get(coluna_tipo) or "").strip() if coluna_tipo else ""
+        valor_original = decimal_csv(valor_celula(linha, coluna_valor))
 
-        valor = Decimal("0.00")
-
-        if coluna_entrada or coluna_saida:
-            entrada = _decimal(linha.get(coluna_entrada)) if coluna_entrada else Decimal("0.00")
-            saida = _decimal(linha.get(coluna_saida)) if coluna_saida else Decimal("0.00")
-
-            if entrada > 0 and saida == 0:
-                valor = entrada
-            elif saida > 0 and entrada == 0:
-                valor = -saida
-            else:
-                valor = entrada - saida
-        elif coluna_valor:
-            valor = _decimal(linha.get(coluna_valor))
-
-        tipo_normalizado = _limpar_texto(tipo_texto)
-
-        if tipo_normalizado in [_limpar_texto(item) for item in PALAVRAS_SAIDA] and valor > 0:
-            valor = -valor
-
-        if tipo_normalizado in [_limpar_texto(item) for item in PALAVRAS_ENTRADA] and valor < 0:
-            valor = abs(valor)
-
-        if valor == 0:
+        if valor_original == 0:
             continue
 
-        tipo = "ENTRADA" if valor > 0 else "SAIDA"
+        lancamento = valor_celula(linha, coluna_lancamento)
+        razao_social = valor_celula(linha, coluna_razao_social)
+        documento = valor_celula(linha, coluna_documento)
+
+        partes_descricao = []
+
+        if lancamento:
+            partes_descricao.append(" ".join(lancamento.split()))
+
+        if razao_social and normalizar(razao_social) not in [normalizar(item) for item in partes_descricao]:
+            partes_descricao.append(" ".join(razao_social.split()))
+
+        descricao = " - ".join(partes_descricao).strip()
+
+        if not descricao:
+            descricao = valor_celula(linha, 1)
+
+        if not descricao:
+            descricao = "Movimento bancário"
+
+        tipo = "ENTRADA" if valor_original > 0 else "SAIDA"
+        valor_abs = abs(valor_original)
 
         movimentos.append(
             {
                 "linha": numero_linha,
                 "data": data_movimento,
                 "data_iso": data_movimento.isoformat(),
-                "descricao": descricao or "Movimento bancário",
+                "descricao": descricao,
                 "documento": documento or None,
                 "tipo": tipo,
-                "valor": abs(valor),
-                "valor_float": _float(abs(valor)),
-                "valor_original": _float(valor),
+                "valor": valor_abs,
+                "valor_float": _float(valor_abs),
+                "valor_original": _float(valor_original),
                 "texto_busca": _texto_para_busca(f"{descricao} {documento}"),
                 "conciliado": False,
                 "match": None,
@@ -506,7 +712,7 @@ def _parse_csv(texto: str) -> list[dict[str, Any]]:
     if not movimentos:
         raise HTTPException(
             status_code=400,
-            detail="Nenhum movimento válido encontrado no CSV.",
+            detail="Nenhum movimento válido encontrado no CSV. Verifique se as datas e valores estão nas colunas corretas.",
         )
 
     movimentos.sort(
@@ -518,7 +724,6 @@ def _parse_csv(texto: str) -> list[dict[str, Any]]:
     )
 
     return movimentos
-
 
 def _parse_ofx(texto: str) -> list[dict[str, Any]]:
     texto = texto.replace("\r", "\n")
@@ -914,6 +1119,81 @@ def _processar_conciliacao(
     return resultado
 
 
+def _salvar_historico_conciliacao(
+    db: Session,
+    empresa_id: int,
+    nome_arquivo: str,
+    tipo_arquivo: str,
+    resultado: dict[str, Any],
+) -> ConciliacaoBancaria:
+    resumo = resultado.get("resumo", {})
+    parametros = resultado.get("parametros", {})
+
+    registro = ConciliacaoBancaria(
+        empresa_id=empresa_id,
+        nome_arquivo=nome_arquivo or "extrato_bancario",
+        tipo_arquivo=tipo_arquivo.upper(),
+        data_inicio=_parse_data(resultado.get("data_inicio")) or date.today(),
+        data_fim=_parse_data(resultado.get("data_fim")) or date.today(),
+        movimentos_banco=int(resumo.get("movimentos_banco") or 0),
+        movimentos_sistema=int(resumo.get("movimentos_sistema") or 0),
+        conciliados=int(resumo.get("conciliados") or 0),
+        pendentes_banco=int(resumo.get("pendentes_banco") or 0),
+        pendentes_sistema=int(resumo.get("pendentes_sistema") or 0),
+        total_banco_entradas=_decimal(resumo.get("total_banco_entradas")),
+        total_banco_saidas=_decimal(resumo.get("total_banco_saidas")),
+        total_sistema_entradas=_decimal(resumo.get("total_sistema_entradas")),
+        total_sistema_saidas=_decimal(resumo.get("total_sistema_saidas")),
+        diferenca_entradas=_decimal(resumo.get("diferenca_entradas")),
+        diferenca_saidas=_decimal(resumo.get("diferenca_saidas")),
+        tolerancia_centavos=int(parametros.get("tolerancia_centavos") or 2),
+        tolerancia_dias=int(parametros.get("tolerancia_dias") or 2),
+        resultado_json=resultado,
+    )
+
+    db.add(registro)
+    db.commit()
+    db.refresh(registro)
+
+    resultado["historico_id"] = registro.id
+
+    return registro
+
+
+def _serializar_historico_conciliacao(
+    registro: ConciliacaoBancaria,
+    incluir_resultado: bool = False,
+) -> dict[str, Any]:
+    dados = {
+        "id": registro.id,
+        "empresa_id": registro.empresa_id,
+        "nome_arquivo": registro.nome_arquivo,
+        "tipo_arquivo": registro.tipo_arquivo,
+        "data_inicio": registro.data_inicio.isoformat() if registro.data_inicio else None,
+        "data_fim": registro.data_fim.isoformat() if registro.data_fim else None,
+        "movimentos_banco": registro.movimentos_banco,
+        "movimentos_sistema": registro.movimentos_sistema,
+        "conciliados": registro.conciliados,
+        "pendentes_banco": registro.pendentes_banco,
+        "pendentes_sistema": registro.pendentes_sistema,
+        "total_banco_entradas": _float(registro.total_banco_entradas),
+        "total_banco_saidas": _float(registro.total_banco_saidas),
+        "total_sistema_entradas": _float(registro.total_sistema_entradas),
+        "total_sistema_saidas": _float(registro.total_sistema_saidas),
+        "diferenca_entradas": _float(registro.diferenca_entradas),
+        "diferenca_saidas": _float(registro.diferenca_saidas),
+        "tolerancia_centavos": registro.tolerancia_centavos,
+        "tolerancia_dias": registro.tolerancia_dias,
+        "criado_em": registro.criado_em.isoformat() if registro.criado_em else None,
+        "atualizado_em": registro.atualizado_em.isoformat() if registro.atualizado_em else None,
+    }
+
+    if incluir_resultado:
+        dados["resultado"] = registro.resultado_json
+
+    return dados
+
+
 @router.get("/modelo-csv")
 def baixar_modelo_csv():
     arquivo = _gerar_modelo_csv()
@@ -948,7 +1228,7 @@ def importar_csv_conciliacao_bancaria(
     texto = _ler_upload_texto(arquivo)
     movimentos_banco = _parse_csv(texto)
 
-    return _processar_conciliacao(
+    resultado = _processar_conciliacao(
         db=db,
         empresa_id=empresa_id,
         movimentos_banco=movimentos_banco,
@@ -958,6 +1238,11 @@ def importar_csv_conciliacao_bancaria(
         tolerancia_dias=tolerancia_dias,
     )
 
+    resultado["nome_arquivo"] = nome_arquivo
+    resultado["tipo_arquivo"] = "CSV"
+    resultado["gravado"] = False
+
+    return resultado
 
 @router.post("/importar-ofx")
 def importar_ofx_conciliacao_bancaria(
@@ -980,7 +1265,7 @@ def importar_ofx_conciliacao_bancaria(
     texto = _ler_upload_texto(arquivo)
     movimentos_banco = _parse_ofx(texto)
 
-    return _processar_conciliacao(
+    resultado = _processar_conciliacao(
         db=db,
         empresa_id=empresa_id,
         movimentos_banco=movimentos_banco,
@@ -989,6 +1274,71 @@ def importar_ofx_conciliacao_bancaria(
         tolerancia_centavos=tolerancia_centavos,
         tolerancia_dias=tolerancia_dias,
     )
+
+    resultado["nome_arquivo"] = nome_arquivo
+    resultado["tipo_arquivo"] = "OFX"
+    resultado["gravado"] = False
+
+    return resultado
+
+@router.post("/cadastrar")
+def cadastrar_conciliacao_bancaria(
+    payload: dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+):
+    empresa_id = int(payload.get("empresa_id") or 0)
+    resultado = payload.get("resultado") or {}
+    nome_arquivo = payload.get("nome_arquivo") or resultado.get("nome_arquivo") or "extrato_bancario"
+    tipo_arquivo = payload.get("tipo_arquivo") or resultado.get("tipo_arquivo") or "CSV"
+
+    if empresa_id <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Empresa inválida para cadastrar a conciliação.",
+        )
+
+    if not resultado or not isinstance(resultado, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="Resultado da conciliação não informado.",
+        )
+
+    resumo = resultado.get("resumo") or {}
+
+    if not resumo:
+        raise HTTPException(
+            status_code=400,
+            detail="Resumo da conciliação não informado.",
+        )
+
+    if resultado.get("historico_id"):
+        existente = (
+            db.query(ConciliacaoBancaria)
+            .filter(ConciliacaoBancaria.id == int(resultado["historico_id"]))
+            .filter(ConciliacaoBancaria.empresa_id == empresa_id)
+            .first()
+        )
+
+        if existente:
+            return {
+                "ok": True,
+                "ja_cadastrado": True,
+                "historico": _serializar_historico_conciliacao(existente),
+            }
+
+    registro = _salvar_historico_conciliacao(
+        db=db,
+        empresa_id=empresa_id,
+        nome_arquivo=nome_arquivo,
+        tipo_arquivo=tipo_arquivo,
+        resultado=resultado,
+    )
+
+    return {
+        "ok": True,
+        "ja_cadastrado": False,
+        "historico": _serializar_historico_conciliacao(registro),
+    }
 
 
 @router.get("/financeiro-realizado")
@@ -1036,3 +1386,806 @@ def listar_financeiro_realizado_para_conciliacao(
         },
         "movimentos": [_serializar_movimento_sistema(item) for item in movimentos],
     }
+
+def _formatar_data_excel(valor: Any) -> str:
+    if not valor:
+        return ""
+
+    if isinstance(valor, date):
+        return valor.strftime("%d/%m/%Y")
+
+    texto = str(valor)
+
+    try:
+        partes = texto.split("-")
+        if len(partes) == 3:
+            return f"{partes[2]}/{partes[1]}/{partes[0]}"
+    except Exception:
+        pass
+
+    return texto
+
+
+def _xlsx_aplicar_cabecalho(ws, linha: int, coluna_inicial: int, coluna_final: int) -> None:
+    fill = PatternFill("solid", fgColor="0F172A")
+    font = Font(color="FFFFFF", bold=True)
+    alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    border = Border(bottom=Side(style="thin", color="CBD5E1"))
+
+    for coluna in range(coluna_inicial, coluna_final + 1):
+        cell = ws.cell(row=linha, column=coluna)
+        cell.fill = fill
+        cell.font = font
+        cell.alignment = alignment
+        cell.border = border
+
+
+def _xlsx_aplicar_bordas(ws, linha_inicial: int, linha_final: int, coluna_inicial: int, coluna_final: int) -> None:
+    border = Border(
+        left=Side(style="thin", color="E2E8F0"),
+        right=Side(style="thin", color="E2E8F0"),
+        top=Side(style="thin", color="E2E8F0"),
+        bottom=Side(style="thin", color="E2E8F0"),
+    )
+
+    for linha in range(linha_inicial, linha_final + 1):
+        for coluna in range(coluna_inicial, coluna_final + 1):
+            ws.cell(row=linha, column=coluna).border = border
+
+
+def _xlsx_ajustar_larguras(ws) -> None:
+    for coluna_cells in ws.columns:
+        max_length = 0
+        coluna_letra = get_column_letter(coluna_cells[0].column)
+
+        for cell in coluna_cells:
+            if cell.value is None:
+                continue
+
+            max_length = max(max_length, len(str(cell.value)))
+
+        ws.column_dimensions[coluna_letra].width = min(max(max_length + 3, 12), 46)
+
+
+def _xlsx_formatar_moeda(ws, colunas: list[int], linha_inicial: int, linha_final: int) -> None:
+    for linha in range(linha_inicial, linha_final + 1):
+        for coluna in colunas:
+            ws.cell(row=linha, column=coluna).number_format = 'R$ #,##0.00;[Red]-R$ #,##0.00'
+
+
+def _xlsx_estilizar_aba(ws) -> None:
+    for linha in ws.iter_rows():
+        for cell in linha:
+            cell.alignment = Alignment(
+                vertical="center",
+                horizontal=cell.alignment.horizontal or "left",
+                wrap_text=True,
+            )
+
+    _xlsx_ajustar_larguras(ws)
+
+
+def _criar_xlsx_conciliacao_bancaria(resultado: dict[str, Any]) -> BytesIO:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Resumo"
+
+    resumo = resultado.get("resumo", {})
+    parametros = resultado.get("parametros", {})
+    periodo_arquivo = resultado.get("periodo_arquivo", {})
+
+    ws["A1"] = "Conciliação Bancária"
+    ws["A1"].font = Font(size=18, bold=True, color="0F172A")
+    ws["A2"] = f"Empresa: {resultado.get('empresa_id')}"
+    ws["A3"] = f"Período considerado: {_formatar_data_excel(resultado.get('data_inicio'))} a {_formatar_data_excel(resultado.get('data_fim'))}"
+    ws["A4"] = f"Período do arquivo: {_formatar_data_excel(periodo_arquivo.get('data_inicio'))} a {_formatar_data_excel(periodo_arquivo.get('data_fim'))}"
+    ws["A5"] = f"Tolerância: {parametros.get('tolerancia_dias', 0)} dia(s) e R$ {parametros.get('tolerancia_valor', 0)}"
+    ws["A6"] = f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+
+    linha_resumo = 8
+    ws.cell(row=linha_resumo, column=1, value="Indicador")
+    ws.cell(row=linha_resumo, column=2, value="Valor")
+    _xlsx_aplicar_cabecalho(ws, linha_resumo, 1, 2)
+
+    linhas_resumo = [
+        ("Movimentos no banco", resumo.get("movimentos_banco", 0)),
+        ("Movimentos no sistema", resumo.get("movimentos_sistema", 0)),
+        ("Conciliados", resumo.get("conciliados", 0)),
+        ("Pendentes no banco", resumo.get("pendentes_banco", 0)),
+        ("Pendentes no sistema", resumo.get("pendentes_sistema", 0)),
+        ("Total banco entradas", resumo.get("total_banco_entradas", 0)),
+        ("Total banco saídas", resumo.get("total_banco_saidas", 0)),
+        ("Total sistema entradas", resumo.get("total_sistema_entradas", 0)),
+        ("Total sistema saídas", resumo.get("total_sistema_saidas", 0)),
+        ("Diferença entradas", resumo.get("diferenca_entradas", 0)),
+        ("Diferença saídas", resumo.get("diferenca_saidas", 0)),
+    ]
+
+    for index, item in enumerate(linhas_resumo, start=linha_resumo + 1):
+        ws.cell(row=index, column=1, value=item[0])
+        ws.cell(row=index, column=2, value=item[1])
+
+    _xlsx_formatar_moeda(ws, [2], linha_resumo + 6, linha_resumo + len(linhas_resumo))
+    _xlsx_aplicar_bordas(ws, linha_resumo, linha_resumo + len(linhas_resumo), 1, 2)
+
+    ws_conciliados = wb.create_sheet("Conciliados")
+    ws_conciliados["A1"] = "Movimentos conciliados"
+    ws_conciliados["A1"].font = Font(size=16, bold=True, color="0F172A")
+
+    headers_conciliados = [
+        "Data banco",
+        "Descrição banco",
+        "Documento banco",
+        "Tipo banco",
+        "Valor banco",
+        "Data sistema",
+        "Descrição sistema",
+        "Pessoa",
+        "Tipo sistema",
+        "Forma de pagamento",
+        "Valor sistema",
+        "Score",
+        "Motivo",
+    ]
+
+    for col, titulo in enumerate(headers_conciliados, start=1):
+        ws_conciliados.cell(row=3, column=col, value=titulo)
+
+    _xlsx_aplicar_cabecalho(ws_conciliados, 3, 1, len(headers_conciliados))
+
+    conciliados = resultado.get("conciliados", [])
+
+    for row_index, item in enumerate(conciliados, start=4):
+        banco = item.get("banco", {})
+        sistema = item.get("sistema", {})
+
+        ws_conciliados.cell(row=row_index, column=1, value=_formatar_data_excel(banco.get("data")))
+        ws_conciliados.cell(row=row_index, column=2, value=banco.get("descricao"))
+        ws_conciliados.cell(row=row_index, column=3, value=banco.get("documento"))
+        ws_conciliados.cell(row=row_index, column=4, value=banco.get("tipo"))
+        ws_conciliados.cell(row=row_index, column=5, value=banco.get("valor"))
+        ws_conciliados.cell(row=row_index, column=6, value=_formatar_data_excel(sistema.get("data")))
+        ws_conciliados.cell(row=row_index, column=7, value=sistema.get("descricao"))
+        ws_conciliados.cell(row=row_index, column=8, value=sistema.get("pessoa"))
+        ws_conciliados.cell(row=row_index, column=9, value=sistema.get("tipo"))
+        ws_conciliados.cell(row=row_index, column=10, value=sistema.get("forma_pagamento"))
+        ws_conciliados.cell(row=row_index, column=11, value=sistema.get("valor"))
+        ws_conciliados.cell(row=row_index, column=12, value=item.get("score"))
+        ws_conciliados.cell(row=row_index, column=13, value=item.get("motivo"))
+
+    ultima_linha_conciliados = max(4, 3 + len(conciliados))
+    _xlsx_formatar_moeda(ws_conciliados, [5, 11], 4, ultima_linha_conciliados)
+    _xlsx_aplicar_bordas(ws_conciliados, 3, ultima_linha_conciliados, 1, len(headers_conciliados))
+    ws_conciliados.freeze_panes = "A4"
+    ws_conciliados.auto_filter.ref = f"A3:M{ultima_linha_conciliados}"
+
+    ws_pendentes_banco = wb.create_sheet("Pend Banco")
+    ws_pendentes_banco["A1"] = "Pendentes no banco"
+    ws_pendentes_banco["A1"].font = Font(size=16, bold=True, color="0F172A")
+
+    headers_pendentes_banco = [
+        "Data",
+        "Descrição",
+        "Documento",
+        "Tipo",
+        "Valor",
+        "Qtd. sugestões",
+        "Sugestão 1",
+        "Score 1",
+        "Motivo 1",
+        "Sugestão 2",
+        "Score 2",
+        "Motivo 2",
+        "Sugestão 3",
+        "Score 3",
+        "Motivo 3",
+    ]
+
+    for col, titulo in enumerate(headers_pendentes_banco, start=1):
+        ws_pendentes_banco.cell(row=3, column=col, value=titulo)
+
+    _xlsx_aplicar_cabecalho(ws_pendentes_banco, 3, 1, len(headers_pendentes_banco))
+
+    pendentes_banco = resultado.get("pendentes_banco", [])
+
+    for row_index, item in enumerate(pendentes_banco, start=4):
+        sugestoes = item.get("sugestoes", [])
+
+        ws_pendentes_banco.cell(row=row_index, column=1, value=_formatar_data_excel(item.get("data")))
+        ws_pendentes_banco.cell(row=row_index, column=2, value=item.get("descricao"))
+        ws_pendentes_banco.cell(row=row_index, column=3, value=item.get("documento"))
+        ws_pendentes_banco.cell(row=row_index, column=4, value=item.get("tipo"))
+        ws_pendentes_banco.cell(row=row_index, column=5, value=item.get("valor"))
+        ws_pendentes_banco.cell(row=row_index, column=6, value=len(sugestoes))
+
+        coluna = 7
+        for sugestao in sugestoes[:3]:
+            sistema = sugestao.get("sistema", {})
+            descricao_sugestao = f"{_formatar_data_excel(sistema.get('data'))} | {sistema.get('descricao') or ''} | R$ {sistema.get('valor', 0)}"
+
+            ws_pendentes_banco.cell(row=row_index, column=coluna, value=descricao_sugestao)
+            ws_pendentes_banco.cell(row=row_index, column=coluna + 1, value=sugestao.get("score"))
+            ws_pendentes_banco.cell(row=row_index, column=coluna + 2, value=sugestao.get("motivo"))
+
+            coluna += 3
+
+    ultima_linha_pend_banco = max(4, 3 + len(pendentes_banco))
+    _xlsx_formatar_moeda(ws_pendentes_banco, [5], 4, ultima_linha_pend_banco)
+    _xlsx_aplicar_bordas(ws_pendentes_banco, 3, ultima_linha_pend_banco, 1, len(headers_pendentes_banco))
+    ws_pendentes_banco.freeze_panes = "A4"
+    ws_pendentes_banco.auto_filter.ref = f"A3:O{ultima_linha_pend_banco}"
+
+    ws_pendentes_sistema = wb.create_sheet("Pend Sistema")
+    ws_pendentes_sistema["A1"] = "Pendentes no sistema"
+    ws_pendentes_sistema["A1"].font = Font(size=16, bold=True, color="0F172A")
+
+    headers_pendentes_sistema = [
+        "Data",
+        "Descrição",
+        "Pessoa",
+        "Tipo",
+        "Forma de pagamento",
+        "Valor",
+        "Status",
+        "Origem",
+        "ID",
+    ]
+
+    for col, titulo in enumerate(headers_pendentes_sistema, start=1):
+        ws_pendentes_sistema.cell(row=3, column=col, value=titulo)
+
+    _xlsx_aplicar_cabecalho(ws_pendentes_sistema, 3, 1, len(headers_pendentes_sistema))
+
+    pendentes_sistema = resultado.get("pendentes_sistema", [])
+
+    for row_index, item in enumerate(pendentes_sistema, start=4):
+        ws_pendentes_sistema.cell(row=row_index, column=1, value=_formatar_data_excel(item.get("data")))
+        ws_pendentes_sistema.cell(row=row_index, column=2, value=item.get("descricao"))
+        ws_pendentes_sistema.cell(row=row_index, column=3, value=item.get("pessoa"))
+        ws_pendentes_sistema.cell(row=row_index, column=4, value=item.get("tipo"))
+        ws_pendentes_sistema.cell(row=row_index, column=5, value=item.get("forma_pagamento"))
+        ws_pendentes_sistema.cell(row=row_index, column=6, value=item.get("valor"))
+        ws_pendentes_sistema.cell(row=row_index, column=7, value=item.get("status"))
+        ws_pendentes_sistema.cell(row=row_index, column=8, value=item.get("origem"))
+        ws_pendentes_sistema.cell(row=row_index, column=9, value=item.get("id"))
+
+    ultima_linha_pend_sistema = max(4, 3 + len(pendentes_sistema))
+    _xlsx_formatar_moeda(ws_pendentes_sistema, [6], 4, ultima_linha_pend_sistema)
+    _xlsx_aplicar_bordas(ws_pendentes_sistema, 3, ultima_linha_pend_sistema, 1, len(headers_pendentes_sistema))
+    ws_pendentes_sistema.freeze_panes = "A4"
+    ws_pendentes_sistema.auto_filter.ref = f"A3:I{ultima_linha_pend_sistema}"
+
+    for sheet in wb.worksheets:
+        _xlsx_estilizar_aba(sheet)
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+@router.post("/exportar-xlsx")
+def exportar_xlsx_conciliacao_bancaria(
+    empresa_id: int = Query(..., ge=1),
+    data_inicio: date | None = Query(None),
+    data_fim: date | None = Query(None),
+    tolerancia_centavos: int = Query(2, ge=0, le=10000),
+    tolerancia_dias: int = Query(2, ge=0, le=30),
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    nome_arquivo = arquivo.filename or ""
+    nome_lower = nome_arquivo.lower()
+
+    if nome_lower.endswith(".csv"):
+        texto = _ler_upload_texto(arquivo)
+        movimentos_banco = _parse_csv(texto)
+    elif nome_lower.endswith((".ofx", ".qfx")):
+        texto = _ler_upload_texto(arquivo)
+        movimentos_banco = _parse_ofx(texto)
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Envie um arquivo CSV, OFX ou QFX.",
+        )
+
+    resultado = _processar_conciliacao(
+        db=db,
+        empresa_id=empresa_id,
+        movimentos_banco=movimentos_banco,
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        tolerancia_centavos=tolerancia_centavos,
+        tolerancia_dias=tolerancia_dias,
+    )
+
+    arquivo_xlsx = _criar_xlsx_conciliacao_bancaria(resultado)
+    nome_saida = f"conciliacao_bancaria_empresa_{empresa_id}_{resultado['data_inicio']}_{resultado['data_fim']}.xlsx"
+
+    return StreamingResponse(
+        arquivo_xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{nome_saida}"'
+        },
+    )
+
+
+@router.get("/historico")
+def listar_historico_conciliacoes_bancarias(
+    empresa_id: int = Query(..., ge=1),
+    data_inicio: date | None = Query(None),
+    data_fim: date | None = Query(None),
+    limite: int = Query(30, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    query = (
+        db.query(ConciliacaoBancaria)
+        .filter(ConciliacaoBancaria.empresa_id == empresa_id)
+    )
+
+    if data_inicio:
+        query = query.filter(ConciliacaoBancaria.data_fim >= data_inicio)
+
+    if data_fim:
+        query = query.filter(ConciliacaoBancaria.data_inicio <= data_fim)
+
+    registros = (
+        query
+        .order_by(ConciliacaoBancaria.criado_em.desc(), ConciliacaoBancaria.id.desc())
+        .limit(limite)
+        .all()
+    )
+
+    return {
+        "empresa_id": empresa_id,
+        "total": len(registros),
+        "historico": [
+            _serializar_historico_conciliacao(registro)
+            for registro in registros
+        ],
+    }
+
+
+@router.get("/historico/{conciliacao_id}")
+def obter_historico_conciliacao_bancaria(
+    conciliacao_id: int,
+    empresa_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    registro = (
+        db.query(ConciliacaoBancaria)
+        .filter(ConciliacaoBancaria.id == conciliacao_id)
+        .filter(ConciliacaoBancaria.empresa_id == empresa_id)
+        .first()
+    )
+
+    if not registro:
+        raise HTTPException(
+            status_code=404,
+            detail="Conciliação bancária não encontrada.",
+        )
+
+    return _serializar_historico_conciliacao(registro, incluir_resultado=True)
+
+
+@router.get("/historico/{conciliacao_id}/exportar-xlsx")
+def exportar_xlsx_historico_conciliacao_bancaria(
+    conciliacao_id: int,
+    empresa_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    registro = (
+        db.query(ConciliacaoBancaria)
+        .filter(ConciliacaoBancaria.id == conciliacao_id)
+        .filter(ConciliacaoBancaria.empresa_id == empresa_id)
+        .first()
+    )
+
+    if not registro:
+        raise HTTPException(
+            status_code=404,
+            detail="Conciliação bancária não encontrada.",
+        )
+
+    resultado = registro.resultado_json
+    arquivo_xlsx = _criar_xlsx_conciliacao_bancaria(resultado)
+    nome_saida = f"conciliacao_bancaria_historico_{registro.id}_empresa_{empresa_id}.xlsx"
+
+    return StreamingResponse(
+        arquivo_xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{nome_saida}"'
+        },
+    )
+
+
+
+def _conciliacao_tabela_existe(db: Session, nome_tabela: str) -> bool:
+    resultado = db.execute(
+        text("select to_regclass(:nome_tabela)"),
+        {"nome_tabela": nome_tabela},
+    ).scalar()
+
+    return resultado is not None
+
+
+def _conciliacao_colunas_tabela(db: Session, nome_tabela: str) -> set[str]:
+    if not _conciliacao_tabela_existe(db, nome_tabela):
+        return set()
+
+    linhas = db.execute(
+        text("""
+            select column_name
+            from information_schema.columns
+            where table_name = :nome_tabela
+        """),
+        {"nome_tabela": nome_tabela},
+    ).all()
+
+    return {linha[0] for linha in linhas}
+
+
+@router.get("/dre-opcoes")
+def listar_dre_opcoes_conciliacao_bancaria(
+    empresa_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    if not _conciliacao_tabela_existe(db, "financeiro_plano_dre"):
+        return {
+            "empresa_id": empresa_id,
+            "opcoes": [],
+        }
+
+    colunas = _conciliacao_colunas_tabela(db, "financeiro_plano_dre")
+
+    campos = ["id"]
+
+    for campo in ["grupo", "categoria", "subcategoria", "nome", "descricao"]:
+        if campo in colunas:
+            campos.append(campo)
+
+    where = []
+    params = {"empresa_id": empresa_id}
+
+    if "empresa_id" in colunas:
+        where.append("(empresa_id = :empresa_id or empresa_id is null)")
+
+    if "ativo" in colunas:
+        where.append("(ativo = true or ativo is null)")
+
+    where_sql = " where " + " and ".join(where) if where else ""
+
+    ordem = [
+        campo
+        for campo in ["grupo", "categoria", "subcategoria", "nome", "id"]
+        if campo in campos
+    ]
+
+    order_sql = " order by " + (", ".join(ordem) if ordem else "id")
+
+    sql = f"select {', '.join(campos)} from financeiro_plano_dre {where_sql} {order_sql}"
+
+    rows = db.execute(text(sql), params).mappings().all()
+
+    opcoes = []
+
+    for row in rows:
+        partes = []
+
+        for campo in ["grupo", "categoria", "subcategoria", "nome", "descricao"]:
+            valor = row.get(campo)
+
+            if valor and str(valor).strip():
+                texto = str(valor).strip()
+
+                if texto not in partes:
+                    partes.append(texto)
+
+        label = " > ".join(partes) if partes else f"Classificação #{row['id']}"
+
+        opcoes.append(
+            {
+                "id": row["id"],
+                "label": label,
+                "grupo": row.get("grupo"),
+                "categoria": row.get("categoria"),
+                "subcategoria": row.get("subcategoria"),
+            }
+        )
+
+    return {
+        "empresa_id": empresa_id,
+        "total": len(opcoes),
+        "opcoes": opcoes,
+    }
+
+
+
+def _conciliacao_primeiro_id_tabela(db: Session, nome_tabela: str, empresa_id: int | None = None) -> int | None:
+    if not _conciliacao_tabela_existe(db, nome_tabela):
+        return None
+
+    colunas = _conciliacao_colunas_tabela(db, nome_tabela)
+
+    if empresa_id and "empresa_id" in colunas:
+        row = db.execute(
+            text(f"select id from {nome_tabela} where empresa_id = :empresa_id order by id limit 1"),
+            {"empresa_id": empresa_id},
+        ).first()
+
+        if row:
+            return int(row[0])
+
+    row = db.execute(text(f"select id from {nome_tabela} order by id limit 1")).first()
+    return int(row[0]) if row else None
+
+
+def _conciliacao_colunas_modelo(modelo: Any) -> dict[str, Any]:
+    return {coluna.name: coluna for coluna in modelo.__table__.columns}
+
+
+def _conciliacao_preencher_obrigatorios(
+    db: Session,
+    modelo: Any,
+    dados: dict[str, Any],
+    empresa_id: int,
+) -> dict[str, Any]:
+    colunas = _conciliacao_colunas_modelo(modelo)
+
+    for nome, coluna in colunas.items():
+        if nome in dados:
+            continue
+
+        if coluna.primary_key:
+            continue
+
+        if coluna.nullable:
+            continue
+
+        if coluna.default is not None or coluna.server_default is not None:
+            continue
+
+        fks = list(coluna.foreign_keys)
+
+        if fks:
+            tabela = fks[0].column.table.name
+            primeiro_id = _conciliacao_primeiro_id_tabela(db, tabela, empresa_id)
+
+            if primeiro_id:
+                dados[nome] = primeiro_id
+                continue
+
+        tipo = str(coluna.type).upper()
+
+        if "DATE" in tipo:
+            dados[nome] = date.today()
+        elif "NUMERIC" in tipo or "DECIMAL" in tipo or "FLOAT" in tipo:
+            dados[nome] = Decimal("0.00")
+        elif "INTEGER" in tipo:
+            dados[nome] = 0
+        elif "BOOLEAN" in tipo:
+            dados[nome] = False
+        else:
+            dados[nome] = "CONCILIACAO"
+
+    return dados
+
+
+def _conciliacao_dados_base_lancamento(
+    db: Session,
+    modelo: Any,
+    empresa_id: int,
+    banco: dict[str, Any],
+    descricao_prefixo: str,
+) -> dict[str, Any]:
+    colunas = _conciliacao_colunas_modelo(modelo)
+
+    data_banco = _parse_data(banco.get("data")) or date.today()
+    valor = _decimal(banco.get("valor"))
+    descricao_banco = str(banco.get("descricao") or "Movimento bancário").strip()
+    documento = str(banco.get("documento") or "").strip()
+
+    descricao = f"{descricao_prefixo} - {descricao_banco}"
+
+    if documento and documento != "-":
+        descricao = f"{descricao} - Doc. {documento}"
+
+    dados: dict[str, Any] = {}
+
+    if "empresa_id" in colunas:
+        dados["empresa_id"] = empresa_id
+
+    if "descricao" in colunas:
+        dados["descricao"] = descricao[:255]
+
+    if "valor" in colunas:
+        dados["valor"] = valor
+
+    if "valor_pago" in colunas:
+        dados["valor_pago"] = valor
+
+    if "status" in colunas:
+        dados["status"] = "PAGO"
+
+    if "data_pagamento" in colunas:
+        dados["data_pagamento"] = data_banco
+
+    if "vencimento" in colunas:
+        dados["vencimento"] = data_banco
+
+    if "data_vencimento" in colunas:
+        dados["data_vencimento"] = data_banco
+
+    if "competencia" in colunas:
+        dados["competencia"] = data_banco
+
+    if "data_competencia" in colunas:
+        dados["data_competencia"] = data_banco
+
+    if "forma_pagamento" in colunas:
+        dados["forma_pagamento"] = "CONTA_BANCARIA"
+
+    if "forma_pagamento_baixa" in colunas:
+        dados["forma_pagamento_baixa"] = "CONTA_BANCARIA"
+
+    if "observacao" in colunas:
+        dados["observacao"] = "Lançamento criado pela conciliação bancária."
+
+    if "observacao_baixa" in colunas:
+        dados["observacao_baixa"] = "Baixa criada pela conciliação bancária."
+
+    return _conciliacao_preencher_obrigatorios(db, modelo, dados, empresa_id)
+
+
+def _conciliacao_serializar_registro_criado(registro: Any, tipo: str) -> dict[str, Any]:
+    return {
+        "origem": "financeiro_pagar" if tipo == "SAIDA" else "financeiro_receber",
+        "id": registro.id,
+        "tipo": tipo,
+        "data": registro.data_pagamento.isoformat() if getattr(registro, "data_pagamento", None) else None,
+        "descricao": getattr(registro, "descricao", None),
+        "pessoa": getattr(registro, "fornecedor", None) if tipo == "SAIDA" else _nome_cliente(registro),
+        "forma_pagamento": _forma_pagamento(registro),
+        "valor": _float(_valor_realizado(registro)),
+        "status": _status_atual(registro),
+    }
+
+
+@router.post("/lancar-pendentes")
+def lancar_pendentes_banco_no_financeiro(
+    payload: dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+):
+    empresa_id = int(payload.get("empresa_id") or 0)
+    itens = payload.get("itens") or []
+
+    if empresa_id <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Empresa inválida para lançar pendentes.",
+        )
+
+    if not itens:
+        raise HTTPException(
+            status_code=400,
+            detail="Nenhum item selecionado para lançamento.",
+        )
+
+    conciliados = []
+    erros = []
+
+    for indice, item in enumerate(itens):
+        banco = item.get("banco") or item
+        tipo = str(banco.get("tipo") or item.get("tipo") or "").upper()
+        valor = _decimal(banco.get("valor"))
+
+        if tipo not in ["ENTRADA", "SAIDA"]:
+            erros.append({"indice": indice, "erro": "Tipo inválido.", "banco": banco})
+            continue
+
+        if valor <= 0:
+            erros.append({"indice": indice, "erro": "Valor inválido.", "banco": banco})
+            continue
+
+        try:
+            if tipo == "SAIDA":
+                classificacao_dre_id = item.get("classificacao_dre_id")
+
+                if not classificacao_dre_id:
+                    erros.append(
+                        {
+                            "indice": indice,
+                            "erro": "Classificação DRE obrigatória para saída.",
+                            "banco": banco,
+                        }
+                    )
+                    continue
+
+                dados = _conciliacao_dados_base_lancamento(
+                    db=db,
+                    modelo=FinanceiroPagar,
+                    empresa_id=empresa_id,
+                    banco=banco,
+                    descricao_prefixo="Conciliação bancária",
+                )
+
+                colunas = _conciliacao_colunas_modelo(FinanceiroPagar)
+
+                if "fornecedor" in colunas:
+                    dados["fornecedor"] = str(item.get("fornecedor") or banco.get("descricao") or "Fornecedor bancário")[:255]
+
+                if "classificacao_dre_id" in colunas:
+                    dados["classificacao_dre_id"] = int(classificacao_dre_id)
+
+                registro = FinanceiroPagar(**dados)
+                db.add(registro)
+                db.flush()
+
+                conciliados.append(
+                    {
+                        "banco": banco,
+                        "sistema": _conciliacao_serializar_registro_criado(registro, "SAIDA"),
+                        "score": 100,
+                        "motivo": "lançado no financeiro pela conciliação bancária",
+                        "manual": True,
+                        "lancado_financeiro": True,
+                    }
+                )
+
+            else:
+                dados = _conciliacao_dados_base_lancamento(
+                    db=db,
+                    modelo=FinanceiroReceber,
+                    empresa_id=empresa_id,
+                    banco=banco,
+                    descricao_prefixo="Conciliação bancária",
+                )
+
+                colunas = _conciliacao_colunas_modelo(FinanceiroReceber)
+                cliente_id = item.get("cliente_id") or _conciliacao_primeiro_id_tabela(db, "clientes", empresa_id)
+
+                if "cliente_id" in colunas and cliente_id:
+                    dados["cliente_id"] = int(cliente_id)
+
+                if "cliente_nome" in colunas:
+                    dados["cliente_nome"] = str(item.get("cliente_nome") or "Recebimento bancário")[:255]
+
+                registro = FinanceiroReceber(**dados)
+                db.add(registro)
+                db.flush()
+
+                conciliados.append(
+                    {
+                        "banco": banco,
+                        "sistema": _conciliacao_serializar_registro_criado(registro, "ENTRADA"),
+                        "score": 100,
+                        "motivo": "lançado no financeiro pela conciliação bancária",
+                        "manual": True,
+                        "lancado_financeiro": True,
+                    }
+                )
+
+        except Exception as exc:
+            erros.append({"indice": indice, "erro": str(exc), "banco": banco})
+
+    if erros:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "mensagem": "Alguns itens não puderam ser lançados.",
+                "erros": erros,
+            },
+        )
+
+    db.commit()
+
+    return {
+        "ok": True,
+        "empresa_id": empresa_id,
+        "quantidade": len(conciliados),
+        "conciliados": conciliados,
+    }
+

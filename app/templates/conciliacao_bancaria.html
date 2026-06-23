@@ -11,7 +11,7 @@
       <p class="conciliacao-eyebrow">Financeiro</p>
       <h1>Conciliação Bancária</h1>
       <p class="conciliacao-subtitle">
-        Importe CSV ou OFX do banco e compare com as baixas financeiras realizadas no sistema.
+        Conferência rápida entre extrato bancário e movimentações financeiras do sistema.
       </p>
     </div>
 
@@ -61,7 +61,7 @@
       <h2>Importar extrato bancário</h2>
       <p>
         Aceita arquivos <strong>CSV</strong>, <strong>OFX</strong> ou <strong>QFX</strong>.
-        O sistema compara data, valor, tipo e descrição para sugerir conciliações.
+        O sistema compara automaticamente data, valor e tipo.
       </p>
     </div>
 
@@ -74,7 +74,15 @@
 
     <div class="conciliacao-actions">
       <button type="button" class="conciliacao-btn conciliacao-btn-primary" id="btnProcessarConciliacao">
-        Processar conciliação
+        Processar extrato
+      </button>
+
+      <button type="button" class="conciliacao-btn conciliacao-btn-exportar" id="btnExportarConciliacao">
+        Exportar XLSX
+      </button>
+
+      <button type="button" class="conciliacao-btn conciliacao-btn-cadastrar" id="btnCadastrarConciliacao" disabled>
+        Salvar conferência
       </button>
 
       <button type="button" class="conciliacao-btn conciliacao-btn-secondary" id="btnLimparConciliacao">
@@ -93,19 +101,19 @@
     </article>
 
     <article class="conciliacao-card conciliacao-resumo-card">
-      <span>Conciliados</span>
+      <span>Conferidos</span>
       <strong>--</strong>
       <small>Aguardando importação</small>
     </article>
 
     <article class="conciliacao-card conciliacao-resumo-card">
-      <span>Pendentes banco</span>
+      <span>Pendentes</span>
       <strong>--</strong>
       <small>Aguardando importação</small>
     </article>
 
     <article class="conciliacao-card conciliacao-resumo-card">
-      <span>Pendentes sistema</span>
+      <span>Ignorados</span>
       <strong>--</strong>
       <small>Aguardando importação</small>
     </article>
@@ -114,93 +122,102 @@
   <section class="conciliacao-card conciliacao-section">
     <div class="conciliacao-section-title">
       <div>
-        <h2>Resultado da conciliação</h2>
-        <p>Resumo entre extrato bancário e movimentações financeiras baixadas no sistema.</p>
+        <h2>Conferência rápida</h2>
+        <p>
+          O sistema marca automaticamente o que encontrou no financeiro. O operador só revisa pendências e usa ações em massa.
+        </p>
       </div>
     </div>
 
-    <div class="conciliacao-tabs">
-      <button type="button" class="conciliacao-tab active" data-tab="conciliados">
-        Conciliados
+    <div class="conciliacao-toolbar-pendentes">
+      <div>
+        <strong>Ações em massa</strong>
+        <span>Selecione vários movimentos e aplique uma ação rápida.</span>
+      </div>
+
+      <div class="conciliacao-toolbar-actions">
+        <button type="button" class="conciliacao-btn conciliacao-btn-secondary" id="btnSelecionarTodosConferencia">
+          Selecionar todos
+        </button>
+
+        <button type="button" class="conciliacao-btn conciliacao-btn-exportar" id="btnMarcarConferidos">
+          Marcar conferidos
+        </button>
+
+        <button type="button" class="conciliacao-btn conciliacao-btn-sugeridos" id="btnMarcarIgnorados">
+          Ignorar selecionados
+        </button>
+
+        <button type="button" class="conciliacao-btn conciliacao-btn-secondary" id="btnMarcarPendentes">
+          Marcar pendentes
+        </button>
+      </div>
+    </div>
+
+    <div class="conciliacao-table-wrap">
+      <table class="conciliacao-table conciliacao-table-conferencia">
+        <thead>
+          <tr>
+            <th class="conciliacao-center">
+              <input type="checkbox" id="checkTodosConferencia">
+            </th>
+            <th>Data</th>
+            <th>Descrição</th>
+            <th>Documento</th>
+            <th>Tipo</th>
+            <th class="conciliacao-right">Valor</th>
+            <th>Status</th>
+            <th>Correspondência</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+
+        <tbody id="conciliacaoTabelaConferencia">
+          <tr>
+            <td colspan="9" class="conciliacao-empty">Nenhum arquivo processado.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="conciliacao-card conciliacao-section">
+    <div class="conciliacao-section-title">
+      <div>
+        <h2>Histórico de conciliações</h2>
+        <p>Conciliações já cadastradas no banco de dados.</p>
+      </div>
+
+      <button type="button" class="conciliacao-btn conciliacao-btn-secondary" id="btnAtualizarHistoricoConciliacao">
+        Atualizar histórico
       </button>
-      <button type="button" class="conciliacao-tab" data-tab="pendentes-banco">
-        Pendentes no banco
-      </button>
-      <button type="button" class="conciliacao-tab" data-tab="pendentes-sistema">
-        Pendentes no sistema
-      </button>
     </div>
 
-    <div class="conciliacao-tab-panel active" id="tab-conciliados">
-      <div class="conciliacao-table-wrap">
-        <table class="conciliacao-table">
-          <thead>
-            <tr>
-              <th>Data banco</th>
-              <th>Descrição banco</th>
-              <th class="conciliacao-right">Valor banco</th>
-              <th>Data sistema</th>
-              <th>Descrição sistema</th>
-              <th class="conciliacao-right">Valor sistema</th>
-              <th class="conciliacao-right">Score</th>
-              <th>Motivo</th>
-            </tr>
-          </thead>
-          <tbody id="conciliacaoTabelaConciliados">
-            <tr>
-              <td colspan="8" class="conciliacao-empty">Nenhum arquivo processado.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <div class="conciliacao-table-wrap">
+      <table class="conciliacao-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Arquivo</th>
+            <th>Período</th>
+            <th class="conciliacao-right">Banco</th>
+            <th class="conciliacao-right">Conferidos</th>
+            <th class="conciliacao-right">Pendentes</th>
+            <th class="conciliacao-right">Ignorados</th>
+            <th>Criado em</th>
+            <th class="conciliacao-right">Ações</th>
+          </tr>
+        </thead>
 
-    <div class="conciliacao-tab-panel" id="tab-pendentes-banco">
-      <div class="conciliacao-table-wrap">
-        <table class="conciliacao-table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Descrição</th>
-              <th>Documento</th>
-              <th>Tipo</th>
-              <th class="conciliacao-right">Valor</th>
-              <th>Sugestões</th>
-            </tr>
-          </thead>
-          <tbody id="conciliacaoTabelaPendentesBanco">
-            <tr>
-              <td colspan="6" class="conciliacao-empty">Nenhum arquivo processado.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="conciliacao-tab-panel" id="tab-pendentes-sistema">
-      <div class="conciliacao-table-wrap">
-        <table class="conciliacao-table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Descrição</th>
-              <th>Pessoa</th>
-              <th>Tipo</th>
-              <th>Forma de pagamento</th>
-              <th class="conciliacao-right">Valor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="conciliacaoTabelaPendentesSistema">
-            <tr>
-              <td colspan="7" class="conciliacao-empty">Nenhum arquivo processado.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <tbody id="conciliacaoTabelaHistorico">
+          <tr>
+            <td colspan="9" class="conciliacao-empty">Carregando histórico...</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 </section>
 
-<script src="{{ url_for('static', path='js/conciliacao_bancaria.js') }}"></script>
+<script src="{{ url_for('static', path='js/conciliacao_bancaria.js') }}?v=9"></script>
 {% endblock %}

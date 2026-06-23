@@ -13,13 +13,16 @@
 
   let arquivoSelecionado = null;
   let ultimoResultado = null;
+  let linhasConferencia = [];
 
   document.addEventListener("DOMContentLoaded", inicializarConciliacaoBancaria);
 
-  function inicializarConciliacaoBancaria() {
+  async function inicializarConciliacaoBancaria() {
     configurarDatasPadrao();
     configurarEmpresaPadrao();
     vincularEventos();
+    habilitarCadastroConciliacao(false);
+    await carregarHistoricoConciliacoes();
   }
 
   function configurarDatasPadrao() {
@@ -98,8 +101,18 @@
     const inputArquivo = document.getElementById("conciliacaoArquivo");
     const dropArea = document.getElementById("conciliacaoDropArea");
     const btnProcessar = document.getElementById("btnProcessarConciliacao");
+    const btnExportar = document.getElementById("btnExportarConciliacao");
+    const btnCadastrar = document.getElementById("btnCadastrarConciliacao");
     const btnLimpar = document.getElementById("btnLimparConciliacao");
+    const btnAtualizarHistorico = document.getElementById("btnAtualizarHistoricoConciliacao");
+    const btnSelecionarTodos = document.getElementById("btnSelecionarTodosConferencia");
+    const btnMarcarConferidos = document.getElementById("btnMarcarConferidos");
+    const btnMarcarIgnorados = document.getElementById("btnMarcarIgnorados");
+    const btnMarcarPendentes = document.getElementById("btnMarcarPendentes");
+    const checkTodos = document.getElementById("checkTodosConferencia");
     const inputEmpresa = document.getElementById("conciliacaoEmpresaId");
+    const tabelaConferencia = document.getElementById("conciliacaoTabelaConferencia");
+    const tabelaHistorico = document.getElementById("conciliacaoTabelaHistorico");
 
     if (inputArquivo) {
       inputArquivo.addEventListener("change", function () {
@@ -137,24 +150,110 @@
       btnProcessar.addEventListener("click", processarConciliacao);
     }
 
+    if (btnExportar) {
+      btnExportar.addEventListener("click", exportarConciliacaoXlsx);
+    }
+
+    if (btnCadastrar) {
+      btnCadastrar.addEventListener("click", cadastrarConciliacao);
+    }
+
     if (btnLimpar) {
       btnLimpar.addEventListener("click", limparTela);
     }
 
+    if (btnAtualizarHistorico) {
+      btnAtualizarHistorico.addEventListener("click", carregarHistoricoConciliacoes);
+    }
+
+    if (btnSelecionarTodos) {
+      btnSelecionarTodos.addEventListener("click", alternarSelecaoConferencia);
+    }
+
+    if (btnMarcarConferidos) {
+      btnMarcarConferidos.addEventListener("click", function () {
+        marcarSelecionadosComo("CONFERIDO");
+      });
+    }
+
+    if (btnMarcarIgnorados) {
+      btnMarcarIgnorados.addEventListener("click", function () {
+        marcarSelecionadosComo("IGNORADO");
+      });
+    }
+
+    if (btnMarcarPendentes) {
+      btnMarcarPendentes.addEventListener("click", function () {
+        marcarSelecionadosComo("PENDENTE");
+      });
+    }
+
+    if (checkTodos) {
+      checkTodos.addEventListener("change", function () {
+        marcarTodosConferencia(checkTodos.checked);
+      });
+    }
+
     if (inputEmpresa) {
-      inputEmpresa.addEventListener("change", function () {
+      inputEmpresa.addEventListener("change", async function () {
         if (inputEmpresa.value) {
           localStorage.setItem("empresa_id", inputEmpresa.value);
           localStorage.setItem("empresaSelecionadaId", inputEmpresa.value);
+          await carregarHistoricoConciliacoes();
         }
       });
     }
 
-    document.querySelectorAll(".conciliacao-tab").forEach(function (tab) {
-      tab.addEventListener("click", function () {
-        trocarAba(tab.dataset.tab);
+    if (tabelaConferencia) {
+      tabelaConferencia.addEventListener("change", function (event) {
+        const alvo = event.target;
+
+        if (alvo.classList.contains("conciliacao-check-conferencia")) {
+          atualizarCheckTodosConferencia();
+          return;
+        }
+
+        if (alvo.classList.contains("conciliacao-status-select")) {
+          const index = Number(alvo.dataset.index);
+          const linha = linhasConferencia[index];
+
+          if (!linha) {
+            return;
+          }
+
+          linha.status = alvo.value || "PENDENTE";
+          linha.observacao = obterObservacaoPadrao(linha);
+          renderizarConferencia();
+          atualizarResumoConferencia();
+          habilitarCadastroConciliacao(true);
+        }
       });
-    });
+    }
+
+    if (tabelaHistorico) {
+      tabelaHistorico.addEventListener("click", function (event) {
+        const botao = event.target.closest("[data-historico-action]");
+
+        if (!botao) {
+          return;
+        }
+
+        const id = botao.dataset.historicoId;
+        const action = botao.dataset.historicoAction;
+
+        if (!id) {
+          return;
+        }
+
+        if (action === "ver") {
+          carregarResultadoHistorico(id);
+        }
+
+        if (action === "xlsx") {
+          exportarHistoricoXlsx(id);
+        }
+      });
+    }
   }
 
   function definirArquivo(arquivo) {
@@ -183,28 +282,14 @@
       return;
     }
 
-    if (!arquivoSelecionado) {
-      exibirMensagem("Selecione um arquivo CSV, OFX ou QFX para processar.", "erro");
+    if (!validarArquivoSelecionado()) {
       return;
     }
 
     const extensao = obterExtensaoArquivo(arquivoSelecionado.name);
-
-    if (!["csv", "ofx", "qfx"].includes(extensao)) {
-      exibirMensagem("Formato inválido. Envie um arquivo CSV, OFX ou QFX.", "erro");
-      return;
-    }
-
     const endpoint = extensao === "csv" ? "importar-csv" : "importar-ofx";
 
-    const params = new URLSearchParams({
-      empresa_id: filtros.empresaId,
-      data_inicio: filtros.dataInicio,
-      data_fim: filtros.dataFim,
-      tolerancia_centavos: filtros.toleranciaCentavos,
-      tolerancia_dias: filtros.toleranciaDias,
-    });
-
+    const params = montarParametros(filtros);
     const formData = new FormData();
     formData.append("arquivo", arquivoSelecionado);
 
@@ -222,22 +307,793 @@
           return null;
         });
 
-        throw new Error(
-          erro?.detail || `Erro ao processar conciliação. Status ${resposta.status}.`
-        );
+        throw new Error(obterMensagemErroApi(erro, `Erro ao processar extrato. Status ${resposta.status}.`));
       }
 
       const dados = await resposta.json();
-      ultimoResultado = dados;
 
-      renderizarResultado(dados);
-      exibirMensagem("Conciliação processada com sucesso.", "sucesso");
+      ultimoResultado = dados;
+      ultimoResultado.nome_arquivo = ultimoResultado.nome_arquivo || arquivoSelecionado.name;
+      ultimoResultado.tipo_arquivo = ultimoResultado.tipo_arquivo || extensao.toUpperCase();
+
+      linhasConferencia = montarLinhasConferencia(ultimoResultado);
+
+      renderizarConferencia();
+      atualizarResumoConferencia();
+      habilitarCadastroConciliacao(true);
+
+      exibirMensagem(
+        "Extrato processado. O que bateu com o financeiro foi marcado como conferido. Revise apenas pendências e cadastre a conciliação.",
+        "sucesso"
+      );
     } catch (error) {
       console.error(error);
-      exibirMensagem(error.message || "Não foi possível processar a conciliação.", "erro");
+      exibirMensagem(error.message || "Não foi possível processar o extrato.", "erro");
     } finally {
       setProcessando(false);
     }
+  }
+
+  async function exportarConciliacaoXlsx() {
+    ocultarMensagem();
+
+    const filtros = obterFiltros();
+
+    if (!filtros) {
+      return;
+    }
+
+    if (!validarArquivoSelecionado()) {
+      return;
+    }
+
+    const params = montarParametros(filtros);
+    const formData = new FormData();
+    formData.append("arquivo", arquivoSelecionado);
+
+    setExportando(true);
+
+    try {
+      const resposta = await fetch(`${API_BASE}/exportar-xlsx?${params.toString()}`, {
+        method: "POST",
+        headers: montarHeadersUpload(),
+        body: formData,
+      });
+
+      if (!resposta.ok) {
+        const erro = await resposta.json().catch(function () {
+          return null;
+        });
+
+        throw new Error(obterMensagemErroApi(erro, `Erro ao exportar XLSX. Status ${resposta.status}.`));
+      }
+
+      const blob = await resposta.blob();
+      baixarBlob(blob, montarNomeArquivoXlsx(filtros));
+
+      exibirMensagem("Arquivo XLSX exportado com sucesso.", "sucesso");
+    } catch (error) {
+      console.error(error);
+      exibirMensagem(error.message || "Não foi possível exportar o XLSX.", "erro");
+    } finally {
+      setExportando(false);
+    }
+  }
+
+  async function cadastrarConciliacao() {
+    ocultarMensagem();
+
+    const empresaId = obterEmpresaId();
+
+    if (!empresaId) {
+      exibirMensagem("Informe a empresa para salvar a conferência.", "erro");
+      return;
+    }
+
+    if (!ultimoResultado || !linhasConferencia.length) {
+      exibirMensagem("Processe um extrato antes de salvar a conferência.", "erro");
+      return;
+    }
+
+    if (ultimoResultado.historico_id) {
+      exibirMensagem("Esta conferência já foi salva no histórico.", "info");
+      habilitarCadastroConciliacao(false);
+      return;
+    }
+
+    const resultadoParaSalvar = montarResultadoParaSalvar();
+
+    const headers = montarHeadersJson();
+    headers["Content-Type"] = "application/json";
+
+    setCadastrando(true);
+
+    try {
+      const resposta = await fetch(`${API_BASE}/cadastrar`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          empresa_id: Number(empresaId),
+          nome_arquivo: resultadoParaSalvar.nome_arquivo || "extrato_bancario",
+          tipo_arquivo: resultadoParaSalvar.tipo_arquivo || "CSV",
+          resultado: resultadoParaSalvar,
+        }),
+      });
+
+      if (!resposta.ok) {
+        const erro = await resposta.json().catch(function () {
+          return null;
+        });
+
+        throw new Error(obterMensagemErroApi(erro, `Erro ao salvar conferência. Status ${resposta.status}.`));
+      }
+
+      const dados = await resposta.json();
+
+      if (dados.historico && dados.historico.id) {
+        ultimoResultado.historico_id = dados.historico.id;
+      }
+
+      habilitarCadastroConciliacao(false);
+      await carregarHistoricoConciliacoes();
+
+      exibirMensagem("Conferência salva no histórico com sucesso.", "sucesso");
+    } catch (error) {
+      console.error(error);
+      exibirMensagem(error.message || "Não foi possível salvar a conferência.", "erro");
+    } finally {
+      setCadastrando(false);
+    }
+  }
+
+  function montarLinhasConferencia(resultado) {
+    const linhas = [];
+
+    const conciliados = Array.isArray(resultado.conciliados) ? resultado.conciliados : [];
+    const pendentesBanco = Array.isArray(resultado.pendentes_banco) ? resultado.pendentes_banco : [];
+
+    conciliados.forEach(function (item, index) {
+      const banco = normalizarBanco(item.banco || {});
+      const sistema = item.sistema || {};
+
+      linhas.push({
+        id: `conciliado-${index}`,
+        banco,
+        sistema,
+        status: "CONFERIDO",
+        correspondencia: montarTextoCorrespondencia(sistema),
+        score: Number(item.score || 100),
+        motivo: item.motivo || "Correspondência encontrada automaticamente.",
+        observacao: item.motivo || "Correspondência encontrada automaticamente.",
+      });
+    });
+
+    pendentesBanco.forEach(function (item, index) {
+      const banco = normalizarBanco(item);
+
+      linhas.push({
+        id: `pendente-${index}`,
+        banco,
+        sistema: null,
+        status: sugerirStatusInicial(banco),
+        correspondencia: "Não encontrado no financeiro",
+        score: 0,
+        motivo: "Pendente de conferência",
+        observacao: sugerirObservacaoSimples(banco),
+      });
+    });
+
+    linhas.sort(function (a, b) {
+      const dataA = String(a.banco.data || "");
+      const dataB = String(b.banco.data || "");
+
+      if (dataA !== dataB) {
+        return dataA.localeCompare(dataB);
+      }
+
+      return String(a.banco.descricao || "").localeCompare(String(b.banco.descricao || ""));
+    });
+
+    return linhas;
+  }
+
+  function normalizarBanco(item) {
+    return {
+      linha: item.linha || null,
+      data: item.data || item.data_iso || null,
+      tipo: String(item.tipo || "").toUpperCase(),
+      descricao: item.descricao || "Movimento bancário",
+      documento: item.documento || null,
+      valor: Number(item.valor || item.valor_float || 0),
+      valor_original: Number(item.valor_original || item.valor || 0),
+    };
+  }
+
+  function montarTextoCorrespondencia(sistema) {
+    if (!sistema) {
+      return "Não encontrado no financeiro";
+    }
+
+    const partes = [];
+
+    if (sistema.descricao) {
+      partes.push(sistema.descricao);
+    }
+
+    if (sistema.pessoa) {
+      partes.push(sistema.pessoa);
+    }
+
+    if (sistema.data) {
+      partes.push(formatarDataBR(sistema.data));
+    }
+
+    return partes.length ? partes.join(" | ") : "Encontrado no financeiro";
+  }
+
+  function sugerirStatusInicial(banco) {
+    const texto = normalizarTexto(`${banco.descricao || ""} ${banco.documento || ""}`);
+
+    if (
+      texto.includes("saldo anterior") ||
+      texto.includes("saldo do dia") ||
+      texto.includes("saldo final") ||
+      texto.includes("aplicacao automatica") ||
+      texto.includes("aplicação automatica")
+    ) {
+      return "IGNORADO";
+    }
+
+    return "PENDENTE";
+  }
+
+  function sugerirObservacaoSimples(banco) {
+    const texto = normalizarTexto(`${banco.descricao || ""} ${banco.documento || ""}`);
+    const tipo = String(banco.tipo || "").toUpperCase();
+
+    if (tipo === "ENTRADA") {
+      if (texto.includes("stone") || texto.includes("cartao") || texto.includes("cartão") || texto.includes("recebivel")) {
+        return "Entrada provável de cartão/PDV. Conferir com recebíveis.";
+      }
+
+      if (texto.includes("pix")) {
+        return "Entrada PIX. Conferir se já está no PDV.";
+      }
+
+      if (texto.includes("transferencia") || texto.includes("transferência")) {
+        return "Transferência recebida. Conferir origem.";
+      }
+
+      return "Entrada bancária pendente de conferência.";
+    }
+
+    if (texto.includes("iof")) {
+      return "Despesa bancária: IOF.";
+    }
+
+    if (texto.includes("juros") || texto.includes("encargos")) {
+      return "Despesa bancária: juros/encargos.";
+    }
+
+    if (texto.includes("tarifa") || texto.includes("tar ") || texto.includes("cesta")) {
+      return "Despesa bancária: tarifa.";
+    }
+
+    if (texto.includes("pix")) {
+      return "PIX enviado. Conferir fornecedor, despesa ou transferência.";
+    }
+
+    if (texto.includes("boleto")) {
+      return "Boleto pago. Conferir no contas a pagar.";
+    }
+
+    if (texto.includes("sispag")) {
+      return "Pagamento em lote/SISPAG. Conferir fornecedor ou folha.";
+    }
+
+    return "Saída bancária pendente de conferência.";
+  }
+
+  function renderizarConferencia() {
+    const tbody = document.getElementById("conciliacaoTabelaConferencia");
+
+    if (!tbody) {
+      return;
+    }
+
+    if (!linhasConferencia.length) {
+      preencherTabelaVazia("conciliacaoTabelaConferencia", 9, "Nenhum arquivo processado.");
+      atualizarCheckTodosConferencia();
+      return;
+    }
+
+    tbody.innerHTML = linhasConferencia
+      .map(function (linha, index) {
+        const banco = linha.banco || {};
+
+        return `
+          <tr class="conciliacao-linha-${escaparHtml(linha.status.toLowerCase())}">
+            <td class="conciliacao-center">
+              <input
+                type="checkbox"
+                class="conciliacao-check-conferencia"
+                data-index="${index}"
+              >
+            </td>
+            <td>${formatarDataBR(banco.data)}</td>
+            <td>
+              <strong>${escaparHtml(banco.descricao || "-")}</strong>
+            </td>
+            <td>${escaparHtml(banco.documento || "-")}</td>
+            <td>${badgeTipo(banco.tipo)}</td>
+            <td class="conciliacao-right ${classeValorPorTipo(banco.tipo)}">${moeda(banco.valor || 0)}</td>
+            <td>
+              <select class="conciliacao-status-select" data-index="${index}">
+                ${optionStatus("CONFERIDO", "Conferido", linha.status)}
+                ${optionStatus("PENDENTE", "Pendente", linha.status)}
+                ${optionStatus("IGNORADO", "Ignorado", linha.status)}
+              </select>
+            </td>
+            <td>
+              <span class="conciliacao-muted">${escaparHtml(linha.correspondencia || "-")}</span>
+            </td>
+            <td>
+              <span class="conciliacao-muted">${escaparHtml(linha.observacao || "-")}</span>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    atualizarCheckTodosConferencia();
+  }
+
+  function optionStatus(value, label, atual) {
+    const selected = String(value) === String(atual) ? "selected" : "";
+    return `<option value="${escaparHtml(value)}" ${selected}>${escaparHtml(label)}</option>`;
+  }
+
+  function marcarSelecionadosComo(status) {
+    const selecionados = obterIndicesSelecionados();
+
+    if (!selecionados.length) {
+      exibirMensagem("Selecione pelo menos um movimento.", "erro");
+      return;
+    }
+
+    selecionados.forEach(function (index) {
+      const linha = linhasConferencia[index];
+
+      if (!linha) {
+        return;
+      }
+
+      linha.status = status;
+      linha.observacao = obterObservacaoPadrao(linha);
+    });
+
+    renderizarConferencia();
+    atualizarResumoConferencia();
+    habilitarCadastroConciliacao(true);
+
+    exibirMensagem(`${selecionados.length} movimento(s) atualizado(s).`, "sucesso");
+  }
+
+  function obterObservacaoPadrao(linha) {
+    if (!linha) {
+      return "-";
+    }
+
+    if (linha.status === "CONFERIDO") {
+      return linha.sistema ? "Conferido com o financeiro." : "Conferido manualmente pelo operador.";
+    }
+
+    if (linha.status === "IGNORADO") {
+      return "Ignorado na conferência bancária.";
+    }
+
+    return sugerirObservacaoSimples(linha.banco || {});
+  }
+
+  function obterIndicesSelecionados() {
+    return Array.from(document.querySelectorAll(".conciliacao-check-conferencia"))
+      .filter(function (checkbox) {
+        return checkbox.checked;
+      })
+      .map(function (checkbox) {
+        return Number(checkbox.dataset.index);
+      })
+      .filter(function (index) {
+        return Number.isInteger(index) && index >= 0;
+      });
+  }
+
+  function alternarSelecaoConferencia() {
+    const checkboxes = Array.from(document.querySelectorAll(".conciliacao-check-conferencia"));
+
+    if (!checkboxes.length) {
+      return;
+    }
+
+    const deveMarcar = checkboxes.some(function (checkbox) {
+      return !checkbox.checked;
+    });
+
+    checkboxes.forEach(function (checkbox) {
+      checkbox.checked = deveMarcar;
+    });
+
+    atualizarCheckTodosConferencia();
+  }
+
+  function marcarTodosConferencia(marcar) {
+    document.querySelectorAll(".conciliacao-check-conferencia").forEach(function (checkbox) {
+      checkbox.checked = marcar;
+    });
+
+    atualizarCheckTodosConferencia();
+  }
+
+  function atualizarCheckTodosConferencia() {
+    const checkTodos = document.getElementById("checkTodosConferencia");
+    const checkboxes = Array.from(document.querySelectorAll(".conciliacao-check-conferencia"));
+
+    if (!checkTodos) {
+      return;
+    }
+
+    if (!checkboxes.length) {
+      checkTodos.checked = false;
+      checkTodos.indeterminate = false;
+      return;
+    }
+
+    const marcados = checkboxes.filter(function (checkbox) {
+      return checkbox.checked;
+    }).length;
+
+    checkTodos.checked = marcados === checkboxes.length;
+    checkTodos.indeterminate = marcados > 0 && marcados < checkboxes.length;
+  }
+
+  function atualizarResumoConferencia() {
+    const total = linhasConferencia.length;
+    const conferidos = contarStatus("CONFERIDO");
+    const pendentes = contarStatus("PENDENTE");
+    const ignorados = contarStatus("IGNORADO");
+
+    const container = document.getElementById("conciliacaoResumoCards");
+
+    if (!container) {
+      return;
+    }
+
+    container.innerHTML = `
+      ${montarCardResumo("Movimentos banco", total, "Total importado do extrato", "")}
+      ${montarCardResumo("Conferidos", conferidos, `${percentual(conferidos, total)}% do extrato`, conferidos === total ? "is-ok" : "is-alerta")}
+      ${montarCardResumo("Pendentes", pendentes, "Precisam de revisão", pendentes > 0 ? "is-risco" : "is-ok")}
+      ${montarCardResumo("Ignorados", ignorados, "Fora da conferência", ignorados > 0 ? "is-alerta" : "")}
+    `;
+  }
+
+  function contarStatus(status) {
+    return linhasConferencia.filter(function (linha) {
+      return linha.status === status;
+    }).length;
+  }
+
+  function percentual(parte, total) {
+    if (!total) {
+      return 0;
+    }
+
+    return Math.round((Number(parte || 0) / Number(total || 1)) * 100);
+  }
+
+  function montarCardResumo(titulo, valor, detalhe, classe) {
+    return `
+      <article class="conciliacao-card conciliacao-resumo-card ${classe || ""}">
+        <span>${escaparHtml(titulo)}</span>
+        <strong>${escaparHtml(valor)}</strong>
+        <small>${escaparHtml(detalhe)}</small>
+      </article>
+    `;
+  }
+
+  function montarResultadoParaSalvar() {
+    const conferidos = linhasConferencia.filter(function (linha) {
+      return linha.status === "CONFERIDO";
+    });
+
+    const pendentes = linhasConferencia.filter(function (linha) {
+      return linha.status === "PENDENTE";
+    });
+
+    const ignorados = linhasConferencia.filter(function (linha) {
+      return linha.status === "IGNORADO";
+    });
+
+    const conciliados = conferidos.map(function (linha) {
+      return {
+        banco: linha.banco,
+        sistema: linha.sistema || {
+          data: linha.banco.data,
+          descricao: "Conferido manualmente",
+          pessoa: null,
+          tipo: linha.banco.tipo,
+          forma_pagamento: "CONTA_BANCARIA",
+          valor: linha.banco.valor,
+          status: "CONFERIDO",
+          origem: "conferencia_manual",
+          id: null,
+        },
+        score: linha.score || (linha.sistema ? 100 : 0),
+        motivo: linha.observacao || "Conferido pelo operador",
+        manual: !linha.sistema,
+      };
+    });
+
+    const pendentesBanco = pendentes.map(function (linha) {
+      return {
+        ...linha.banco,
+        status_conferencia: "PENDENTE",
+        observacao_conferencia: linha.observacao,
+      };
+    });
+
+    const ignoradosBanco = ignorados.map(function (linha) {
+      return {
+        ...linha.banco,
+        status_conferencia: "IGNORADO",
+        observacao_conferencia: linha.observacao,
+      };
+    });
+
+    const resumoOriginal = ultimoResultado.resumo || {};
+
+    return {
+      ...ultimoResultado,
+      linhas_conferencia: linhasConferencia,
+      conciliados,
+      pendentes_banco: pendentesBanco,
+      pendentes_sistema: ultimoResultado.pendentes_sistema || [],
+      ignorados_banco: ignoradosBanco,
+      resumo: {
+        ...resumoOriginal,
+        movimentos_banco: linhasConferencia.length,
+        conciliados: conciliados.length,
+        pendentes_banco: pendentesBanco.length,
+        pendentes_sistema: (ultimoResultado.pendentes_sistema || []).length,
+        ignorados: ignoradosBanco.length,
+        conferidos: conciliados.length,
+      },
+    };
+  }
+
+  async function carregarHistoricoConciliacoes() {
+    const empresaId = obterEmpresaId();
+
+    if (!empresaId) {
+      return;
+    }
+
+    preencherTabelaVazia("conciliacaoTabelaHistorico", 9, "Carregando histórico...");
+
+    try {
+      const params = new URLSearchParams({
+        empresa_id: empresaId,
+        limite: "50",
+      });
+
+      const resposta = await fetch(`${API_BASE}/historico?${params.toString()}`, {
+        method: "GET",
+        headers: montarHeadersJson(),
+      });
+
+      if (!resposta.ok) {
+        const erro = await resposta.json().catch(function () {
+          return null;
+        });
+
+        throw new Error(obterMensagemErroApi(erro, `Erro ao carregar histórico. Status ${resposta.status}.`));
+      }
+
+      const dados = await resposta.json();
+      renderizarHistorico(dados.historico || []);
+    } catch (error) {
+      console.error(error);
+      preencherTabelaVazia("conciliacaoTabelaHistorico", 9, "Não foi possível carregar o histórico.");
+    }
+  }
+
+  async function carregarResultadoHistorico(id) {
+    ocultarMensagem();
+
+    const empresaId = obterEmpresaId();
+
+    if (!empresaId) {
+      exibirMensagem("Informe a empresa para abrir o histórico.", "erro");
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        empresa_id: empresaId,
+      });
+
+      const resposta = await fetch(`${API_BASE}/historico/${id}?${params.toString()}`, {
+        method: "GET",
+        headers: montarHeadersJson(),
+      });
+
+      if (!resposta.ok) {
+        const erro = await resposta.json().catch(function () {
+          return null;
+        });
+
+        throw new Error(obterMensagemErroApi(erro, `Erro ao abrir histórico. Status ${resposta.status}.`));
+      }
+
+      const dados = await resposta.json();
+      const resultado = dados.resultado || {};
+
+      ultimoResultado = resultado;
+      linhasConferencia = Array.isArray(resultado.linhas_conferencia)
+        ? resultado.linhas_conferencia
+        : montarLinhasConferencia(resultado);
+
+      renderizarConferencia();
+      atualizarResumoConferencia();
+      habilitarCadastroConciliacao(false);
+
+      exibirMensagem(`Histórico #${id} carregado na tela.`, "info");
+
+      const conferenciaSection = document.querySelector(".conciliacao-section");
+
+      if (conferenciaSection) {
+        conferenciaSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } catch (error) {
+      console.error(error);
+      exibirMensagem(error.message || "Não foi possível abrir o histórico.", "erro");
+    }
+  }
+
+  async function exportarHistoricoXlsx(id) {
+    ocultarMensagem();
+
+    const empresaId = obterEmpresaId();
+
+    if (!empresaId) {
+      exibirMensagem("Informe a empresa para exportar o histórico.", "erro");
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        empresa_id: empresaId,
+      });
+
+      const resposta = await fetch(`${API_BASE}/historico/${id}/exportar-xlsx?${params.toString()}`, {
+        method: "GET",
+        headers: montarHeadersJson(),
+      });
+
+      if (!resposta.ok) {
+        const erro = await resposta.json().catch(function () {
+          return null;
+        });
+
+        throw new Error(obterMensagemErroApi(erro, `Erro ao exportar histórico. Status ${resposta.status}.`));
+      }
+
+      const blob = await resposta.blob();
+      baixarBlob(blob, `conciliacao_bancaria_historico_${id}.xlsx`);
+
+      exibirMensagem(`Histórico #${id} exportado com sucesso.`, "sucesso");
+    } catch (error) {
+      console.error(error);
+      exibirMensagem(error.message || "Não foi possível exportar o histórico.", "erro");
+    }
+  }
+
+  function renderizarHistorico(itens) {
+    const tbody = document.getElementById("conciliacaoTabelaHistorico");
+
+    if (!tbody) {
+      return;
+    }
+
+    if (!itens.length) {
+      preencherTabelaVazia("conciliacaoTabelaHistorico", 9, "Nenhuma conciliação gravada ainda.");
+      return;
+    }
+
+    tbody.innerHTML = itens
+      .map(function (item) {
+        const conferidos = Number(item.conciliados || item.conferidos || 0);
+        const pendentes = Number(item.pendentes_banco || 0);
+        const ignorados = Number(item.ignorados || 0);
+
+        return `
+          <tr>
+            <td>#${escaparHtml(item.id)}</td>
+            <td>
+              <strong>${escaparHtml(item.nome_arquivo || "-")}</strong>
+              <br>
+              <span class="conciliacao-muted">${escaparHtml(item.tipo_arquivo || "-")}</span>
+            </td>
+            <td>${formatarDataBR(item.data_inicio)} até ${formatarDataBR(item.data_fim)}</td>
+            <td class="conciliacao-right">${Number(item.movimentos_banco || 0)}</td>
+            <td class="conciliacao-right conciliacao-valor-positivo">${conferidos}</td>
+            <td class="conciliacao-right ${pendentes > 0 ? "conciliacao-valor-negativo" : "conciliacao-valor-positivo"}">${pendentes}</td>
+            <td class="conciliacao-right">${ignorados}</td>
+            <td>${formatarDataHoraBR(item.criado_em)}</td>
+            <td class="conciliacao-right">
+              <div class="conciliacao-inline-actions">
+                <button
+                  type="button"
+                  class="conciliacao-btn-mini"
+                  data-historico-action="ver"
+                  data-historico-id="${escaparHtml(item.id)}"
+                >
+                  Ver
+                </button>
+
+                <button
+                  type="button"
+                  class="conciliacao-btn-mini conciliacao-btn-mini-exportar"
+                  data-historico-action="xlsx"
+                  data-historico-id="${escaparHtml(item.id)}"
+                >
+                  XLSX
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function badgeTipo(tipo) {
+    const tipoNormalizado = String(tipo || "").toUpperCase();
+
+    if (tipoNormalizado === "ENTRADA") {
+      return `<span class="conciliacao-badge conciliacao-badge-entrada">Entrada</span>`;
+    }
+
+    if (tipoNormalizado === "SAIDA") {
+      return `<span class="conciliacao-badge conciliacao-badge-saida">Saída</span>`;
+    }
+
+    return `<span class="conciliacao-badge conciliacao-badge-status">${escaparHtml(tipo || "-")}</span>`;
+  }
+
+  function validarArquivoSelecionado() {
+    if (!arquivoSelecionado) {
+      exibirMensagem("Selecione um arquivo CSV, OFX ou QFX para processar.", "erro");
+      return false;
+    }
+
+    const extensao = obterExtensaoArquivo(arquivoSelecionado.name);
+
+    if (!["csv", "ofx", "qfx"].includes(extensao)) {
+      exibirMensagem("Formato inválido. Envie um arquivo CSV, OFX ou QFX.", "erro");
+      return false;
+    }
+
+    return true;
+  }
+
+  function montarParametros(filtros) {
+    return new URLSearchParams({
+      empresa_id: filtros.empresaId,
+      data_inicio: filtros.dataInicio,
+      data_fim: filtros.dataFim,
+      tolerancia_centavos: filtros.toleranciaCentavos,
+      tolerancia_dias: filtros.toleranciaDias,
+    });
   }
 
   function obterFiltros() {
@@ -271,7 +1127,13 @@
     };
   }
 
-  function montarHeadersUpload() {
+  function obterEmpresaId() {
+    const inputEmpresa = document.getElementById("conciliacaoEmpresaId");
+    const valor = inputEmpresa?.value || detectarEmpresaAtual() || "2";
+    return String(valor).trim();
+  }
+
+  function montarHeadersJson() {
     const headers = {
       Accept: "application/json",
     };
@@ -290,248 +1152,14 @@
     return headers;
   }
 
-  function renderizarResultado(dados) {
-    renderizarResumo(dados.resumo || {});
-    renderizarConciliados(dados.conciliados || []);
-    renderizarPendentesBanco(dados.pendentes_banco || []);
-    renderizarPendentesSistema(dados.pendentes_sistema || []);
-  }
-
-  function renderizarResumo(resumo) {
-    const container = document.getElementById("conciliacaoResumoCards");
-
-    if (!container) {
-      return;
-    }
-
-    const conciliados = Number(resumo.conciliados || 0);
-    const movimentosBanco = Number(resumo.movimentos_banco || 0);
-    const pendentesBanco = Number(resumo.pendentes_banco || 0);
-    const pendentesSistema = Number(resumo.pendentes_sistema || 0);
-    const percentual = movimentosBanco > 0 ? Math.round((conciliados / movimentosBanco) * 100) : 0;
-
-    container.innerHTML = `
-      ${montarCardResumo(
-        "Movimentos banco",
-        movimentosBanco,
-        `${moeda(resumo.total_banco_entradas || 0)} em entradas e ${moeda(resumo.total_banco_saidas || 0)} em saídas`,
-        ""
-      )}
-      ${montarCardResumo(
-        "Conciliados",
-        conciliados,
-        `${percentual}% do extrato bancário`,
-        percentual >= 80 ? "is-ok" : percentual >= 50 ? "is-alerta" : "is-risco"
-      )}
-      ${montarCardResumo(
-        "Pendentes banco",
-        pendentesBanco,
-        "Itens do extrato sem baixa correspondente",
-        pendentesBanco > 0 ? "is-alerta" : "is-ok"
-      )}
-      ${montarCardResumo(
-        "Pendentes sistema",
-        pendentesSistema,
-        "Baixas do sistema sem item no extrato",
-        pendentesSistema > 0 ? "is-alerta" : "is-ok"
-      )}
-    `;
-  }
-
-  function montarCardResumo(titulo, valor, detalhe, classe) {
-    return `
-      <article class="conciliacao-card conciliacao-resumo-card ${classe || ""}">
-        <span>${escaparHtml(titulo)}</span>
-        <strong>${escaparHtml(valor)}</strong>
-        <small>${escaparHtml(detalhe)}</small>
-      </article>
-    `;
-  }
-
-  function renderizarConciliados(itens) {
-    const tbody = document.getElementById("conciliacaoTabelaConciliados");
-
-    if (!tbody) {
-      return;
-    }
-
-    if (!itens.length) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="8" class="conciliacao-empty">Nenhum movimento conciliado automaticamente.</td>
-        </tr>
-      `;
-      return;
-    }
-
-    tbody.innerHTML = itens
-      .map(function (item) {
-        const banco = item.banco || {};
-        const sistema = item.sistema || {};
-
-        return `
-          <tr>
-            <td>${formatarDataBR(banco.data)}</td>
-            <td>
-              <strong>${escaparHtml(banco.descricao || "-")}</strong>
-              ${banco.documento ? `<br><span class="conciliacao-muted">Doc.: ${escaparHtml(banco.documento)}</span>` : ""}
-            </td>
-            <td class="conciliacao-right ${classeValorPorTipo(banco.tipo)}">${moeda(banco.valor || 0)}</td>
-            <td>${formatarDataBR(sistema.data)}</td>
-            <td>
-              <strong>${escaparHtml(sistema.descricao || "-")}</strong>
-              ${sistema.pessoa ? `<br><span class="conciliacao-muted">${escaparHtml(sistema.pessoa)}</span>` : ""}
-            </td>
-            <td class="conciliacao-right ${classeValorPorTipo(sistema.tipo)}">${moeda(sistema.valor || 0)}</td>
-            <td class="conciliacao-right">
-              <span class="conciliacao-badge conciliacao-badge-score">${Number(item.score || 0)}%</span>
-            </td>
-            <td>${escaparHtml(item.motivo || "-")}</td>
-          </tr>
-        `;
-      })
-      .join("");
-  }
-
-  function renderizarPendentesBanco(itens) {
-    const tbody = document.getElementById("conciliacaoTabelaPendentesBanco");
-
-    if (!tbody) {
-      return;
-    }
-
-    if (!itens.length) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="6" class="conciliacao-empty">Nenhum movimento pendente no banco.</td>
-        </tr>
-      `;
-      return;
-    }
-
-    tbody.innerHTML = itens
-      .map(function (item) {
-        return `
-          <tr>
-            <td>${formatarDataBR(item.data)}</td>
-            <td>
-              <strong>${escaparHtml(item.descricao || "-")}</strong>
-              ${item.documento ? `<br><span class="conciliacao-muted">Doc.: ${escaparHtml(item.documento)}</span>` : ""}
-            </td>
-            <td>${escaparHtml(item.documento || "-")}</td>
-            <td>${badgeTipo(item.tipo)}</td>
-            <td class="conciliacao-right ${classeValorPorTipo(item.tipo)}">${moeda(item.valor || 0)}</td>
-            <td>${montarSugestoes(item.sugestoes || [])}</td>
-          </tr>
-        `;
-      })
-      .join("");
-  }
-
-  function renderizarPendentesSistema(itens) {
-    const tbody = document.getElementById("conciliacaoTabelaPendentesSistema");
-
-    if (!tbody) {
-      return;
-    }
-
-    if (!itens.length) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="7" class="conciliacao-empty">Nenhum movimento pendente no sistema.</td>
-        </tr>
-      `;
-      return;
-    }
-
-    tbody.innerHTML = itens
-      .map(function (item) {
-        return `
-          <tr>
-            <td>${formatarDataBR(item.data)}</td>
-            <td>
-              <strong>${escaparHtml(item.descricao || "-")}</strong>
-            </td>
-            <td>${escaparHtml(item.pessoa || "-")}</td>
-            <td>${badgeTipo(item.tipo)}</td>
-            <td>${escaparHtml(formatarFormaPagamento(item.forma_pagamento))}</td>
-            <td class="conciliacao-right ${classeValorPorTipo(item.tipo)}">${moeda(item.valor || 0)}</td>
-            <td>
-              <span class="conciliacao-badge conciliacao-badge-status">${escaparHtml(item.status || "-")}</span>
-            </td>
-          </tr>
-        `;
-      })
-      .join("");
-  }
-
-  function montarSugestoes(sugestoes) {
-    if (!sugestoes.length) {
-      return `<span class="conciliacao-muted">Sem sugestão</span>`;
-    }
-
-    return `
-      <div class="conciliacao-sugestoes">
-        ${sugestoes
-          .map(function (sugestao) {
-            const sistema = sugestao.sistema || {};
-
-            return `
-              <div class="conciliacao-sugestao">
-                <strong>${escaparHtml(sistema.descricao || "-")}</strong>
-                <span>${formatarDataBR(sistema.data)} • ${moeda(sistema.valor || 0)} • ${Number(sugestao.score || 0)}%</span>
-                <span>${escaparHtml(sugestao.motivo || "")}</span>
-              </div>
-            `;
-          })
-          .join("")}
-      </div>
-    `;
-  }
-
-  function badgeTipo(tipo) {
-    const tipoNormalizado = String(tipo || "").toUpperCase();
-
-    if (tipoNormalizado === "ENTRADA") {
-      return `<span class="conciliacao-badge conciliacao-badge-entrada">Entrada</span>`;
-    }
-
-    if (tipoNormalizado === "SAIDA") {
-      return `<span class="conciliacao-badge conciliacao-badge-saida">Saída</span>`;
-    }
-
-    return `<span class="conciliacao-badge conciliacao-badge-status">${escaparHtml(tipo || "-")}</span>`;
-  }
-
-  function classeValorPorTipo(tipo) {
-    return String(tipo || "").toUpperCase() === "SAIDA"
-      ? "conciliacao-valor-negativo"
-      : "conciliacao-valor-positivo";
-  }
-
-  function trocarAba(nomeAba) {
-    if (!nomeAba) {
-      return;
-    }
-
-    document.querySelectorAll(".conciliacao-tab").forEach(function (tab) {
-      tab.classList.toggle("active", tab.dataset.tab === nomeAba);
-    });
-
-    document.querySelectorAll(".conciliacao-tab-panel").forEach(function (panel) {
-      panel.classList.remove("active");
-    });
-
-    const panel = document.getElementById(`tab-${nomeAba}`);
-
-    if (panel) {
-      panel.classList.add("active");
-    }
+  function montarHeadersUpload() {
+    return montarHeadersJson();
   }
 
   function limparTela() {
     arquivoSelecionado = null;
     ultimoResultado = null;
+    linhasConferencia = [];
 
     const inputArquivo = document.getElementById("conciliacaoArquivo");
     const nomeArquivo = document.getElementById("conciliacaoArquivoNome");
@@ -546,23 +1174,20 @@
 
     ocultarMensagem();
     configurarDatasPadrao();
+    habilitarCadastroConciliacao(false);
 
     const resumo = document.getElementById("conciliacaoResumoCards");
 
     if (resumo) {
       resumo.innerHTML = `
         ${montarCardResumo("Movimentos banco", "--", "Aguardando importação", "")}
-        ${montarCardResumo("Conciliados", "--", "Aguardando importação", "")}
-        ${montarCardResumo("Pendentes banco", "--", "Aguardando importação", "")}
-        ${montarCardResumo("Pendentes sistema", "--", "Aguardando importação", "")}
+        ${montarCardResumo("Conferidos", "--", "Aguardando importação", "")}
+        ${montarCardResumo("Pendentes", "--", "Aguardando importação", "")}
+        ${montarCardResumo("Ignorados", "--", "Aguardando importação", "")}
       `;
     }
 
-    preencherTabelaVazia("conciliacaoTabelaConciliados", 8, "Nenhum arquivo processado.");
-    preencherTabelaVazia("conciliacaoTabelaPendentesBanco", 6, "Nenhum arquivo processado.");
-    preencherTabelaVazia("conciliacaoTabelaPendentesSistema", 7, "Nenhum arquivo processado.");
-
-    trocarAba("conciliados");
+    preencherTabelaVazia("conciliacaoTabelaConferencia", 9, "Nenhum arquivo processado.");
   }
 
   function preencherTabelaVazia(id, colunas, mensagem) {
@@ -579,17 +1204,79 @@
     `;
   }
 
+  function habilitarCadastroConciliacao(habilitar) {
+    const botao = document.getElementById("btnCadastrarConciliacao");
+
+    if (!botao) {
+      return;
+    }
+
+    botao.disabled = !habilitar;
+    botao.classList.toggle("is-enabled", !!habilitar);
+
+    if (habilitar) {
+      botao.removeAttribute("disabled");
+    } else {
+      botao.setAttribute("disabled", "disabled");
+    }
+
+    botao.textContent = "Salvar conferência";
+  }
+
   function setProcessando(processando) {
     const botao = document.getElementById("btnProcessarConciliacao");
     const btnLimpar = document.getElementById("btnLimparConciliacao");
 
     if (botao) {
       botao.disabled = processando;
-      botao.textContent = processando ? "Processando..." : "Processar conciliação";
+      botao.textContent = processando ? "Processando..." : "Processar extrato";
     }
 
     if (btnLimpar) {
       btnLimpar.disabled = processando;
+    }
+  }
+
+  function setExportando(exportando) {
+    const botao = document.getElementById("btnExportarConciliacao");
+    const btnProcessar = document.getElementById("btnProcessarConciliacao");
+    const btnLimpar = document.getElementById("btnLimparConciliacao");
+
+    if (botao) {
+      botao.disabled = exportando;
+      botao.textContent = exportando ? "Exportando..." : "Exportar XLSX";
+    }
+
+    if (btnProcessar) {
+      btnProcessar.disabled = exportando;
+    }
+
+    if (btnLimpar) {
+      btnLimpar.disabled = exportando;
+    }
+  }
+
+  function setCadastrando(cadastrando) {
+    const botao = document.getElementById("btnCadastrarConciliacao");
+    const btnProcessar = document.getElementById("btnProcessarConciliacao");
+    const btnExportar = document.getElementById("btnExportarConciliacao");
+    const btnLimpar = document.getElementById("btnLimparConciliacao");
+
+    if (botao) {
+      botao.disabled = cadastrando;
+      botao.textContent = cadastrando ? "Salvando..." : "Salvar conferência";
+    }
+
+    if (btnProcessar) {
+      btnProcessar.disabled = cadastrando;
+    }
+
+    if (btnExportar) {
+      btnExportar.disabled = cadastrando;
+    }
+
+    if (btnLimpar) {
+      btnLimpar.disabled = cadastrando;
     }
   }
 
@@ -614,6 +1301,19 @@
 
     el.hidden = true;
     el.textContent = "";
+  }
+
+  function baixarBlob(blob, nomeArquivo) {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = nomeArquivo;
+    document.body.appendChild(link);
+    link.click();
+
+    window.URL.revokeObjectURL(url);
+    link.remove();
   }
 
   function obterExtensaoArquivo(nome) {
@@ -662,25 +1362,75 @@
       return "-";
     }
 
-    const partes = String(valor).split("-");
+    const texto = String(valor);
+
+    if (texto.includes("T")) {
+      return formatarDataHoraBR(texto);
+    }
+
+    const partes = texto.split("-");
 
     if (partes.length !== 3) {
-      return valor;
+      return texto;
     }
 
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
 
-  function formatarFormaPagamento(valor) {
+  function formatarDataHoraBR(valor) {
     if (!valor) {
       return "-";
     }
 
-    const texto = String(valor)
-      .replace(/_/g, " ")
-      .toLowerCase();
+    const data = new Date(valor);
 
-    return texto.charAt(0).toUpperCase() + texto.slice(1);
+    if (Number.isNaN(data.getTime())) {
+      return String(valor);
+    }
+
+    return data.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function montarNomeArquivoXlsx(filtros) {
+    return `conciliacao_bancaria_empresa_${filtros.empresaId}_${filtros.dataInicio}_${filtros.dataFim}.xlsx`;
+  }
+
+  function classeValorPorTipo(tipo) {
+    return String(tipo || "").toUpperCase() === "SAIDA"
+      ? "conciliacao-valor-negativo"
+      : "conciliacao-valor-positivo";
+  }
+
+  function obterMensagemErroApi(erro, fallback) {
+    if (!erro) {
+      return fallback;
+    }
+
+    if (typeof erro.detail === "string") {
+      return erro.detail;
+    }
+
+    if (erro.detail && typeof erro.detail === "object") {
+      return erro.detail.mensagem || JSON.stringify(erro.detail);
+    }
+
+    return fallback;
+  }
+
+  function normalizarTexto(valor) {
+    return String(valor || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function escaparHtml(valor) {
