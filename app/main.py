@@ -272,3 +272,238 @@ def conciliacao_bancaria_page(request: Request):
         {"request": request},
     )
 
+
+@app.get("/auditoria-visual", response_class=HTMLResponse)
+def auditoria_visual_page(request: Request):
+    html = """
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Auditoria Visual | PetFlow Premium</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 32px;
+          font-family: Arial, sans-serif;
+          background: #f4f7fb;
+          color: #172033;
+        }
+
+        .wrap {
+          max-width: 1180px;
+          margin: 0 auto;
+        }
+
+        .header {
+          background: #ffffff;
+          border: 1px solid #dbe3ef;
+          border-radius: 18px;
+          padding: 24px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+          margin-bottom: 22px;
+        }
+
+        .header h1 {
+          margin: 0 0 8px;
+          font-size: 28px;
+        }
+
+        .header p {
+          margin: 0;
+          color: #64748b;
+          font-size: 15px;
+          line-height: 1.5;
+        }
+
+        .alert {
+          margin-top: 14px;
+          padding: 12px 14px;
+          border-radius: 12px;
+          background: #fff7ed;
+          border: 1px solid #fed7aa;
+          color: #9a3412;
+          font-weight: 700;
+          font-size: 14px;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
+
+        .card {
+          background: #ffffff;
+          border: 1px solid #dbe3ef;
+          border-radius: 18px;
+          padding: 18px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+        }
+
+        .card h2 {
+          margin: 0 0 12px;
+          font-size: 18px;
+          color: #0f172a;
+        }
+
+        .link-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        a {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          color: #1d4ed8;
+          text-decoration: none;
+          font-weight: 800;
+          font-size: 14px;
+        }
+
+        a:hover {
+          background: #eff6ff;
+          border-color: #93c5fd;
+        }
+
+        .path {
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .checklist {
+          margin-top: 22px;
+          background: #ffffff;
+          border: 1px solid #dbe3ef;
+          border-radius: 18px;
+          padding: 20px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+        }
+
+        .checklist h2 {
+          margin: 0 0 12px;
+        }
+
+        .checklist ul {
+          margin: 0;
+          padding-left: 20px;
+          color: #475569;
+          line-height: 1.75;
+        }
+
+        @media (max-width: 980px) {
+          .grid {
+            grid-template-columns: 1fr;
+          }
+
+          body {
+            padding: 16px;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <main class="wrap">
+        <section class="header">
+          <h1>Auditoria Visual do Sistema</h1>
+          <p>
+            Página temporária para revisar telas, nomes, botões, ortografia, duplicidades,
+            menus e problemas visuais. Não execute operações reais com dados sensíveis.
+          </p>
+          <div class="alert">
+            Após a revisão, remova esta rota ou deixe o túnel Cloudflare desligado.
+          </div>
+        </section>
+
+        <section class="grid">
+          <article class="card">
+            <h2>Principal</h2>
+            <div class="link-list">
+              <a href="/" target="_blank">Login <span class="path">/</span></a>
+              <a href="/dashboard" target="_blank">Dashboard <span class="path">/dashboard</span></a>
+              <a href="/configuracoes" target="_blank">Configurações <span class="path">/configuracoes</span></a>
+              <a href="/empresas" target="_blank">Empresas <span class="path">/empresas</span></a>
+              <a href="/usuarios" target="_blank">Usuários <span class="path">/usuarios</span></a>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Cadastros</h2>
+            <div class="link-list">
+              <a href="/clientes" target="_blank">Clientes <span class="path">/clientes</span></a>
+              <a href="/pets" target="_blank">Pets <span class="path">/pets</span></a>
+              <a href="/servicos" target="_blank">Serviços <span class="path">/servicos</span></a>
+              <a href="/funcionarios" target="_blank">Funcionários <span class="path">/funcionarios</span></a>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Operação</h2>
+            <div class="link-list">
+              <a href="/agenda" target="_blank">Agenda Banho e Tosa <span class="path">/agenda</span></a>
+              <a href="/agenda-veterinaria" target="_blank">Agenda Veterinária <span class="path">/agenda-veterinaria</span></a>
+              <a href="/producao" target="_blank">Produção <span class="path">/producao</span></a>
+              <a href="/pdv" target="_blank">PDV <span class="path">/pdv</span></a>
+              <a href="/caixa" target="_blank">Caixa <span class="path">/caixa</span></a>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Financeiro</h2>
+            <div class="link-list">
+              <a href="/financeiro" target="_blank">Financeiro <span class="path">/financeiro</span></a>
+              <a href="/fluxo-caixa" target="_blank">Fluxo de Caixa <span class="path">/fluxo-caixa</span></a>
+              <a href="/dre" target="_blank">DRE <span class="path">/dre</span></a>
+              <a href="/conciliacao-bancaria" target="_blank">Conciliação Bancária <span class="path">/conciliacao-bancaria</span></a>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Estoque</h2>
+            <div class="link-list">
+              <a href="/estoque" target="_blank">Estoque <span class="path">/estoque</span></a>
+              <a href="/notas-entrada" target="_blank">Notas de Entrada <span class="path">/notas-entrada</span></a>
+              <a href="/produtos-parados" target="_blank">Produtos Parados <span class="path">/produtos-parados</span></a>
+              <a href="/ia-compras" target="_blank">IA de Compras <span class="path">/ia-compras</span></a>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Relatórios e Regras</h2>
+            <div class="link-list">
+              <a href="/relatorios-comissao" target="_blank">Relatório de Comissão <span class="path">/relatorios-comissao</span></a>
+              <a href="/relatorio-banho-tosa" target="_blank">Relatório Banho e Tosa <span class="path">/relatorio-banho-tosa</span></a>
+              <a href="/assinaturas" target="_blank">Assinaturas <span class="path">/assinaturas</span></a>
+              <a href="/configuracoes-comissao" target="_blank">Configuração de Comissão <span class="path">/configuracoes-comissao</span></a>
+              <a href="/configuracoes-precificacao" target="_blank">Precificação <span class="path">/configuracoes-precificacao</span></a>
+            </div>
+          </article>
+        </section>
+
+        <section class="checklist">
+          <h2>Checklist de revisão</h2>
+          <ul>
+            <li>Verificar se a tela carrega sem erro visual.</li>
+            <li>Verificar se nomes dos menus estão duplicados ou antigos.</li>
+            <li>Procurar textos com grafia incorreta ou sem acento.</li>
+            <li>Conferir botões sem ação aparente.</li>
+            <li>Conferir se o nome do sistema está padronizado.</li>
+            <li>Verificar se tabelas, cards e filtros seguem o mesmo padrão visual.</li>
+            <li>Verificar se há tela antiga ou módulo que deveria ter sido removido.</li>
+          </ul>
+        </section>
+      </main>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
+

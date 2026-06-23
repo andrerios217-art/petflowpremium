@@ -98,12 +98,12 @@
 
         <div class="pdv-search-row pdv-search-row-clientes">
           <div class="pdv-field pdv-field-small">
-            <label for="pdv-empresa-id">Empresa ID</label>
+            <label for="pdv-empresa-id">Empresa</label>
             <input type="number" id="pdv-empresa-id" value="1" min="1" />
           </div>
 
           <div class="pdv-field pdv-field-grow">
-            <label for="pdv-busca-cliente">Buscar cliente</label>
+            <label for="pdv-busca-cliente">Cliente</label>
             <input
               type="text"
               id="pdv-busca-cliente"
@@ -113,7 +113,7 @@
 
           <div class="pdv-search-action">
             <button type="button" id="btn-buscar-cliente" class="pdv-btn">
-              Buscar cliente
+              Cliente
             </button>
           </div>
         </div>
@@ -259,7 +259,7 @@
       <div class="pdv-card">
         <div class="pdv-card__header">
           <div>
-            <h2>Atendimentos veterinários prontos</h2>
+            <h2>Atendimentos veterinários prontos para venda</h2>
             <p>Adicione na venda como serviço (cliente cadastrado ou vinculado).</p>
           </div>
 
@@ -1220,4 +1220,129 @@
 </section>
 
 <script src="{{ url_for('static', path='js/pdv.js') }}"></script>
+<script id="pdv-ajuste-ux-operador">
+  document.addEventListener("DOMContentLoaded", function () {
+    function trocarTextosSoltos() {
+      const trocas = [
+        ["Empresa ID", "Empresa"],
+        ["Cliente ID", "Cliente"],
+        ["Funcionário ID", "Funcionário"],
+        ["Funcionario ID", "Funcionário"],
+        ["Produto ID", "Produto"],
+        ["Serviço ID", "Serviço"],
+        ["Servico ID", "Serviço"],
+        ["Venda Atual", "Venda atual"],
+        ["Produção pronta para PDV", "Produção pronta para venda"],
+        ["Atendimentos veterinários prontos", "Atendimentos veterinários prontos para venda"],
+        ["Forma Pagamento", "Forma de pagamento"],
+        ["Valor Pago", "Valor pago"],
+        ["Finalizar Venda", "Finalizar venda"],
+        ["Cancelar Venda", "Cancelar venda"]
+      ];
+
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
+      }
+
+      nodes.forEach(function (node) {
+        let texto = node.nodeValue || "";
+
+        trocas.forEach(function (item) {
+          texto = texto.replaceAll(item[0], item[1]);
+        });
+
+        node.nodeValue = texto;
+      });
+    }
+
+    function esconderEmpresaId() {
+      const possiveisIds = [
+        "empresaId",
+        "empresa_id",
+        "pdvEmpresaId",
+        "pdv-empresa-id",
+        "empresa-id",
+        "filtroEmpresaId"
+      ];
+
+      possiveisIds.forEach(function (id) {
+        const campo = document.getElementById(id);
+
+        if (!campo) {
+          return;
+        }
+
+        campo.type = "hidden";
+
+        const container = campo.closest("label, .form-group, .field, .pdv-field, .filter-field, .form-field, .input-group, div");
+
+        if (container && (container.textContent || "").toLowerCase().includes("empresa")) {
+          container.style.display = "none";
+        }
+      });
+
+      document.querySelectorAll("label, .form-group, .field, .pdv-field, .filter-field, .form-field").forEach(function (el) {
+        const texto = (el.textContent || "").trim().toLowerCase();
+
+        if (texto === "empresa" || texto === "empresa id" || texto.startsWith("empresa id")) {
+          const input = el.querySelector("input, select");
+
+          if (input) {
+            if (input.tagName === "INPUT") {
+              input.type = "hidden";
+            }
+
+            el.style.display = "none";
+          }
+        }
+      });
+    }
+
+    function melhorarBuscaCliente() {
+      document.querySelectorAll("button, a").forEach(function (el) {
+        const texto = (el.textContent || "").trim().toLowerCase();
+
+        if (texto === "cliente" && (el.id || "").toLowerCase().includes("buscar")) {
+          el.textContent = "Buscar";
+        }
+
+        if (texto === "buscar cliente") {
+          el.textContent = "Buscar";
+        }
+      });
+
+      document.querySelectorAll("input").forEach(function (input) {
+        const placeholder = input.getAttribute("placeholder") || "";
+
+        if (placeholder.toLowerCase().includes("cliente id")) {
+          input.setAttribute("placeholder", "Digite o nome do cliente");
+        }
+
+        if (placeholder.toLowerCase() === "buscar cliente") {
+          input.setAttribute("placeholder", "Digite o nome do cliente");
+        }
+      });
+    }
+
+    function aplicarAjustes() {
+      trocarTextosSoltos();
+      esconderEmpresaId();
+      melhorarBuscaCliente();
+    }
+
+    aplicarAjustes();
+
+    const observer = new MutationObserver(function () {
+      aplicarAjustes();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  });
+</script>
 {% endblock %}

@@ -17,7 +17,7 @@
   <section class="purchase-ai-card purchase-ai-no-print">
     <div class="purchase-ai-filters">
       <div class="purchase-ai-field purchase-ai-field-small">
-        <label for="ia-compras-empresa-id">Empresa ID</label>
+        <label for="ia-compras-empresa-id">Empresa</label>
         <input type="number" id="ia-compras-empresa-id" value="1" min="1">
       </div>
 
@@ -43,17 +43,17 @@
       </div>
 
       <div class="purchase-ai-field">
-        <label for="ia-compras-dias-cobertura">Comprar para quantos dias?</label>
+        <label for="ia-compras-dias-cobertura">Estoque desejado para quantos dias?</label>
         <input type="number" id="ia-compras-dias-cobertura" value="30" min="1" max="180">
       </div>
 
       <div class="purchase-ai-field">
-        <label for="ia-compras-prazo-reposicao">Prazo reposição dias úteis</label>
+        <label for="ia-compras-prazo-reposicao">Prazo de reposição em dias úteis</label>
         <input type="number" id="ia-compras-prazo-reposicao" value="3" min="0" max="30">
       </div>
 
       <div class="purchase-ai-field">
-        <label for="ia-compras-dias-produto-parado">Produto parado após dias</label>
+        <label for="ia-compras-dias-produto-parado">Produto parado após quantos dias?</label>
         <input type="number" id="ia-compras-dias-produto-parado" value="60" min="1" max="365">
       </div>
 
@@ -63,7 +63,7 @@
         </button>
 
         <button type="button" id="btn-exportar-compras" class="purchase-ai-btn purchase-ai-btn-success">
-          Exportar CSV/Excel
+          Exportar Excel
         </button>
 
         <button type="button" id="btn-imprimir-compras" class="purchase-ai-btn">
@@ -99,7 +99,7 @@
     <div class="purchase-ai-card-header">
       <div>
         <h2>Sugestões de compra</h2>
-        <p id="ia-compras-subtitle">Nenhuma análise realizada.</p>
+        <p id="ia-compras-subtitle">Informe os filtros e clique em Analisar produtos para gerar a recomendação.</p>
       </div>
     </div>
 
@@ -117,7 +117,7 @@
             <th class="purchase-ai-money">Estoque atual</th>
             <th class="purchase-ai-money">Estoque alvo</th>
             <th class="purchase-ai-money">Necessidade</th>
-            <th class="purchase-ai-money">Sugestão compra</th>
+            <th class="purchase-ai-money">Sugestão de compra</th>
             <th class="purchase-ai-money">Faturamento</th>
             <th class="purchase-ai-money">Margem estimada</th>
           </tr>
@@ -1064,7 +1064,7 @@
         "Quantidade vendida",
         "Média diária",
         "Dias de cobertura",
-        "Prazo reposição dias úteis",
+        "Prazo de reposição em dias úteis",
         "Previsão venda durante reposição",
         "Demanda cobertura",
         "Demanda total planejada",
@@ -1173,5 +1173,112 @@
   if (iaComprasEls.btnImprimir) {
     iaComprasEls.btnImprimir.addEventListener("click", imprimirCompras);
   }
+</script>
+<script id="ia-compras-ajuste-ux">
+  document.addEventListener("DOMContentLoaded", function () {
+    function trocarTextosSoltos() {
+      const trocas = [
+        ["Empresa ID", "Empresa"],
+        ["Prazo reposição dias úteis", "Prazo de reposição em dias úteis"],
+        ["Prazo de reposição dias úteis", "Prazo de reposição em dias úteis"],
+        ["Produto parado após dias", "Produto parado após quantos dias?"],
+        ["Comprar para quantos dias?", "Estoque desejado para quantos dias?"],
+        ["Sugestão compra", "Sugestão de compra"],
+        ["Sugestao compra", "Sugestão de compra"],
+        ["Exportar CSV/Excel", "Exportar Excel"],
+        ["Exportar CSV", "Exportar Excel"],
+        ["Nenhuma análise realizada.", "Informe os filtros e clique em Analisar produtos para gerar a recomendação."],
+        ["Nenhuma analise realizada.", "Informe os filtros e clique em Analisar produtos para gerar a recomendação."]
+      ];
+
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
+      }
+
+      nodes.forEach(function (node) {
+        let texto = node.nodeValue;
+
+        trocas.forEach(function (item) {
+          texto = texto.replaceAll(item[0], item[1]);
+        });
+
+        node.nodeValue = texto;
+      });
+    }
+
+    function esconderEmpresaId() {
+      const possiveisIds = [
+        "empresaId",
+        "empresa_id",
+        "iaEmpresaId",
+        "iaComprasEmpresaId",
+        "filtroEmpresaId",
+        "empresa-id"
+      ];
+
+      possiveisIds.forEach(function (id) {
+        const campo = document.getElementById(id);
+
+        if (!campo) {
+          return;
+        }
+
+        campo.type = "hidden";
+
+        const container = campo.closest("label, .form-group, .field, .ia-field, .compras-field, .filter-field, .form-field, .input-group, div");
+
+        if (container && (container.textContent || "").toLowerCase().includes("empresa")) {
+          container.style.display = "none";
+        }
+      });
+
+      document.querySelectorAll("label, .form-group, .field, .ia-field, .compras-field, .filter-field, .form-field").forEach(function (el) {
+        const texto = (el.textContent || "").trim().toLowerCase();
+
+        if (texto === "empresa" || texto === "empresa id" || texto.startsWith("empresa id")) {
+          const input = el.querySelector("input");
+
+          if (input) {
+            input.type = "hidden";
+            el.style.display = "none";
+          }
+        }
+      });
+    }
+
+    function ajustarBotoes() {
+      document.querySelectorAll("button, a").forEach(function (el) {
+        const texto = (el.textContent || "").trim();
+
+        if (texto === "Exportar CSV/Excel" || texto === "Exportar CSV") {
+          el.textContent = "Exportar Excel";
+        }
+
+        if (texto === "Analisar Produtos") {
+          el.textContent = "Analisar produtos";
+        }
+      });
+    }
+
+    function aplicarAjustes() {
+      trocarTextosSoltos();
+      esconderEmpresaId();
+      ajustarBotoes();
+    }
+
+    aplicarAjustes();
+
+    const observer = new MutationObserver(function () {
+      aplicarAjustes();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  });
 </script>
 {% endblock %}65ew

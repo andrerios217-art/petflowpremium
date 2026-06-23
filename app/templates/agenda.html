@@ -3,15 +3,15 @@
 {% block content %}
 <section class="page-header">
   <div>
-    <h1>Agenda Semanal Pet Shop</h1>
-    <p>Visualização livre e organizada automaticamente por horário.</p>
+    <h1>Agenda Banho e Tosa</h1>
+    <p>Visualização semanal organizada por dia, horário e status do atendimento.</p>
   </div>
 
   <div class="header-actions agenda-actions">
     <button class="secondary-btn" id="semana-anterior">← Semana anterior</button>
     <input type="date" id="data-base" class="date-input" />
     <button class="secondary-btn" id="proxima-semana">Próxima semana →</button>
-    <button class="primary-btn" id="novo-agendamento-btn">Novo Agendamento</button>
+    <button class="primary-btn" id="novo-agendamento-btn">Novo agendamento</button>
   </div>
 </section>
 
@@ -52,7 +52,7 @@
   <div class="modal-card modal-large">
     <div class="modal-header">
       <div>
-        <h2>Novo Agendamento</h2>
+        <h2>Novo agendamento</h2>
         <p>Selecione cliente, pet, serviços e horário.</p>
       </div>
       <button type="button" class="modal-close" id="fechar-modal">✕</button>
@@ -60,7 +60,7 @@
 
     <form id="agendamento-form" class="form-grid">
       <div class="form-group full-width">
-        <label>Buscar cliente/pet</label>
+        <label>Buscar tutor ou pet</label>
         <input
           type="text"
           id="busca-cliente-pet"
@@ -126,7 +126,7 @@
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="primary-btn">Salvar Agendamento</button>
+        <button type="submit" class="primary-btn">Salvar agendamento</button>
         <button type="button" class="secondary-btn" id="cancelar-modal">Cancelar</button>
       </div>
 
@@ -140,8 +140,8 @@
   <div class="modal-card modal-large modal-detail-card">
     <div class="modal-header">
       <div>
-        <h2>Detalhes do Agendamento</h2>
-        <p>Acompanhamento e ações rápidas do atendimento.</p>
+        <h2>Detalhes do agendamento</h2>
+        <p>Acompanhe o atendimento e execute ações rápidas.</p>
       </div>
       <button type="button" class="modal-close" id="fechar-detalhe-modal">✕</button>
     </div>
@@ -191,21 +191,21 @@
 
         <div class="detail-section">
           <h3>Observações</h3>
-          <div id="detalhe-observacoes" class="detail-observacoes-box">Sem observações.</div>
+          <div id="detalhe-observacoes" class="detail-observacoes-box">Nenhuma observação registrada.</div>
         </div>
       </div>
 
       <div class="detail-actions">
         <div class="detail-actions-left">
           <button type="button" class="secondary-btn hidden" id="btn-editar-agendamento">Editar</button>
-          <button type="button" class="danger-btn hidden" id="btn-excluir-agendamento">Excluir</button>
+          <button type="button" class="danger-btn hidden" id="btn-excluir-agendamento">Cancelar agendamento</button>
         </div>
 
         <div class="detail-actions-right">
-          <button type="button" class="secondary-btn hidden" id="btn-falta-agendamento">Falta</button>
+          <button type="button" class="secondary-btn hidden" id="btn-falta-agendamento">Cliente faltou</button>
           <button type="button" class="secondary-btn hidden" id="btn-cancelar-agendamento">Cancelar</button>
           <button type="button" class="primary-btn hidden" id="btn-iniciar-agendamento">Iniciar atendimento</button>
-          <button type="button" class="success-btn hidden" id="btn-finalizar-agendamento">Finalizar</button>
+          <button type="button" class="success-btn hidden" id="btn-finalizar-agendamento">Finalizar atendimento</button>
         </div>
       </div>
 
@@ -233,4 +233,97 @@
 </div>
 
 <script src="/static/js/agenda.js"></script>
+<script id="agenda-ajuste-ux-operador">
+  document.addEventListener("DOMContentLoaded", function () {
+    function trocarTextosSoltos() {
+      const trocas = [
+        ["Agenda Semanal Pet Shop", "Agenda Banho e Tosa"],
+        ["Visualização livre e organizada automaticamente por horário.", "Visualização semanal organizada por dia, horário e status do atendimento."],
+        ["Novo Agendamento", "Novo agendamento"],
+        ["Salvar Agendamento", "Salvar agendamento"],
+        ["Buscar cliente/pet", "Buscar tutor ou pet"],
+        ["Detalhes do Agendamento", "Detalhes do agendamento"],
+        ["Acompanhamento e ações rápidas do atendimento.", "Acompanhe o atendimento e execute ações rápidas."],
+        ["Sem observações.", "Nenhuma observação registrada."],
+        ["Falta", "Cliente faltou"],
+        ["Excluir", "Cancelar agendamento"],
+        ["Finalizar", "Finalizar atendimento"]
+      ];
+
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
+      }
+
+      nodes.forEach(function (node) {
+        let texto = node.nodeValue || "";
+
+        trocas.forEach(function (item) {
+          texto = texto.replaceAll(item[0], item[1]);
+        });
+
+        node.nodeValue = texto;
+      });
+    }
+
+    function ajustarBotoes() {
+      document.querySelectorAll("button, a").forEach(function (el) {
+        const texto = (el.textContent || "").trim();
+
+        if (texto === "Falta") {
+          el.textContent = "Cliente faltou";
+        }
+
+        if (texto === "Excluir") {
+          el.textContent = "Cancelar agendamento";
+        }
+
+        if (texto === "Finalizar") {
+          el.textContent = "Finalizar atendimento";
+        }
+
+        if (texto === "Salvar Agendamento") {
+          el.textContent = "Salvar agendamento";
+        }
+
+        if (texto === "Novo Agendamento") {
+          el.textContent = "Novo agendamento";
+        }
+      });
+    }
+
+    function ajustarPlaceholders() {
+      document.querySelectorAll("input").forEach(function (input) {
+        const placeholder = input.getAttribute("placeholder") || "";
+
+        if (placeholder.toLowerCase().includes("cliente/pet")) {
+          input.setAttribute("placeholder", "Digite o nome do tutor ou pet");
+        }
+
+        if (placeholder.toLowerCase().includes("buscar cliente")) {
+          input.setAttribute("placeholder", "Digite o nome do tutor");
+        }
+      });
+    }
+
+    function aplicarAjustes() {
+      trocarTextosSoltos();
+      ajustarBotoes();
+      ajustarPlaceholders();
+    }
+
+    aplicarAjustes();
+
+    const observer = new MutationObserver(function () {
+      aplicarAjustes();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  });
+</script>
 {% endblock %}

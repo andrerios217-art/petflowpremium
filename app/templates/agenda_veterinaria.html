@@ -1,18 +1,271 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
+<style id="agenda-veterinaria-estetica-banho-tosa">
+  .agenda-veterinaria-page,
+  .agenda-vet-page,
+  .agenda-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .agenda-veterinaria-page .page-header,
+  .agenda-vet-page .page-header,
+  .agenda-page .page-header,
+  .agenda-veterinaria-header,
+  .agenda-vet-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .agenda-veterinaria-page h1,
+  .agenda-vet-page h1,
+  .agenda-page h1 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 900;
+  }
+
+  .agenda-veterinaria-page p,
+  .agenda-vet-page p,
+  .agenda-page p {
+    color: #64748b;
+  }
+
+  .agenda-veterinaria-page button,
+  .agenda-vet-page button,
+  .agenda-page button {
+    min-height: 40px;
+    border: 0;
+    border-radius: 12px;
+    padding: 0 14px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .agenda-veterinaria-page button:hover,
+  .agenda-vet-page button:hover,
+  .agenda-page button:hover {
+    transform: translateY(-1px);
+  }
+
+  .agenda-veterinaria-page button[type="submit"],
+  .agenda-vet-page button[type="submit"],
+  .agenda-page button[type="submit"],
+  #btnNovoAgendamentoVet,
+  #btnNovoAgendamentoVeterinario,
+  #btnNovoAgendamento,
+  .btn-primary {
+    color: #ffffff;
+    background: #2563eb;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  }
+
+  .agenda-veterinaria-page button:not([type="submit"]),
+  .agenda-vet-page button:not([type="submit"]),
+  .agenda-page button:not([type="submit"]) {
+    color: #0f172a;
+    background: #e2e8f0;
+  }
+
+  .agenda-veterinaria-page input,
+  .agenda-veterinaria-page select,
+  .agenda-veterinaria-page textarea,
+  .agenda-vet-page input,
+  .agenda-vet-page select,
+  .agenda-vet-page textarea,
+  .agenda-page input,
+  .agenda-page select,
+  .agenda-page textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+    outline: none;
+  }
+
+  .agenda-veterinaria-page input,
+  .agenda-veterinaria-page select,
+  .agenda-vet-page input,
+  .agenda-vet-page select,
+  .agenda-page input,
+  .agenda-page select {
+    min-height: 42px;
+    padding: 0 12px;
+  }
+
+  .agenda-veterinaria-page textarea,
+  .agenda-vet-page textarea,
+  .agenda-page textarea {
+    min-height: 88px;
+    padding: 10px 12px;
+  }
+
+  .agenda-veterinaria-page input:focus,
+  .agenda-veterinaria-page select:focus,
+  .agenda-veterinaria-page textarea:focus,
+  .agenda-vet-page input:focus,
+  .agenda-vet-page select:focus,
+  .agenda-vet-page textarea:focus,
+  .agenda-page input:focus,
+  .agenda-page select:focus,
+  .agenda-page textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .agenda-veterinaria-page label,
+  .agenda-vet-page label,
+  .agenda-page label {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .agenda-veterinaria-page .card,
+  .agenda-vet-page .card,
+  .agenda-page .card,
+  .agenda-veterinaria-page .agenda-card,
+  .agenda-vet-page .agenda-card,
+  .agenda-page .agenda-card,
+  .agenda-veterinaria-page .modal-content,
+  .agenda-vet-page .modal-content,
+  .agenda-page .modal-content {
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+
+  .agenda-veterinaria-page .week-grid,
+  .agenda-vet-page .week-grid,
+  .agenda-page .week-grid,
+  .agenda-veterinaria-page .agenda-grid,
+  .agenda-vet-page .agenda-grid,
+  .agenda-page .agenda-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .agenda-veterinaria-page .day-column,
+  .agenda-vet-page .day-column,
+  .agenda-page .day-column,
+  .agenda-veterinaria-page .agenda-day,
+  .agenda-vet-page .agenda-day,
+  .agenda-page .agenda-day {
+    min-height: 280px;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+  }
+
+  .agenda-veterinaria-page .day-header,
+  .agenda-vet-page .day-header,
+  .agenda-page .day-header,
+  .agenda-veterinaria-page .agenda-day-header,
+  .agenda-vet-page .agenda-day-header,
+  .agenda-page .agenda-day-header {
+    padding: 12px;
+    color: #0f172a;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .agenda-veterinaria-page .appointment-card,
+  .agenda-vet-page .appointment-card,
+  .agenda-page .appointment-card,
+  .agenda-veterinaria-page .agendamento-card,
+  .agenda-vet-page .agendamento-card,
+  .agenda-page .agendamento-card {
+    margin: 10px;
+    padding: 10px;
+    border: 1px solid #dbeafe;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: #0f172a;
+    cursor: pointer;
+  }
+
+  .agenda-veterinaria-page .modal,
+  .agenda-vet-page .modal,
+  .agenda-page .modal {
+    backdrop-filter: blur(2px);
+  }
+
+  .agenda-veterinaria-page .modal-content,
+  .agenda-vet-page .modal-content,
+  .agenda-page .modal-content {
+    padding: 18px;
+  }
+
+  .agenda-veterinaria-page .modal-content h2,
+  .agenda-vet-page .modal-content h2,
+  .agenda-page .modal-content h2 {
+    margin-top: 0;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 900;
+  }
+
+  .agenda-veterinaria-page .empty-state,
+  .agenda-vet-page .empty-state,
+  .agenda-page .empty-state {
+    padding: 24px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 18px;
+    background: #f8fafc;
+    text-align: center;
+    color: #64748b;
+  }
+
+  @media (max-width: 1180px) {
+    .agenda-veterinaria-page .week-grid,
+    .agenda-vet-page .week-grid,
+    .agenda-page .week-grid,
+    .agenda-veterinaria-page .agenda-grid,
+    .agenda-vet-page .agenda-grid,
+    .agenda-page .agenda-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 760px) {
+    .agenda-veterinaria-page .week-grid,
+    .agenda-vet-page .week-grid,
+    .agenda-page .week-grid,
+    .agenda-veterinaria-page .agenda-grid,
+    .agenda-vet-page .agenda-grid,
+    .agenda-page .agenda-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
 <link rel="stylesheet" href="/static/css/agenda_veterinaria.css">
 
 <section class="page-header">
   <div>
     <h1>Agenda Veterinária</h1>
-    <p>Gestão clínica com agenda semanal, agendamento e início rápido do atendimento.</p>
+    <p>Visualização semanal dos atendimentos veterinários, organizada por dia, horário e status.</p>
   </div>
 
   <div class="page-header-actions">
     <button type="button" class="btn btn-secondary" id="btnSemanaAnterior">← Semana anterior</button>
     <button type="button" class="btn btn-light" id="btnHoje">Hoje</button>
-    <button type="button" class="btn btn-secondary" id="btnProximaSemana">Próxima semana →</button>
+    <button type="button" class="btn btn-secondary" id="btnProximaSemana">Próxima semana → →</button>
     <button type="button" class="btn btn-primary" id="btnNovoAgendamento">Novo Agendamento</button>
   </div>
 </section>
@@ -49,8 +302,8 @@
   <div class="modal-card modal-card-lg">
     <div class="modal-header">
       <div>
-        <h2>Novo Agendamento Veterinário</h2>
-        <p>Selecione tutor, pet, responsável, data/hora e serviços clínicos.</p>
+        <h2>Novo agendamento</h2>
+        <p>Selecione tutor, pet, veterinário, serviço e horário.</p>
       </div>
 
       <button type="button" class="modal-close" id="btnFecharModalAgendamentoVet">✕</button>
@@ -73,7 +326,7 @@
         </div>
 
         <div class="form-group">
-          <label for="agVetFuncionario">Responsável veterinário</label>
+          <label for="agVetFuncionario">Veterinário responsável</label>
           <select id="agVetFuncionario" class="input" required>
             <option value="">Selecione o responsável</option>
           </select>
@@ -106,11 +359,11 @@
       </div>
 
       <div class="form-group">
-        <label for="agVetServicoSelect">Serviços veterinários</label>
+        <label for="agVetServicoSelect">Serviços</label>
 
         <div class="service-picker-row">
           <select id="agVetServicoSelect" class="input">
-            <option value="">Selecione um serviço veterinário</option>
+            <option value="">Selecione um serviço</option>
           </select>
 
           <button type="button" class="btn btn-primary" id="btnAdicionarServicoVet">
@@ -121,7 +374,7 @@
         <div id="agVetServicosSelecionados" class="selected-services">
           <div class="empty-state">
             <h4>Nenhum serviço selecionado</h4>
-            <p>Adicione ao menos um serviço veterinário para o agendamento.</p>
+            <p>Adicione ao menos um serviço para o agendamento.</p>
           </div>
         </div>
       </div>
@@ -139,7 +392,7 @@
 
     <div class="modal-footer">
       <button type="button" class="btn btn-light" id="btnCancelarAgendamentoVet">Cancelar</button>
-      <button type="button" class="btn btn-primary" id="btnSalvarAgendamentoVet">Salvar Agendamento</button>
+      <button type="button" class="btn btn-primary" id="btnSalvarAgendamentoVet">Salvar agendamento</button>
     </div>
   </div>
 </div>
@@ -148,8 +401,8 @@
   <div class="modal-card modal-card-xl">
     <div class="modal-header">
       <div>
-        <h2>Atendimento Clínico</h2>
-        <p>Anamnese, histórico e registro rápido do atendimento veterinário.</p>
+        <h2>Atendimento clínico</h2>
+        <p>Registre anamnese, conduta, medicações, exames e orientações.</p>
       </div>
 
       <button type="button" class="modal-close" id="btnFecharModalAtendimentoClinico">✕</button>
@@ -183,25 +436,25 @@
             <div>
               <span class="summary-label">Serviços adicionados no atendimento</span>
               <small class="summary-helper">
-                O veterinário pode incluir vacinas, medicações e outros serviços veterinários sem editar valor.
+                Inclua vacinas, medicações, exames ou outros serviços realizados durante a consulta.
               </small>
             </div>
           </div>
 
           <div class="service-picker-row">
             <select id="clinicoServicoExtraSelect" class="input">
-              <option value="">Selecione um serviço veterinário extra</option>
+              <option value="">Selecione um serviço extra</option>
             </select>
 
             <button type="button" class="btn btn-primary" id="btnAdicionarServicoExtraClinico">
-              Incluir serviço
+              Adicionar serviço
             </button>
           </div>
 
           <div id="clinicoServicosExtrasSelecionados" class="selected-services">
             <div class="empty-state">
               <h4>Nenhum serviço extra incluído</h4>
-              <p>Inclua aqui vacinas, aplicações, medicações ou outros serviços definidos durante a consulta.</p>
+              <p>Inclua vacinas, aplicações, medicações ou outros serviços definidos durante a consulta.</p>
             </div>
           </div>
         </div>
@@ -246,7 +499,7 @@
 
       <aside class="atendimento-side">
         <div class="side-header">
-          <h3>Histórico do Pet</h3>
+          <h3>Histórico do pet</h3>
           <div class="side-actions">
             <button type="button" class="btn btn-secondary" id="btnAbrirHistoricoPet">Abrir histórico</button>
             <button type="button" class="btn btn-light" id="btnFecharHistoricoDrawer">Fechar histórico</button>
@@ -256,7 +509,7 @@
         <div id="clinicoHistoricoConteudo" class="historico-drawer">
           <div class="empty-state">
             <h4>Histórico pronto para consulta</h4>
-            <p>Clique em “Abrir histórico” para visualizar os atendimentos anteriores do pet.</p>
+            <p>Clique em “Abrir histórico” para visualizar atendimentos anteriores.</p>
           </div>
         </div>
       </aside>
@@ -287,4 +540,84 @@
 </style>
 
 <script src="/static/js/agenda_veterinaria.js"></script>
+<script id="agenda-veterinaria-ajuste-estetica">
+  document.addEventListener("DOMContentLoaded", function () {
+    document.body.classList.add("agenda-veterinaria-body");
+
+    const main = document.querySelector("main") || document.querySelector(".content") || document.body;
+    main.classList.add("agenda-veterinaria-page");
+
+    function trocarTextosSoltos() {
+      const trocas = [
+        ["Gestão clínica com agenda semanal, agendamento e início rápido do atendimento.", "Visualização semanal dos atendimentos veterinários, organizada por dia, horário e status."],
+        ["Novo Agendamento Veterinário", "Novo agendamento"],
+        ["Selecione tutor, pet, responsável, data/hora e serviços clínicos.", "Selecione tutor, pet, veterinário, serviço e horário."],
+        ["Responsável veterinário", "Veterinário responsável"],
+        ["Serviços veterinários", "Serviços"],
+        ["Selecione um serviço veterinário", "Selecione um serviço"],
+        ["Adicione ao menos um serviço veterinário para o agendamento.", "Adicione ao menos um serviço para o agendamento."],
+        ["Salvar Agendamento", "Salvar agendamento"],
+        ["Atendimento Clínico", "Atendimento clínico"],
+        ["Anamnese, histórico e registro rápido do atendimento veterinário.", "Registre anamnese, conduta, medicações, exames e orientações."],
+        ["Serviços adicionados no atendimento", "Serviços adicionados no atendimento"],
+        ["O veterinário pode incluir vacinas, medicações e outros serviços veterinários sem editar valor.", "Inclua vacinas, medicações, exames ou outros serviços realizados durante a consulta."],
+        ["Selecione um serviço veterinário extra", "Selecione um serviço extra"],
+        ["Incluir serviço", "Adicionar serviço"],
+        ["Histórico do Pet", "Histórico do pet"],
+        ["Clique em “Abrir histórico” para visualizar os atendimentos anteriores do pet.", "Clique em “Abrir histórico” para visualizar atendimentos anteriores."]
+      ];
+
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
+      }
+
+      nodes.forEach(function (node) {
+        let texto = node.nodeValue || "";
+
+        trocas.forEach(function (item) {
+          texto = texto.replaceAll(item[0], item[1]);
+        });
+
+        node.nodeValue = texto;
+      });
+    }
+
+    function ajustarBotoes() {
+      document.querySelectorAll("button, a").forEach(function (el) {
+        const texto = (el.textContent || "").trim();
+
+        if (texto === "Novo Agendamento" || texto === "Novo Agendamento Veterinário") {
+          el.textContent = "Novo agendamento";
+        }
+
+        if (texto === "Salvar Agendamento") {
+          el.textContent = "Salvar agendamento";
+        }
+
+        if (texto === "Incluir serviço") {
+          el.textContent = "Adicionar serviço";
+        }
+      });
+    }
+
+    function aplicarAjustes() {
+      trocarTextosSoltos();
+      ajustarBotoes();
+    }
+
+    aplicarAjustes();
+
+    const observer = new MutationObserver(function () {
+      aplicarAjustes();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  });
+</script>
 {% endblock %}

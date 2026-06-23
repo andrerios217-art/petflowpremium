@@ -58,5 +58,55 @@
   </div>
 
   <script src="/static/js/app.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("a.nav-item").forEach(function (item) {
+      const href = (item.getAttribute("href") || "").toLowerCase();
+      const texto = (item.textContent || "").toLowerCase();
+
+      if (
+        href.includes("relatorio-vendas") ||
+        href.includes("relatorios-vendas") ||
+        texto.includes("relatório de vendas") ||
+        texto.includes("relatorio de vendas")
+      ) {
+        item.remove();
+      }
+
+      if (href === "/precificacao" || href.includes("/precificacao")) {
+        const icon = item.querySelector(".nav-icon");
+        const text = item.querySelector(".nav-text");
+
+        if (icon) {
+          icon.textContent = "💲";
+        }
+
+        if (text) {
+          text.textContent = "Precificação";
+        }
+
+        item.setAttribute("title", "Precificação");
+      }
+    });
+
+    document.querySelectorAll(".logo-text").forEach(function (logo) {
+      if ((logo.textContent || "").includes("Pet Flow Premium") || (logo.textContent || "").includes("PetFlow Premium")) {
+        logo.textContent = "VectorPet";
+      }
+    });
+
+    document.querySelectorAll("h1, h2, h3, p, span, small, strong").forEach(function (el) {
+      if (!el || !el.childNodes || el.childNodes.length !== 1) {
+        return;
+      }
+
+      const texto = el.textContent || "";
+
+      if (texto.includes("Pet Flow Premium") || texto.includes("PetFlow Premium")) {
+        el.textContent = texto.replaceAll("Pet Flow Premium", "VectorPet").replaceAll("PetFlow Premium", "VectorPet");
+      }
+    });
+  });
+</script>
 </body>
 </html>
