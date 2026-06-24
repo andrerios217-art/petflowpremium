@@ -38,6 +38,30 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.APP_NAME, version="1.0.0")
 
+
+
+# === PAGINA ASSINATURAS (VectorPet) ===
+from fastapi import Request as _VectorPetAssinaturasRequest
+from fastapi.responses import HTMLResponse as _VectorPetAssinaturasHTMLResponse
+from fastapi.templating import Jinja2Templates as _VectorPetAssinaturasTemplates
+
+_vectorpet_assinaturas_templates = _VectorPetAssinaturasTemplates(directory="app/templates")
+
+
+@app.get("/assinaturas", response_class=_VectorPetAssinaturasHTMLResponse)
+@app.get("/assinaturas/novo", response_class=_VectorPetAssinaturasHTMLResponse)
+async def vectorpet_assinaturas_page(request: _VectorPetAssinaturasRequest):
+    return _vectorpet_assinaturas_templates.TemplateResponse(
+        request,
+        "assinaturas.html",
+        {
+            "request": request,
+            "system_name": "VectorPet",
+            "assinatura_id": "",
+        },
+    )
+# === FIM PAGINA ASSINATURAS (VectorPet) ===
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -71,6 +95,7 @@ app.include_router(caixa_router)
 app.include_router(cashback_router)
 app.include_router(precificacao_api.router)
 app.include_router(relatorios_banho_tosa_router)
+
 app.include_router(assinaturas_router)
 
 
@@ -556,3 +581,5 @@ async def vectorpet_relatorio_banho_tosa_page(request: _VectorPetBanhoTosaReques
         },
     )
 # === FIM ROTAS RELATORIO BANHO TOSA (VectorPet) ===
+
+
