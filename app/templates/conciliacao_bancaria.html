@@ -11,7 +11,7 @@
       <p class="conciliacao-eyebrow">Financeiro</p>
       <h1>Conciliação Bancária</h1>
       <p class="conciliacao-subtitle">
-        Conferência rápida entre extrato bancário e movimentações financeiras do sistema.
+        Confira o extrato bancário com os lançamentos do sistema, sem criar novos lançamentos financeiros.
       </p>
     </div>
 
@@ -45,12 +45,12 @@
       </label>
 
       <label class="conciliacao-field">
-        <span>Tolerância em dias</span>
+        <span>Diferença máxima de dias</span>
         <input type="number" id="conciliacaoToleranciaDias" min="0" max="30" step="1" value="2">
       </label>
 
       <label class="conciliacao-field">
-        <span>Tolerância em centavos</span>
+        <span>Diferença máxima de valor em centavos</span>
         <input type="number" id="conciliacaoToleranciaCentavos" min="0" max="10000" step="1" value="2">
       </label>
     </div>
@@ -58,7 +58,7 @@
 
   <div class="conciliacao-card conciliacao-upload-card">
     <div class="conciliacao-upload-info">
-      <h2>Importar extrato bancário</h2>
+      <h2>Importar extrato</h2>
       <p>
         Aceita arquivos <strong>CSV</strong>, <strong>OFX</strong> ou <strong>QFX</strong>.
         O sistema compara automaticamente data, valor e tipo.
@@ -66,10 +66,10 @@
     </div>
 
     <div class="conciliacao-upload-area" id="conciliacaoDropArea">
-      <input type="file" id="conciliacaoArquivo" accept=".csv,.ofx,.qfx,text/csv">
+      <input type="file" id="conciliacaoExtrato" accept=".csv,.ofx,.qfx,text/csv">
       <div class="conciliacao-upload-icon">🏦</div>
-      <h3>Selecione ou arraste o arquivo aqui</h3>
-      <p id="conciliacaoArquivoNome">Nenhum arquivo selecionado</p>
+      <h3>Selecione ou arraste o extrato aqui</h3>
+      <p id="conciliacaoExtratoNome">Nenhum arquivo selecionado</p>
     </div>
 
     <div class="conciliacao-actions">
@@ -78,7 +78,7 @@
       </button>
 
       <button type="button" class="conciliacao-btn conciliacao-btn-exportar" id="btnExportarConciliacao">
-        Exportar XLSX
+        Exportar Excel
       </button>
 
       <button type="button" class="conciliacao-btn conciliacao-btn-cadastrar" id="btnCadastrarConciliacao" disabled>
@@ -95,44 +95,44 @@
 
   <section class="conciliacao-grid conciliacao-resumo-grid" id="conciliacaoResumoCards">
     <article class="conciliacao-card conciliacao-resumo-card">
-      <span>Movimentos banco</span>
+      <span>Movimentos do banco</span>
       <strong>--</strong>
-      <small>Aguardando importação</small>
+      <small>Aguardando extrato</small>
     </article>
 
     <article class="conciliacao-card conciliacao-resumo-card">
       <span>Conferidos</span>
       <strong>--</strong>
-      <small>Aguardando importação</small>
+      <small>Aguardando extrato</small>
     </article>
 
     <article class="conciliacao-card conciliacao-resumo-card">
       <span>Pendentes</span>
       <strong>--</strong>
-      <small>Aguardando importação</small>
+      <small>Aguardando extrato</small>
     </article>
 
     <article class="conciliacao-card conciliacao-resumo-card">
       <span>Ignorados</span>
       <strong>--</strong>
-      <small>Aguardando importação</small>
+      <small>Aguardando extrato</small>
     </article>
   </section>
 
   <section class="conciliacao-card conciliacao-section">
     <div class="conciliacao-section-title">
       <div>
-        <h2>Conferência rápida</h2>
+        <h2>Conferência do extrato</h2>
         <p>
-          O sistema marca automaticamente o que encontrou no financeiro. O operador só revisa pendências e usa ações em massa.
+          O sistema marca automaticamente o que encontrou. Revise pendências, confira os lançamentos e salve a conferência.
         </p>
       </div>
     </div>
 
     <div class="conciliacao-toolbar-pendentes">
       <div>
-        <strong>Ações em massa</strong>
-        <span>Selecione vários movimentos e aplique uma ação rápida.</span>
+        <strong>Ações em lote</strong>
+        <span>Selecione um ou mais movimentos para alterar o status em lote.</span>
       </div>
 
       <div class="conciliacao-toolbar-actions">
@@ -141,7 +141,7 @@
         </button>
 
         <button type="button" class="conciliacao-btn conciliacao-btn-exportar" id="btnMarcarConferidos">
-          Marcar conferidos
+          Marcar como conferidos
         </button>
 
         <button type="button" class="conciliacao-btn conciliacao-btn-sugeridos" id="btnMarcarIgnorados">
@@ -149,7 +149,7 @@
         </button>
 
         <button type="button" class="conciliacao-btn conciliacao-btn-secondary" id="btnMarcarPendentes">
-          Marcar pendentes
+          Marcar como pendentes
         </button>
       </div>
     </div>
@@ -167,14 +167,14 @@
             <th>Tipo</th>
             <th class="conciliacao-right">Valor</th>
             <th>Status</th>
-            <th>Correspondência</th>
+            <th>Lançamento encontrado</th>
             <th>Observação</th>
           </tr>
         </thead>
 
         <tbody id="conciliacaoTabelaConferencia">
           <tr>
-            <td colspan="9" class="conciliacao-empty">Nenhum arquivo processado.</td>
+            <td colspan="9" class="conciliacao-empty">Nenhum extrato processado.</td>
           </tr>
         </tbody>
       </table>
@@ -184,8 +184,8 @@
   <section class="conciliacao-card conciliacao-section">
     <div class="conciliacao-section-title">
       <div>
-        <h2>Histórico de conciliações</h2>
-        <p>Conciliações já cadastradas no banco de dados.</p>
+        <h2>Histórico de conferências</h2>
+        <p>Conferências salvas anteriormente.</p>
       </div>
 
       <button type="button" class="conciliacao-btn conciliacao-btn-secondary" id="btnAtualizarHistoricoConciliacao">
@@ -198,13 +198,13 @@
         <thead>
           <tr>
             <th>ID</th>
-            <th>Arquivo</th>
+            <th>Extrato</th>
             <th>Período</th>
             <th class="conciliacao-right">Banco</th>
             <th class="conciliacao-right">Conferidos</th>
             <th class="conciliacao-right">Pendentes</th>
             <th class="conciliacao-right">Ignorados</th>
-            <th>Criado em</th>
+            <th>Salvo em</th>
             <th class="conciliacao-right">Ações</th>
           </tr>
         </thead>

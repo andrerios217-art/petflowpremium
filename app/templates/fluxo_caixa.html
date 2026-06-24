@@ -11,7 +11,7 @@
     <header class="fluxo-header">
         <div>
             <h1>Fluxo de Caixa</h1>
-            <p>Extrato financeiro consolidado da empresa.</p>
+            <p>Acompanhe entradas, saídas e saldo financeiro por período.</p>
         </div>
     </header>
 
@@ -38,7 +38,7 @@
                 id="btn-carregar-fluxo"
                 type="button"
             >
-                Atualizar
+                Aplicar filtros
             </button>
         </div>
 
@@ -47,7 +47,7 @@
     <section class="fluxo-resumo-grid">
 
         <article class="fluxo-card">
-            <span>Saldo Inicial</span>
+            <span>Saldo inicial</span>
             <strong id="fluxo-saldo-inicial">
                 R$ 0,00
             </strong>
@@ -68,7 +68,7 @@
         </article>
 
         <article class="fluxo-card">
-            <span>Saldo Final</span>
+            <span>Saldo final</span>
             <strong id="fluxo-saldo-final">
                 R$ 0,00
             </strong>
@@ -79,7 +79,7 @@
     <section class="fluxo-extrato-card">
 
         <div class="card-header">
-            <h2>Extrato Financeiro</h2>
+            <h2>Movimentações do período</h2>
         </div>
 
         <div class="table-responsive">
@@ -89,9 +89,9 @@
                 <thead>
                     <tr>
                         <th>Data</th>
-                        <th>Tipo</th>
+                        <th>Movimento</th>
                         <th>Descrição</th>
-                        <th>Forma de Pagamento</th>
+                        <th>Forma de pagamento</th>
                         <th>Entrada</th>
                         <th>Saída</th>
                         <th>Saldo</th>
@@ -102,7 +102,7 @@
 
                     <tr>
                         <td colspan="7">
-                            Nenhum movimento encontrado.
+                            Nenhuma movimentação encontrada no período.
                         </td>
                     </tr>
 

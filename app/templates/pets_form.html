@@ -3,20 +3,20 @@
 {% block content %}
 <section class="page-header">
   <div>
-    <h1>Novo Pet</h1>
-    <p>Cadastro inicial do pet.</p>
+    <h1>Novo pet</h1>
+    <p>Cadastre o pet e vincule ao tutor.</p>
   </div>
 </section>
 
 <section class="glass-card">
   <form id="pet-form" class="form-grid">
     <div class="form-group">
-      <label>ID da Empresa</label>
+      <label>Empresa</label>
       <input type="number" id="empresa_id" value="1" required />
     </div>
 
     <div class="form-group">
-      <label>ID do Cliente</label>
+      <label>Tutor</label>
       <input type="number" id="cliente_id" placeholder="Ex: 1" required />
     </div>
 
@@ -78,13 +78,13 @@
     </div>
 
     <div class="form-group checkbox-group">
-      <label><input type="checkbox" id="pode_perfume" checked /> Pode perfume</label>
-      <label><input type="checkbox" id="pode_acessorio" checked /> Pode acessório</label>
+      <label><input type="checkbox" id="pode_perfume" checked /> Aceita perfume</label>
+      <label><input type="checkbox" id="pode_acessorio" checked /> Aceita acessório</label>
       <label><input type="checkbox" id="castrado" /> Castrado</label>
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="primary-btn">Salvar Pet</button>
+      <button type="submit" class="primary-btn">Salvar pet</button>
       <a href="/pets" class="secondary-btn no-underline">Voltar</a>
     </div>
 

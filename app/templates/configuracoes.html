@@ -730,10 +730,10 @@
   <section class="settings-card">
     <div class="settings-header">
       <div>
-        <span class="settings-kicker">Configurações • Empresa</span>
+        <span class="settings-kicker">Empresa</span>
         <h1>Dados da empresa</h1>
         <p>
-          Configure CNPJ, dados cadastrais, endereço operacional da loja e logo institucional.
+          Configure dados cadastrais, endereço da loja e logo institucional.
         </p>
       </div>
     </div>
@@ -751,12 +751,12 @@
 
         <div class="logo-meta">
           <div class="logo-meta-item">
-            <span>Empresa vinculada</span>
+            <span>Empresa</span>
             <strong id="logo-empresa-id">-</strong>
           </div>
 
           <div class="logo-meta-item">
-            <span>URL salva</span>
+            <span>Logo salvo</span>
             <strong id="logo-url-salva">Nenhuma</strong>
           </div>
         </div>
@@ -767,19 +767,19 @@
             Escolher logo
           </button>
           <button type="button" class="settings-secondary-btn" id="btn-recarregar-logo">
-            Recarregar logo
+            Atualizar logo
           </button>
         </div>
 
         <div class="logo-help">
-          Recomendação crítica: usar um logo com fundo transparente. Para marca d’água isso fica muito melhor.
+          Dica: prefira um logo com fundo transparente para melhorar a impressão de receitas e documentos.
         </div>
       </div>
 
       <div class="company-panel">
-        <h3>Cadastro da empresa</h3>
+        <h3>Dados cadastrais</h3>
         <p>
-          Busque os dados pelo CNPJ e ajuste manualmente o endereço da loja, que pode ser diferente do endereço cadastral.
+          Busque os dados pelo CNPJ e ajuste o endereço real de atendimento da loja, se for diferente do cadastro.
         </p>
 
         <div class="company-form-wrap">
@@ -826,12 +826,12 @@
             </div>
 
             <div class="company-field span-4">
-              <label for="empresa-cep">CEP cadastral</label>
+              <label for="empresa-cep">CEP</label>
               <input type="text" id="empresa-cep" class="settings-input" placeholder="00000-000">
             </div>
 
             <div class="company-field span-6">
-              <label for="empresa-logradouro">Logradouro cadastral</label>
+              <label for="empresa-logradouro">Logradouro</label>
               <input type="text" id="empresa-logradouro" class="settings-input" placeholder="Rua, avenida, etc.">
             </div>
 
@@ -862,7 +862,7 @@
 
             <div class="company-field span-12">
               <div class="company-field-header">
-                <label for="empresa-endereco-loja">Endereço da loja exibido na receita</label>
+                <label for="empresa-endereco-loja">Endereço da loja na receita</label>
                 <button type="button" class="company-inline-small-btn" id="btn-usar-endereco-cadastro">
                   Usar endereço do cadastro
                 </button>
@@ -888,10 +888,10 @@
   <section class="settings-card">
     <div class="settings-header">
       <div>
-        <span class="settings-kicker">Configurações • Assinantes</span>
+        <span class="settings-kicker">Assinantes</span>
         <h1>Desconto automático no PDV</h1>
         <p>
-          Configure percentuais diferentes para produtos e serviços quando o cliente selecionado no PDV for assinante.
+          Defina descontos automáticos para produtos e serviços quando o cliente selecionado no PDV for assinante.
         </p>
       </div>
     </div>
@@ -928,20 +928,20 @@
       </div>
 
       <div class="subscriber-discount-preview">
-        <span>Regra atual</span>
+        <span>Desconto atual</span>
         <strong id="desconto-assinante-preview">Produtos: 0,00% • Serviços: 0,00%</strong>
         <p>
-          No PDV, o desconto será calculado separando itens de produto e itens de serviço.
+          No PDV, o desconto será aplicado separadamente para produtos e serviços.
         </p>
       </div>
     </div>
 
     <div class="logo-actions">
       <button type="button" class="settings-success-btn" id="btn-salvar-desconto-assinante">
-        Salvar desconto
+        Salvar descontos
       </button>
       <button type="button" class="settings-secondary-btn" id="btn-recarregar-desconto-assinante">
-        Recarregar desconto
+        Atualizar descontos
       </button>
     </div>
   </section>
@@ -949,17 +949,17 @@
   <section class="settings-card">
     <div class="settings-header">
       <div>
-        <span class="settings-kicker">Configurações • Acessos</span>
-        <h1>Permissões por funcionário</h1>
+        <span class="settings-kicker">Acessos</span>
+        <h1>Permissões de acesso</h1>
         <p>
-          Busque o funcionário e abra a janela de configuração apenas quando precisar editar os acessos.
+          Busque o funcionário para consultar ou alterar as permissões de acesso.
         </p>
       </div>
     </div>
 
     <div class="permission-summary">
       <div class="permission-summary-card">
-        <span>Total de funcionários</span>
+        <span>Funcionários cadastrados</span>
         <strong id="summary-total">0</strong>
       </div>
       <div class="permission-summary-card">
@@ -967,11 +967,11 @@
         <strong id="summary-ativos">0</strong>
       </div>
       <div class="permission-summary-card">
-        <span>Com acesso a configurações</span>
+        <span>Acesso a configurações</span>
         <strong id="summary-config">0</strong>
       </div>
       <div class="permission-summary-card">
-        <span>Com acesso ao PDV</span>
+        <span>Acesso ao PDV</span>
         <strong id="summary-pdv">0</strong>
       </div>
     </div>
@@ -984,28 +984,28 @@
         placeholder="Buscar por nome, e-mail, CPF, telefone ou função"
       />
       <button type="button" class="settings-primary-btn" id="btn-recarregar-permissoes">
-        Recarregar
+        Atualizar
       </button>
     </div>
 
     <div id="settings-permissions-alert" class="settings-alert info"></div>
 
     <div class="permission-hint">
-      Digite para localizar o funcionário e clique no resultado para abrir a configuração.
+      Digite o nome do funcionário e clique no resultado para editar as permissões.
     </div>
 
     <div id="permission-results" class="permission-results"></div>
 
     <div id="permissions-empty" class="permission-empty" style="display:none;">
-      Nenhum funcionário encontrado para o filtro informado.
+      Nenhum funcionário encontrado.
     </div>
   </section>
 
   <section class="commission-page">
     <div class="commission-hero">
       <div class="commission-hero-text">
-        <span class="commission-kicker">Configurações • Comissão</span>
-        <h1>Comissão de Banho e Tosa</h1>
+        <span class="commission-kicker">Comissão</span>
+        <h1>Comissão banho e tosa</h1>
         <p>
           Configure a pontuação por etapa, as faixas de pagamento em reais e as
           regras operacionais da loja com visual premium e validação automática.
@@ -1014,12 +1014,12 @@
 
       <div class="commission-hero-stats">
         <div class="commission-stat-card">
-          <span class="commission-stat-label">Etapas comissionáveis</span>
+          <span class="commission-stat-label">Etapas com comissão</span>
           <strong>Banho • Tosa • Tosa higiênica • Finalização</strong>
         </div>
 
         <div class="commission-stat-card">
-          <span class="commission-stat-label">Regra financeira</span>
+          <span class="commission-stat-label">Forma de cálculo</span>
           <strong>Faixas de pontos → valor fixo</strong>
         </div>
       </div>
@@ -1029,8 +1029,8 @@
       <section class="commission-card">
         <div class="commission-card-header">
           <div>
-            <h2>Pontuação por Etapa</h2>
-            <p>Defina quantos pontos cada etapa entrega ao funcionário que iniciou o atendimento.</p>
+            <h2>Pontuação por etapa</h2>
+            <p>Defina quantos pontos cada etapa gera para o funcionário responsável.</p>
           </div>
         </div>
 
@@ -1057,7 +1057,7 @@
         </div>
 
         <div class="commission-info-box">
-          <strong>Regra operacional fixa</strong>
+          <strong>Regra operacional</strong>
           <p>
             Os pontos sempre pertencem ao profissional que <strong>iniciou</strong> a etapa.
             A captura ocorre no encerramento da etapa no sistema.
@@ -1068,8 +1068,8 @@
       <section class="commission-card">
         <div class="commission-card-header">
           <div>
-            <h2>Regras Operacionais</h2>
-            <p>Defina os dados básicos usados no acompanhamento e fechamento mensal.</p>
+            <h2>Regras operacionais</h2>
+            <p>Defina as informações usadas no acompanhamento e fechamento mensal.</p>
           </div>
         </div>
 
@@ -1098,8 +1098,8 @@
     <section class="commission-card commission-card-full">
       <div class="commission-card-header commission-card-header-space">
         <div>
-          <h2>Faixas de Comissão</h2>
-          <p>Configure as faixas de pontuação e o valor fixo em reais para cada intervalo.</p>
+          <h2>Faixas de comissão</h2>
+          <p>Configure a pontuação inicial, final e o valor pago em cada faixa.</p>
         </div>
 
         <button type="button" class="btn btn-primary commission-add-btn" id="btn-add-faixa">
@@ -1110,7 +1110,7 @@
       <div class="commission-range-head">
         <div>De</div>
         <div>Até</div>
-        <div>Faixa aberta</div>
+        <div>Sem limite final</div>
         <div>Valor (R$)</div>
         <div>Ação</div>
       </div>
@@ -1120,7 +1120,7 @@
 
       <div class="commission-preview-wrap">
         <div class="commission-preview-card">
-          <span class="commission-preview-label">Prévia da regra</span>
+          <span class="commission-preview-label">Prévia da comissão</span>
           <div id="commission-preview" class="commission-preview-content">
             Nenhuma faixa configurada.
           </div>
@@ -1129,7 +1129,7 @@
     </section>
 
     <div class="commission-actions">
-      <button type="button" class="btn btn-secondary" id="btn-reset">Resetar</button>
+      <button type="button" class="btn btn-secondary" id="btn-reset">Limpar</button>
       <button type="button" class="btn btn-success" id="btn-salvar">Salvar configuração</button>
     </div>
   </section>

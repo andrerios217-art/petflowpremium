@@ -8,15 +8,15 @@
 <section class="page-header">
   <div>
     <h1>Estoque</h1>
-    <p>Busca rápida, indicadores essenciais e atalhos operacionais para o estoque.</p>
+    <p>Controle produtos, entradas, saldos por depósito e movimentações do estoque.</p>
   </div>
 
   <div class="page-header-actions">
     <button id="btn-exportar-resumido" class="primary-btn" type="button">
-      Exportar CSV resumido
+      Exportar produtos
     </button>
     <button id="btn-exportar-deposito" class="primary-btn" type="button">
-      Exportar CSV por depósito
+      Exportar estoque por depósito
     </button>
   </div>
 </section>
@@ -40,18 +40,18 @@
   <div class="glass-card">
     <div class="estoque-toolbar">
       <div>
-        <h2>Atalhos do estoque</h2>
-        <p class="estoque-status-topo">Abra informações secundárias só quando precisar.</p>
+        <h2>Operações do estoque</h2>
+        <p class="estoque-status-topo">Acesse rapidamente entradas, posição de estoque e movimentações recentes.</p>
       </div>
       <div class="estoque-actions-inline">
         <button id="btn-abrir-entrada-modal" class="primary-btn estoque-btn-secundario" type="button">
           Entrada manual
         </button>
         <button id="btn-abrir-posicao-modal" class="primary-btn estoque-btn-secundario" type="button">
-          Posição resumida
+          Posição do estoque
         </button>
         <button id="btn-abrir-movimentos-modal" class="primary-btn estoque-btn-secundario" type="button">
-          Movimentos recentes
+          Movimentações recentes
         </button>
       </div>
     </div>
@@ -61,7 +61,7 @@
 <section style="margin-top: 24px;">
   <div class="glass-card">
     <div class="estoque-toolbar">
-      <h2>Gestão de produtos</h2>
+      <h2>Produtos</h2>
       <div class="estoque-actions-inline">
         <button id="btn-atualizar-produtos" class="primary-btn" type="button">
           Buscar produtos
@@ -77,7 +77,7 @@
         <div>
           <h3 id="produto-painel-titulo">Novo produto</h3>
           <p id="produto-painel-subtitulo" class="estoque-painel-inline-subtitulo">
-            Preencha os dados do produto.
+            Cadastre ou edite os dados do produto.
           </p>
         </div>
       </div>
@@ -117,7 +117,7 @@
           </div>
 
           <div class="estoque-field">
-            <label for="produto-custo-medio-atual">Custo médio atual</label>
+            <label for="produto-custo-medio-atual">Custo médio</label>
             <input id="produto-custo-medio-atual" type="number" min="0" step="0.01" placeholder="0,00" />
           </div>
 
@@ -127,7 +127,7 @@
           </div>
 
           <div class="estoque-field">
-            <label for="produto-codigo-barras-principal">Código de barras principal</label>
+            <label for="produto-codigo-barras-principal">Código de barras</label>
             <input id="produto-codigo-barras-principal" type="text" maxlength="80" />
           </div>
 
@@ -189,7 +189,7 @@
           <div class="estoque-field estoque-field-checkbox">
             <label class="estoque-checkbox-wrap">
               <input id="produto-aceita-fracionado" type="checkbox" />
-              <span>Aceita fracionado</span>
+              <span>Venda fracionada</span>
             </label>
           </div>
 
@@ -232,7 +232,7 @@
       </div>
 
       <div class="estoque-filtros-rodape">
-        <span id="status-produtos" class="estoque-status-topo">Digite algo para buscar produtos.</span>
+        <span id="status-produtos" class="estoque-status-topo">Digite nome, SKU ou código de barras para buscar produtos.</span>
 
         <div class="estoque-actions-inline">
           <button id="btn-filtrar-produtos" class="primary-btn" type="button">
@@ -252,7 +252,7 @@
             <th>SKU</th>
             <th>Nome</th>
             <th>Unidade</th>
-            <th>Preço venda</th>
+            <th>Preço de venda</th>
             <th>Custo médio</th>
             <th>Status</th>
             <th style="width: 220px;">Ações</th>
@@ -261,7 +261,7 @@
         <tbody id="tbody-produtos">
           <tr>
             <td colspan="7" class="estoque-empty">
-              Digite um nome, SKU ou código de barras para buscar produtos.
+              Digite nome, SKU ou código de barras para buscar produtos.
             </td>
           </tr>
         </tbody>
@@ -313,7 +313,7 @@
         </div>
 
         <div class="estoque-field">
-          <label for="entrada-documento">Documento referência</label>
+          <label for="entrada-documento">Documento de referência</label>
           <input
             id="entrada-documento"
             type="text"
@@ -373,7 +373,7 @@
       <div class="estoque-filtros-rodape">
         <label class="estoque-checkbox-wrap">
           <input id="filtro-abaixo-minimo" type="checkbox" />
-          <span>Somente abaixo do mínimo</span>
+          <span>Mostrar apenas abaixo do mínimo</span>
         </label>
 
         <div class="estoque-actions-inline">
@@ -389,7 +389,7 @@
 <section id="estoque-section-posicao" style="display: none;">
   <div class="glass-card">
     <div class="estoque-toolbar">
-      <h2 id="titulo-tabela">Posição resumida</h2>
+      <h2 id="titulo-tabela">Posição do estoque</h2>
       <span id="status-tabela" class="estoque-status-topo">Aguardando carregamento...</span>
     </div>
 
@@ -420,7 +420,7 @@
 <section id="estoque-section-movimentos" style="display: none;">
   <div class="glass-card">
     <div class="estoque-toolbar">
-      <h2>Movimentos recentes</h2>
+      <h2>Movimentações recentes</h2>
       <span id="status-movimentos" class="estoque-status-topo">Aguardando carregamento...</span>
     </div>
 
@@ -519,8 +519,8 @@
   <div class="estoque-modal-card estoque-modal-card-lg">
     <div class="estoque-modal-header">
       <div>
-        <h3 id="estoque-modal-title">Detalhes do estoque</h3>
-        <p id="estoque-modal-subtitle" class="estoque-status-topo">Use este painel só quando precisar.</p>
+        <h3 id="estoque-modal-title">Detalhes do produto</h3>
+        <p id="estoque-modal-subtitle" class="estoque-status-topo">Consulte informações detalhadas do produto selecionado.</p>
       </div>
       <button id="btn-fechar-estoque-modal" class="primary-btn estoque-btn-secundario" type="button">Fechar</button>
     </div>
@@ -555,11 +555,11 @@
     document.getElementById("tbody-produtos").innerHTML = `
       <tr>
         <td colspan="7" class="estoque-empty">
-          Digite um nome, SKU ou código de barras para buscar produtos.
+          Digite nome, SKU ou código de barras para buscar produtos.
         </td>
       </tr>
     `;
-    atualizarStatusProdutos("Digite algo para buscar produtos.");
+    atualizarStatusProdutos("Digite nome, SKU ou código de barras para buscar produtos.");
   }
 
   function abrirModalEstoque(titulo, subtitulo, secoesIds = []) {
@@ -1170,7 +1170,7 @@
     estadoEstoque.produtoEditandoId = null;
     preencherFormularioProduto(null);
     document.getElementById("produto-painel-titulo").textContent = "Novo produto";
-    document.getElementById("produto-painel-subtitulo").textContent = "Preencha os dados do produto.";
+    document.getElementById("produto-painel-subtitulo").textContent = "Cadastre ou edite os dados do produto.";
     document.getElementById("btn-salvar-produto").textContent = "Salvar produto";
     document.getElementById("produto-painel-inline").classList.remove("is-hidden");
   }
@@ -1326,7 +1326,7 @@
     const { busca, somenteAbaixoMinimo } = obterFiltros();
     const queryString = montarQueryString({ busca, somenteAbaixoMinimo });
 
-    document.getElementById("titulo-tabela").textContent = "Posição resumida";
+    document.getElementById("titulo-tabela").textContent = "Posição do estoque";
     atualizarStatusTabela("Carregando.");
     esconderAlertaAuth();
 
@@ -1757,11 +1757,11 @@
     });
 
     document.getElementById("btn-abrir-posicao-modal").addEventListener("click", () => {
-      abrirModalEstoque("Posição resumida", "Consulte saldo, depósito e alertas sem poluir a tela principal.", ["estoque-section-filtros", "estoque-section-posicao"]);
+      abrirModalEstoque("Posição do estoque", "Consulte saldo, depósito e alertas sem poluir a tela principal.", ["estoque-section-filtros", "estoque-section-posicao"]);
     });
 
     document.getElementById("btn-abrir-movimentos-modal").addEventListener("click", () => {
-      abrirModalEstoque("Movimentos recentes", "Histórico recente do estoque em um painel separado.", ["estoque-section-movimentos"]);
+      abrirModalEstoque("Movimentações recentes", "Histórico recente do estoque em um painel separado.", ["estoque-section-movimentos"]);
     });
 
     document.getElementById("btn-fechar-estoque-modal").addEventListener("click", fecharModalEstoque);

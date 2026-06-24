@@ -8,8 +8,8 @@
 <div class="ne-page">
   <div class="ne-header">
     <div>
-      <h1>Importar XML</h1>
-      <p>Etapa 4C · Importe XML da NF-e, revise vínculos e confirme a nota para gerar entrada no estoque.</p>
+      <h1>Notas de entrada</h1>
+      <p>Importe o XML da NF-e, confira os itens e confirme a entrada no estoque.</p>
     </div>
     <div class="ne-header-actions">
       <button id="btnAtualizarNotas" class="btn btn-secondary" type="button">Atualizar</button>
@@ -21,10 +21,10 @@
   <div class="ne-grid">
     <section class="ne-card">
       <div class="ne-card-header">
-        <h2>Importar XML</h2>
+        <h2>Notas de entrada</h2>
       </div>
       <form id="formImportarXml" class="ne-import-form">
-        <label for="arquivoXml">Arquivo XML da NF-e</label>
+        <label for="arquivoXml">XML da NF-e</label>
         <input id="arquivoXml" name="arquivo" type="file" accept=".xml,text/xml,application/xml" required />
         <button id="btnImportarXml" class="btn btn-primary" type="submit">Importar XML</button>
       </form>
@@ -32,10 +32,10 @@
 
     <section class="ne-card ne-list-card">
       <div class="ne-card-header">
-        <h2>Notas importadas</h2>
+        <h2>Notas fiscais importadas</h2>
       </div>
-      <div id="listaNotasLoading" class="ne-muted">Carregando notas...</div>
-      <div id="listaNotasVazia" class="ne-muted hidden">Nenhuma nota importada ainda.</div>
+      <div id="listaNotasLoading" class="ne-muted">Carregando notas fiscais...</div>
+      <div id="listaNotasVazia" class="ne-muted hidden">Nenhuma nota fiscal importada ainda.</div>
       <div id="listaNotas" class="ne-list hidden"></div>
     </section>
   </div>
@@ -43,12 +43,12 @@
   <section class="ne-card ne-detail-card">
     <div class="ne-card-header ne-card-header-space-between">
       <div>
-        <h2>Detalhe da nota</h2>
-        <p id="notaResumoAux" class="ne-muted">Selecione uma nota para revisar os itens.</p>
+        <h2>Detalhes da nota</h2>
+        <p id="notaResumoAux" class="ne-muted">Selecione uma nota para conferir fornecedor, itens e vínculos.</p>
       </div>
       <div class="ne-detail-actions">
-        <button id="btnRecarregarNota" class="btn btn-secondary hidden" type="button">Recarregar nota</button>
-        <button id="btnConfirmarNota" class="btn btn-success hidden" type="button">Confirmar nota</button>
+        <button id="btnRecarregarNota" class="btn btn-secondary hidden" type="button">Atualizar nota</button>
+        <button id="btnConfirmarNota" class="btn btn-success hidden" type="button">Confirmar entrada</button>
       </div>
     </div>
 
@@ -94,8 +94,8 @@
       <section id="secaoResumoMovimentos" class="ne-mov-section hidden">
         <div class="ne-mov-header">
           <div>
-            <h3>Entrada gerada no estoque</h3>
-            <p id="movimentosAux" class="ne-muted">Resumo das movimentações geradas pela confirmação da nota.</p>
+            <h3>Entrada no estoque</h3>
+            <p id="movimentosAux" class="ne-muted">Resumo das movimentações geradas no estoque.</p>
           </div>
         </div>
 
@@ -107,9 +107,9 @@
             <thead>
               <tr>
                 <th>Produto</th>
-                <th>Qtd entrada</th>
-                <th>Saldo antes</th>
-                <th>Saldo depois</th>
+                <th>Qtd.. entrada</th>
+                <th>Saldo anterior</th>
+                <th>Saldo atual</th>
                 <th>Custo</th>
                 <th>Documento</th>
               </tr>
@@ -128,11 +128,11 @@
           <thead>
             <tr>
               <th>Item</th>
-              <th>Produto NF</th>
-              <th>Barcode NF</th>
-              <th>Qtd</th>
-              <th>Vl. unit.</th>
-              <th>Match</th>
+              <th>Produto na nota</th>
+              <th>Código de barras</th>
+              <th>Qtd.</th>
+              <th>Valor unitário</th>
+              <th>Conferência</th>
               <th>Produto vinculado</th>
               <th>Ação</th>
             </tr>
@@ -153,7 +153,7 @@
   <div class="ne-modal-panel">
     <div class="ne-modal-header">
       <div>
-        <h3>Vincular item da nota</h3>
+        <h3>Vincular produto da nota</h3>
         <p id="modalItemResumo" class="ne-muted">-</p>
       </div>
       <button id="btnFecharModal" class="btn btn-secondary" type="button">Fechar</button>
@@ -168,11 +168,11 @@
 
       <label class="ne-checkbox">
         <input id="checkSalvarVinculoFornecedor" type="checkbox" checked />
-        <span>Salvar vínculo fornecedor/produto</span>
+        <span>Salvar vínculo</span>
       </label>
 
       <div id="resultadoBuscaProduto" class="ne-search-results">
-        <div class="ne-muted">Digite ao menos 2 caracteres para buscar.</div>
+        <div class="ne-muted">Digite ao menos 2 caracteres para buscar um produto.</div>
       </div>
     </div>
   </div>
@@ -563,8 +563,8 @@
     el.btnRecarregarNota.classList.remove('hidden');
     el.btnConfirmarNota.classList.remove('hidden');
     el.btnConfirmarNota.disabled = !podeConfirmar;
-    el.btnConfirmarNota.textContent = bloqueada ? 'Nota confirmada' : 'Confirmar nota';
-    el.btnConfirmarNota.title = bloqueada ? getMotivoBloqueio(nota) : 'Confirmar nota';
+    el.btnConfirmarNota.textContent = bloqueada ? 'Nota confirmada' : 'Confirmar entrada';
+    el.btnConfirmarNota.title = bloqueada ? getMotivoBloqueio(nota) : 'Confirmar entrada';
 
     el.notaResumoAux.textContent = `Emitida em ${formatDate(nota.data_emissao)} · Importada em ${formatDate(nota.created_at)}`;
     el.badgeStatusNota.className = `ne-badge ${statusClass(nota.status)}`;
@@ -655,7 +655,7 @@
       showGlobalAlert(error.message || 'Erro ao importar XML.', 'error');
     } finally {
       el.btnImportarXml.disabled = false;
-      el.btnImportarXml.textContent = 'Importar XML';
+      el.btnImportarXml.textContent = 'Notas de entrada';
     }
   }
 
@@ -675,7 +675,7 @@
     state.produtoSelecionadoId = null;
     el.modalItemResumo.textContent = `Item ${item.item_numero} · ${item.descricao_nf}`;
     el.buscaProduto.value = item.codigo_barras_tributavel_nf || item.codigo_barras_nf || item.codigo_fornecedor || item.descricao_nf || '';
-    el.resultadoBuscaProduto.innerHTML = '<div class="ne-muted">Digite ao menos 2 caracteres para buscar.</div>';
+    el.resultadoBuscaProduto.innerHTML = '<div class="ne-muted">Digite ao menos 2 caracteres para buscar um produto.</div>';
     el.modalVinculo.classList.remove('hidden');
   }
 
@@ -684,7 +684,7 @@
     state.itemModal = null;
     state.produtoSelecionadoId = null;
     el.buscaProduto.value = '';
-    el.resultadoBuscaProduto.innerHTML = '<div class="ne-muted">Digite ao menos 2 caracteres para buscar.</div>';
+    el.resultadoBuscaProduto.innerHTML = '<div class="ne-muted">Digite ao menos 2 caracteres para buscar um produto.</div>';
   }
 
   async function buscarProdutos() {
@@ -695,7 +695,7 @@
 
     const termo = (el.buscaProduto.value || '').trim();
     if (termo.length < 2) {
-      el.resultadoBuscaProduto.innerHTML = '<div class="ne-muted">Digite ao menos 2 caracteres para buscar.</div>';
+      el.resultadoBuscaProduto.innerHTML = '<div class="ne-muted">Digite ao menos 2 caracteres para buscar um produto.</div>';
       return;
     }
 

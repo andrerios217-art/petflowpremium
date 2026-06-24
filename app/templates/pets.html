@@ -4,10 +4,10 @@
 <section class="page-header">
   <div>
     <h1>Pets</h1>
-    <p>Gestão de pets cadastrados no sistema.</p>
+    <p>Cadastre pets, vincule ao tutor e acompanhe histórico, produção e atendimentos.</p>
   </div>
   <div class="header-actions">
-    <a href="/pets/novo" class="primary-btn no-underline">Novo Pet</a>
+    <a href="/pets/novo" class="primary-btn no-underline">Novo pet</a>
   </div>
 </section>
 
@@ -25,8 +25,8 @@
     <table class="premium-table">
       <thead>
         <tr>
-          <th>Nome</th>
-          <th>Cliente ID</th>
+          <th>Pet</th>
+          <th>Tutor</th>
           <th>Raça</th>
           <th>Sexo</th>
           <th>Porte</th>
@@ -49,8 +49,8 @@
   <div class="pet-historico-dialog">
     <div class="pet-historico-header">
       <div>
-        <h2 id="pet-historico-titulo">Histórico do Pet</h2>
-        <p id="pet-historico-subtitulo">Visualização completa de atendimentos e produção.</p>
+        <h2 id="pet-historico-titulo">Histórico do pet</h2>
+        <p id="pet-historico-subtitulo">Consulte atendimentos, produção e registros anteriores do pet.</p>
       </div>
 
       <button
@@ -78,7 +78,7 @@
     <div class="pet-confirm-header">
       <div>
         <h3 id="pet-confirm-title">Confirmar ação</h3>
-        <p id="pet-confirm-subtitle">Revise a ação antes de continuar.</p>
+        <p id="pet-confirm-subtitle">Revise antes de continuar.</p>
       </div>
 
       <button
@@ -593,4 +593,138 @@
 </style>
 
 <script src="/static/js/pets.js"></script>
+<script id="pets-ajuste-ux-operador">
+  document.addEventListener("DOMContentLoaded", function () {
+    function trocarTextosSoltos() {
+      const trocas = [
+        ["Novo pet", "Novo pet"],
+        ["Salvar pet", "Salvar pet"],
+        ["Editar pet", "Editar pet"],
+        ["Gestão de pets cadastrados no sistema.", "Cadastre pets, vincule ao tutor e acompanhe histórico, produção e atendimentos."],
+        ["Tutor", "Tutor"],
+        ["Histórico do Pet", "Histórico do pet"],
+        ["Visualização completa de atendimentos e produção.", "Consulte atendimentos, produção e registros anteriores do pet."],
+        ["Revise a ação antes de continuar.", "Revise antes de continuar."]
+      ];
+
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
+      }
+
+      nodes.forEach(function (node) {
+        let texto = node.nodeValue || "";
+
+        trocas.forEach(function (item) {
+          texto = texto.replaceAll(item[0], item[1]);
+        });
+
+        node.nodeValue = texto;
+      });
+    }
+
+    function ajustarCabecalhosTabela() {
+      document.querySelectorAll("th").forEach(function (th) {
+        const texto = (th.textContent || "").trim();
+
+        if (texto === "Nome") {
+          th.textContent = "Pet";
+        }
+
+        if (texto === "Tutor") {
+          th.textContent = "Tutor";
+        }
+      });
+    }
+
+    function ajustarLabels() {
+      document.querySelectorAll("label").forEach(function (label) {
+        const texto = (label.textContent || "").trim();
+
+        if (texto === "Tutor") {
+          label.childNodes.forEach(function (node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+              node.nodeValue = node.nodeValue.replace("Tutor", "Tutor");
+            }
+          });
+        }
+
+        if (texto === "Nome") {
+          label.childNodes.forEach(function (node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+              node.nodeValue = node.nodeValue.replace("Nome", "Nome do pet");
+            }
+          });
+        }
+      });
+    }
+
+    function ajustarPlaceholders() {
+      document.querySelectorAll("input, select").forEach(function (campo) {
+        const placeholder = campo.getAttribute("placeholder") || "";
+        const id = (campo.id || "").toLowerCase();
+        const name = (campo.name || "").toLowerCase();
+
+        if (placeholder.toLowerCase().includes("cliente id")) {
+          campo.setAttribute("placeholder", "Selecione ou busque o tutor");
+        }
+
+        if (placeholder.toLowerCase() === "nome") {
+          campo.setAttribute("placeholder", "Nome do pet");
+        }
+
+        if (id.includes("cliente") || name.includes("cliente")) {
+          if (campo.tagName === "INPUT" && !placeholder) {
+            campo.setAttribute("placeholder", "Busque o tutor pelo nome");
+          }
+        }
+
+        if (id.includes("raca") || name.includes("raca") || id.includes("raça") || name.includes("raça")) {
+          if (campo.tagName === "INPUT" && !placeholder) {
+            campo.setAttribute("placeholder", "Raça do pet");
+          }
+        }
+      });
+    }
+
+    function ajustarBotoes() {
+      document.querySelectorAll("button, a").forEach(function (el) {
+        const texto = (el.textContent || "").trim();
+
+        if (texto === "Novo pet") {
+          el.textContent = "Novo pet";
+        }
+
+        if (texto === "Salvar pet") {
+          el.textContent = "Salvar pet";
+        }
+
+        if (texto === "Editar pet") {
+          el.textContent = "Editar pet";
+        }
+      });
+    }
+
+    function aplicarAjustes() {
+      trocarTextosSoltos();
+      ajustarCabecalhosTabela();
+      ajustarLabels();
+      ajustarPlaceholders();
+      ajustarBotoes();
+    }
+
+    aplicarAjustes();
+
+    const observer = new MutationObserver(function () {
+      aplicarAjustes();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  });
+</script>
 {% endblock %}

@@ -131,7 +131,7 @@
   <header class="financeiro-header financeiro-toolbar-clean">
     <div class="financeiro-toolbar-left">
       <h1>Financeiro</h1>
-      <p>Controle operacional de contas a receber e contas a pagar.</p>
+      <p>Controle contas a receber, contas a pagar, vencimentos, baixas e resultados do período.</p>
     </div>
 
     <div class="financeiro-toolbar-actions">
@@ -140,8 +140,8 @@
         <option value="2">Empresa 2 - Demo</option>
       </select>
 
-      <button type="button" class="btn btn-primary" id="btn-nova-conta">Nova Conta</button>
-      <button type="button" class="btn btn-outline" id="btn-recarregar-financeiro">Recarregar</button>
+      <button type="button" class="btn btn-primary" id="btn-nova-conta">Nova conta</button>
+      <button type="button" class="btn btn-outline" id="btn-recarregar-financeiro">Atualizar</button>
       <a href="/dre" class="btn btn-outline">Abrir DRE</a>
     </div>
   </header>
@@ -180,7 +180,7 @@
 
     <div class="financeiro-competencia-actions">
       <button type="button" class="btn btn-primary" id="btn-aplicar-competencia-financeiro">Buscar</button>
-      <button type="button" class="btn btn-secondary" id="btn-mes-atual-financeiro">Mês Atual</button>
+      <button type="button" class="btn btn-secondary" id="btn-mes-atual-financeiro">Mês atual</button>
     </div>
 
     <div class="financeiro-competencia-info" style="grid-column: 1 / -1;">
@@ -234,8 +234,8 @@
   <section class="card financeiro-contas-card">
     <div class="financeiro-lista-header-clean">
       <div>
-        <h2 id="financeiro-contas-titulo">Contas a Receber</h2>
-        <p class="text-muted">Use os filtros para consultar e baixar contas rapidamente.</p>
+        <h2 id="financeiro-contas-titulo">Contas a receber</h2>
+        <p class="text-muted">Use os filtros para consultar, conferir e baixar contas rapidamente.</p>
       </div>
 
       <div class="financeiro-atalhos-clean">
@@ -291,8 +291,8 @@
       </div>
 
       <div class="financeiro-filtros-actions">
-        <button type="button" class="btn btn-primary" id="btn-aplicar-filtros-pagar">Aplicar Filtros</button>
-        <button type="button" class="btn btn-outline" id="btn-limpar-filtros-pagar">Limpar</button>
+        <button type="button" class="btn btn-primary" id="btn-aplicar-filtros-pagar">Aplicar filtros</button>
+        <button type="button" class="btn btn-outline" id="btn-limpar-filtros-pagar">Limpar filtros</button>
       </div>
     </div>
 
@@ -309,8 +309,8 @@
   <div class="financeiro-modal" data-close-financeiro-modal="false">
     <div class="financeiro-modal-header">
       <div>
-        <h2 id="financeiro-modal-titulo">Nova Conta a Receber</h2>
-        <p class="text-muted">Preencha os dados e conclua o lançamento.</p>
+        <h2 id="financeiro-modal-titulo">Nova conta a Receber</h2>
+        <p class="text-muted">Preencha os dados, revise e conclua o lançamento.</p>
       </div>
       <button type="button" class="financeiro-modal-close" id="btn-fechar-modal-financeiro">×</button>
     </div>
@@ -325,7 +325,7 @@
       <section class="financeiro-step-panel" data-step-panel="1">
         <div class="financeiro-form-grid">
           <div class="form-group" id="financeiro-field-cliente-id">
-            <label for="financeiro-cliente-id" id="financeiro-label-cliente-id">Cliente ID</label>
+            <label for="financeiro-cliente-id" id="financeiro-label-cliente-id">Tutor</label>
             <input type="number" id="financeiro-cliente-id" class="form-control">
           </div>
 
@@ -389,7 +389,7 @@
 
         <div class="financeiro-dre-nao-aplica" id="financeiro-step-2-empty">
           <h3>DRE não se aplica</h3>
-          <p>Para contas a receber, a etapa de classificação DRE não é necessária.</p>
+          <p>Para contas a receber, a classificação DRE não é necessária.</p>
         </div>
       </section>
 
@@ -397,11 +397,11 @@
         <div class="financeiro-revisao-grid">
           <article class="financeiro-revisao-item">
             <span>Tipo Conta</span>
-            <strong id="financeiro-resumo-tipo">Conta a Receber</strong>
+            <strong id="financeiro-resumo-tipo">Conta a receber</strong>
           </article>
 
           <article class="financeiro-revisao-item">
-            <span>Cliente / Fornecedor</span>
+            <span>Cliente / fornecedor</span>
             <strong id="financeiro-resumo-cliente-fornecedor">-</strong>
           </article>
 
@@ -447,7 +447,7 @@
       <button type="button" class="btn btn-outline" id="btn-cancelar-conta">Cancelar</button>
       <button type="button" class="btn btn-secondary" id="btn-voltar-step-financeiro">Voltar</button>
       <button type="button" class="btn btn-primary" id="btn-avancar-step-financeiro">Avançar</button>
-      <button type="button" class="btn btn-primary" id="btn-salvar-conta">Salvar Conta</button>
+      <button type="button" class="btn btn-primary" id="btn-salvar-conta">Salvar conta</button>
     </div>
   </div>
 </div>

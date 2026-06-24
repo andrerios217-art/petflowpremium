@@ -1,6 +1,125 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
+<style id="precificacao-hero-suave">
+  /* Suaviza a faixa superior da tela de Precificação */
+  .precificacao-hero,
+  .precificacao-header,
+  .pricing-hero,
+  .pricing-header,
+  .page-hero,
+  .hero-section,
+  section:has(h1) {
+    background: linear-gradient(135deg, #f8fafc 0%, #eef6ff 100%) !important;
+    color: #0f172a !important;
+    border: 1px solid #dbeafe !important;
+    border-radius: 18px !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .precificacao-hero,
+  .precificacao-header,
+  .pricing-hero,
+  .pricing-header,
+  .page-hero,
+  .hero-section {
+    padding: 22px 28px !important;
+    min-height: auto !important;
+  }
+
+  section:has(h1):has(.kpi-card),
+  section:has(h1):has(.summary-card),
+  section:has(h1):has(.metric-card),
+  section:has(h1):has(.stat-card) {
+    padding: 22px 28px !important;
+  }
+
+  .precificacao-hero h1,
+  .precificacao-header h1,
+  .pricing-hero h1,
+  .pricing-header h1,
+  .page-hero h1,
+  .hero-section h1,
+  section:has(h1) h1 {
+    color: #0f172a !important;
+    font-size: 28px !important;
+    line-height: 1.15 !important;
+  }
+
+  .precificacao-hero p,
+  .precificacao-header p,
+  .pricing-hero p,
+  .pricing-header p,
+  .page-hero p,
+  .hero-section p,
+  section:has(h1) p {
+    color: #475569 !important;
+    max-width: 900px !important;
+  }
+
+  .precificacao-hero small,
+  .precificacao-header small,
+  .pricing-hero small,
+  .pricing-header small,
+  .page-hero small,
+  .hero-section small,
+  section:has(h1) small {
+    color: #2563eb !important;
+  }
+
+  .precificacao-hero .card,
+  .precificacao-header .card,
+  .pricing-hero .card,
+  .pricing-header .card,
+  .page-hero .card,
+  .hero-section .card,
+  section:has(h1) .card,
+  section:has(h1) .stat-card,
+  section:has(h1) .metric-card,
+  section:has(h1) .summary-card,
+  section:has(h1) .kpi-card {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #dbeafe !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .precificacao-hero .card *,
+  .precificacao-header .card *,
+  .pricing-hero .card *,
+  .pricing-header .card *,
+  .page-hero .card *,
+  .hero-section .card *,
+  section:has(h1) .card *,
+  section:has(h1) .stat-card *,
+  section:has(h1) .metric-card *,
+  section:has(h1) .summary-card *,
+  section:has(h1) .kpi-card * {
+    color: #0f172a !important;
+  }
+</style>
+
+<style id="precificacao-remover-barra-superior">
+  body:has(#precificacao-remover-barra-superior) .topbar,
+  body:has(#precificacao-remover-barra-superior) .top-bar,
+  body:has(#precificacao-remover-barra-superior) .app-topbar,
+  body:has(#precificacao-remover-barra-superior) .page-topbar,
+  body:has(#precificacao-remover-barra-superior) .content-topbar,
+  body:has(#precificacao-remover-barra-superior) .navbar-top,
+  body:has(#precificacao-remover-barra-superior) .main-header {
+    display: none !important;
+  }
+
+  body:has(#precificacao-remover-barra-superior) main,
+  body:has(#precificacao-remover-barra-superior) .main-content,
+  body:has(#precificacao-remover-barra-superior) .content,
+  body:has(#precificacao-remover-barra-superior) .page-content {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+</style>
+
 <section class="precificacao-shell">
   <div class="precificacao-hero">
     <div class="precificacao-hero-text">

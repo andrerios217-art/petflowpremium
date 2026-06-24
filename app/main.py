@@ -507,3 +507,52 @@ def auditoria_visual_page(request: Request):
     """
     return HTMLResponse(content=html)
 
+
+# === ROTAS RELATORIO COMISSAO (VectorPet) ===
+from fastapi import Request as _VectorPetRequest
+from fastapi.responses import HTMLResponse as _VectorPetHTMLResponse
+from fastapi.templating import Jinja2Templates as _VectorPetJinja2Templates
+
+_vectorpet_templates = globals().get("templates")
+
+if _vectorpet_templates is None:
+    _vectorpet_templates = _VectorPetJinja2Templates(directory="app/templates")
+
+
+@app.get("/relatorios-comissao", response_class=_VectorPetHTMLResponse)
+@app.get("/relatorio-comissao", response_class=_VectorPetHTMLResponse)
+async def vectorpet_relatorios_comissao_page(request: _VectorPetRequest):
+    return _vectorpet_templates.TemplateResponse(
+        request,
+        "relatorios_comissao.html",
+        {
+            "request": request,
+            "system_name": "VectorPet",
+        },
+    )
+# === FIM ROTAS RELATORIO COMISSAO (VectorPet) ===
+
+
+# === ROTAS RELATORIO BANHO TOSA (VectorPet) ===
+from fastapi import Request as _VectorPetBanhoTosaRequest
+from fastapi.responses import HTMLResponse as _VectorPetBanhoTosaHTMLResponse
+from fastapi.templating import Jinja2Templates as _VectorPetBanhoTosaJinja2Templates
+
+_vectorpet_banho_tosa_templates = globals().get("templates")
+
+if _vectorpet_banho_tosa_templates is None:
+    _vectorpet_banho_tosa_templates = _VectorPetBanhoTosaJinja2Templates(directory="app/templates")
+
+
+@app.get("/relatorio-banho-tosa", response_class=_VectorPetBanhoTosaHTMLResponse)
+@app.get("/relatorios-banho-tosa", response_class=_VectorPetBanhoTosaHTMLResponse)
+async def vectorpet_relatorio_banho_tosa_page(request: _VectorPetBanhoTosaRequest):
+    return _vectorpet_banho_tosa_templates.TemplateResponse(
+        request,
+        "relatorios.html",
+        {
+            "request": request,
+            "system_name": "VectorPet",
+        },
+    )
+# === FIM ROTAS RELATORIO BANHO TOSA (VectorPet) ===

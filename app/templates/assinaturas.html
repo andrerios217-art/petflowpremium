@@ -1,6 +1,117 @@
 {% extends "layout/base.html" %}
 
 {% block content %}
+<style id="assinaturas-ajuste-estetico-vectorpet">
+  .assinatura-form-page {
+    gap: 18px !important;
+  }
+
+  .assinatura-form-header {
+    align-items: flex-start !important;
+    padding: 22px 26px !important;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef6ff 100%) !important;
+    border: 1px solid #dbeafe !important;
+    border-radius: 18px !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .assinatura-form-header h1 {
+    color: #0f172a !important;
+    font-size: 28px !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .assinatura-form-header p {
+    color: #475569 !important;
+    font-size: 14px !important;
+    max-width: 760px !important;
+  }
+
+  .assinatura-card {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 18px !important;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .assinatura-card__header {
+    padding-bottom: 14px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+  }
+
+  .assinatura-card__header h2 {
+    color: #0f172a !important;
+    font-size: 19px !important;
+    font-weight: 900 !important;
+  }
+
+  .assinatura-card__header p {
+    color: #64748b !important;
+    font-size: 13px !important;
+  }
+
+  .assinatura-field label {
+    color: #334155 !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+  }
+
+  .assinatura-field input,
+  .assinatura-field select,
+  .assinatura-field textarea {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .assinatura-field input:focus,
+  .assinatura-field select:focus,
+  .assinatura-field textarea:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+    outline: none !important;
+  }
+
+  .assinatura-btn {
+    border-radius: 12px !important;
+    font-weight: 900 !important;
+  }
+
+  .assinatura-btn-primary {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18) !important;
+  }
+
+  .assinatura-btn-danger {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+  }
+
+  .assinatura-alert {
+    border-radius: 14px !important;
+    border: 1px solid #bfdbfe !important;
+    background: #eff6ff !important;
+    color: #1e3a8a !important;
+  }
+
+  .assinatura-total-box {
+    border-radius: 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #f8fafc !important;
+  }
+
+  .assinatura-total-box-highlight {
+    background: #eff6ff !important;
+    border-color: #bfdbfe !important;
+  }
+
+  .assinatura-total-box-highlight strong {
+    color: #1d4ed8 !important;
+  }
+</style>
+
 <section
   class="assinatura-form-page"
   data-assinatura-id="{% if assinatura_id is defined %}{{ assinatura_id }}{% endif %}"
@@ -8,7 +119,7 @@
   <div class="assinatura-form-header">
     <div>
       <h1 id="titulo-pagina">Nova assinatura</h1>
-      <p>Monte a assinatura por pet com serviços, quantidades e desconto por item.</p>
+      <p>Cadastre planos por pet com serviços, quantidade mensal e desconto por item.</p>
     </div>
 
     <div class="assinatura-form-header__actions">
@@ -20,22 +131,22 @@
   </div>
 
   <div id="assinatura-alerta" class="assinatura-alert assinatura-alert-info">
-    Preencha os dados da assinatura.
+    Preencha os dados principais, adicione os serviços e confira o valor final.
   </div>
 
   <form id="form-assinatura" class="assinatura-form-layout">
     <div class="assinatura-card">
       <div class="assinatura-card__header">
         <div>
-          <h2>Dados principais</h2>
-          <p>Vincule a assinatura ao cliente e ao pet.</p>
+          <h2>Dados da assinatura</h2>
+          <p>Vincule a assinatura ao tutor e ao pet.</p>
         </div>
       </div>
 
       <div class="assinatura-grid">
         <div class="assinatura-field assinatura-field-full assinatura-lookup-wrap">
-          <label for="cliente-busca">Cliente</label>
-          <input type="text" id="cliente-busca" placeholder="Buscar cliente por nome" autocomplete="off" />
+          <label for="cliente-busca">Tutor</label>
+          <input type="text" id="cliente-busca" placeholder="Buscar tutor por nome" autocomplete="off" />
           <input type="hidden" id="cliente-id" />
           <div id="cliente-resultados" class="assinatura-lookup-results"></div>
           <div class="assinatura-selecao-box">
@@ -79,12 +190,12 @@
         </div>
 
         <div class="assinatura-field">
-          <label for="dia-fechamento-ciclo">Dia de fechamento do ciclo</label>
+          <label for="dia-fechamento-ciclo">Fechamento do ciclo</label>
           <input type="number" id="dia-fechamento-ciclo" min="1" max="28" value="28" required />
         </div>
 
         <div class="assinatura-field assinatura-field-full">
-          <label for="contrato-externo-id">Contrato externo ID</label>
+          <label for="contrato-externo-id">Contrato externo</label>
           <input type="text" id="contrato-externo-id" maxlength="100" />
         </div>
 
@@ -115,8 +226,8 @@
     <div class="assinatura-card">
       <div class="assinatura-card__header">
         <div>
-          <h2>Serviços da assinatura</h2>
-          <p>Adicione serviços por nome, com quantidade e desconto por item.</p>
+          <h2>Serviços incluídos</h2>
+          <p>Adicione os serviços do plano, informe quantidade mensal e desconto aplicado.</p>
         </div>
 
         <button type="button" id="btn-adicionar-servico" class="assinatura-btn assinatura-btn-primary">
@@ -137,7 +248,7 @@
 
       <div class="assinatura-totais">
         <div class="assinatura-total-box">
-          <span class="assinatura-label">Valor bruto</span>
+          <span class="assinatura-label">Valor cheio</span>
           <strong id="total-bruto">R$ 0,00</strong>
         </div>
 
@@ -147,7 +258,7 @@
         </div>
 
         <div class="assinatura-total-box assinatura-total-box-highlight">
-          <span class="assinatura-label">Valor final</span>
+          <span class="assinatura-label">Valor mensal</span>
           <strong id="total-final">R$ 0,00</strong>
         </div>
       </div>
@@ -181,12 +292,12 @@
         </div>
 
         <div class="assinatura-field">
-          <label>Preço base</label>
+          <label>Preço de venda</label>
           <input type="number" class="servico-preco-base" min="0" step="0.01" value="0.00" required />
         </div>
 
         <div class="assinatura-field">
-          <label>% desconto</label>
+          <label>Desconto (%)</label>
           <input
             type="text"
             class="servico-percentual-desconto"
@@ -666,7 +777,7 @@
         .trim();
     }
 
-    function obterNomeCliente(cliente) {
+    function obterNomeTutor(cliente) {
       return (
         cliente.nome ||
         cliente.nome_completo ||
@@ -713,7 +824,7 @@
       return parseInt(obj && obj.id, 10);
     }
 
-    function petsDoCliente(clienteId) {
+    function petsDoTutor(clienteId) {
       return assinaturaState.pets.filter(function(pet) {
         return parseInt(pet.cliente_id, 10) === parseInt(clienteId, 10);
       });
@@ -783,7 +894,7 @@
       container.classList.add("show");
     }
 
-    function atualizarClienteSelecionado() {
+    function atualizarTutorSelecionado() {
       const pill = document.getElementById("cliente-selecionado");
 
       if (!assinaturaState.clienteSelecionado) {
@@ -792,7 +903,7 @@
         return;
       }
 
-      pill.textContent = "Cliente: " + obterNomeCliente(assinaturaState.clienteSelecionado);
+      pill.textContent = "Tutor: " + obterNomeTutor(assinaturaState.clienteSelecionado);
       pill.classList.remove("assinatura-hidden");
     }
 
@@ -821,18 +932,18 @@
       }
     }
 
-    function selecionarCliente(cliente) {
+    function selecionarTutor(cliente) {
       assinaturaState.clienteSelecionado = cliente;
       assinaturaState.petSelecionado = null;
 
       document.getElementById("cliente-id").value = obterId(cliente) || "";
-      document.getElementById("cliente-busca").value = obterNomeCliente(cliente);
+      document.getElementById("cliente-busca").value = obterNomeTutor(cliente);
 
       document.getElementById("pet-id").value = "";
       document.getElementById("pet-busca").value = "";
       document.getElementById("pet-busca").disabled = false;
 
-      atualizarClienteSelecionado();
+      atualizarTutorSelecionado();
       atualizarPetSelecionado();
 
       document.getElementById("lista-servicos").innerHTML = "";
@@ -847,12 +958,12 @@
       revalidarServicosPorPorte();
     }
 
-    function buscarClientesPorNome(termo) {
+    function buscarTutorsPorNome(termo) {
       const q = normalizarTexto(termo);
       if (!q) return [];
 
       return assinaturaState.clientes.filter(function(cliente) {
-        return normalizarTexto(obterNomeCliente(cliente)).includes(q);
+        return normalizarTexto(obterNomeTutor(cliente)).includes(q);
       }).slice(0, 15);
     }
 
@@ -860,7 +971,7 @@
       if (!assinaturaState.clienteSelecionado) return [];
 
       const q = normalizarTexto(termo);
-      const pets = petsDoCliente(obterId(assinaturaState.clienteSelecionado));
+      const pets = petsDoTutor(obterId(assinaturaState.clienteSelecionado));
 
       if (!q) return pets.slice(0, 15);
 
@@ -1240,7 +1351,7 @@
       });
 
       if (cliente) {
-        selecionarCliente(cliente);
+        selecionarTutor(cliente);
       } else {
         document.getElementById("cliente-id").value = assinatura.cliente_id || "";
       }
@@ -1366,7 +1477,7 @@
       }
     }
 
-    function bindBuscaCliente() {
+    function bindBuscaTutor() {
       const input = document.getElementById("cliente-busca");
       const resultados = document.getElementById("cliente-resultados");
 
@@ -1376,22 +1487,22 @@
           lista,
           function(cliente) {
             return {
-              titulo: obterNomeCliente(cliente),
+              titulo: obterNomeTutor(cliente),
               subtitulo: "Selecione o cliente"
             };
           },
           function(cliente) {
-            selecionarCliente(cliente);
+            selecionarTutor(cliente);
           }
         );
       }
 
       input.addEventListener("input", function() {
-        render(buscarClientesPorNome(input.value));
+        render(buscarTutorsPorNome(input.value));
       });
 
       input.addEventListener("focus", function() {
-        render(buscarClientesPorNome(input.value));
+        render(buscarTutorsPorNome(input.value));
       });
     }
 
@@ -1447,7 +1558,7 @@
         }
 
         await carregarBases();
-        bindBuscaCliente();
+        bindBuscaTutor();
         bindBuscaPet();
         await carregarAssinaturaEdicao();
       } catch (error) {

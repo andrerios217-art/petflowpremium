@@ -4,8 +4,8 @@
 
 <section class="page-header">
   <div>
-    <h1 id="form-title">Novo Serviço</h1>
-    <p>Cadastro e edição de serviços.</p>
+    <h1 id="form-title">Novo serviço</h1>
+    <p>Cadastre ou edite serviços, definindo tipo, porte, custo, preço de venda e tempo estimado.</p>
   </div>
 </section>
 
@@ -57,7 +57,7 @@
     <div class="form-actions">
 
       <button type="submit" class="primary-btn">
-        Salvar Serviço
+        Salvar serviço
       </button>
 
       <a href="/servicos" class="secondary-btn no-underline">
@@ -205,7 +205,7 @@ async function carregarServicoEdicao() {
     return;
   }
 
-  document.getElementById("form-title").innerText = "Editar Serviço";
+  document.getElementById("form-title").innerText = "Editar serviço";
 
   const response = await fetch(`/api/servicos/${servicoId}`);
   const data = await response.json();

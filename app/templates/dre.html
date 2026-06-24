@@ -6,26 +6,65 @@
 {% endblock %}
 
 {% block content %}
+<style id="dre-ajuste-ux-botoes">
+  .dre-actions,
+  .page-actions,
+  .header-actions,
+  .toolbar,
+  .filters-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .dre-actions button,
+  .dre-actions a,
+  .page-actions button,
+  .page-actions a,
+  .header-actions button,
+  .header-actions a,
+  .toolbar button,
+  .toolbar a,
+  .filters-actions button,
+  .filters-actions a {
+    margin-right: 8px !important;
+  }
+
+  .dre-actions button:last-child,
+  .dre-actions a:last-child,
+  .page-actions button:last-child,
+  .page-actions a:last-child,
+  .header-actions button:last-child,
+  .header-actions a:last-child,
+  .toolbar button:last-child,
+  .toolbar a:last-child,
+  .filters-actions button:last-child,
+  .filters-actions a:last-child {
+    margin-right: 0 !important;
+  }
+</style>
+
 <section class="financeiro-page dre-page">
   <header class="financeiro-header">
     <div>
       <h1>DRE</h1>
-      <p>Análise detalhada por grupo, categoria e subcategoria.</p>
+      <p>Acompanhe receitas, despesas e resultado por grupo, categoria e subcategoria.</p>
     </div>
 
     <div class="financeiro-header-actions">
       <a href="/financeiro" class="btn btn-outline">Voltar ao Financeiro</a>
       
       <button type="button" class="btn btn-outline" id="btnExportarConferenciaDre">Exportar DRE XLSX</button>
-<button type="button" class="btn btn-primary" id="btnAplicarFiltrosDre">Atualizar</button>
+<button type="button" class="btn btn-primary" id="btnAplicarFiltrosDre">Aplicar filtros</button>
     </div>
   </header>
 
   <section class="financeiro-competencia-card">
     <div class="financeiro-card-header">
       <div>
-        <h2>Período de Análise</h2>
-        <p class="text-muted">Defina a faixa de competência para montar o DRE detalhado.</p>
+        <h2>Período de análise</h2>
+        <p class="text-muted">Defina empresa, competência e forma de visualização para montar o DRE.</p>
       </div>
     </div>
 
@@ -63,27 +102,27 @@
     <article class="financeiro-kpi-card dre-resumo-card">
       <span class="financeiro-kpi-label">Receita</span>
       <strong class="financeiro-kpi-value dre-resumo-valor" id="dreResumoReceita">R$ 0,00</strong>
-      <small class="text-muted">Total de receitas no período</small>
+      <small class="text-muted">Receitas no período</small>
     </article>
 
     <article class="financeiro-kpi-card dre-resumo-card">
       <span class="financeiro-kpi-label">Despesa</span>
       <strong class="financeiro-kpi-value dre-resumo-valor text-danger" id="dreResumoDespesa">R$ 0,00</strong>
-      <small class="text-muted">Total de despesas no período</small>
+      <small class="text-muted">Despesas no período</small>
     </article>
 
     <article class="financeiro-kpi-card dre-resumo-card">
       <span class="financeiro-kpi-label">Resultado</span>
       <strong class="financeiro-kpi-value dre-resumo-valor" id="dreResumoResultado">R$ 0,00</strong>
-      <small class="text-muted">Resultado consolidado do período</small>
+      <small class="text-muted">Resultado do período</small>
     </article>
   </section>
 
   <section class="financeiro-dre-card dre-tabela-card">
     <div class="financeiro-card-header dre-tabela-header">
       <div>
-        <h2>DRE Detalhado</h2>
-        <p class="text-muted">Leitura tabular com hierarquia, subtotal e percentual sobre a receita.</p>
+        <h2>DRE detalhado</h2>
+        <p class="text-muted">Resultado organizado por hierarquia, subtotal e percentual sobre a receita.</p>
       </div>
     </div>
 
