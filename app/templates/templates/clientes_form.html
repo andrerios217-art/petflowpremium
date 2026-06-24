@@ -1,0 +1,487 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1 id="form-title">Novo Cliente</h1>
+    <p>Cadastro completo de tutor, endereço e pets.</p>
+  </div>
+</section>
+
+<section class="glass-card">
+  <div class="wizard-steps">
+    <div class="wizard-step active" data-step="1">1. Tutor</div>
+    <div class="wizard-step" data-step="2">2. Endereço</div>
+    <div class="wizard-step" data-step="3">3. Pets</div>
+  </div>
+
+  <form id="cliente-completo-form">
+    <div class="wizard-panel active" data-panel="1">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nome completo</label>
+          <input type="text" id="nome" required />
+        </div>
+
+        <div class="form-group">
+          <label>CPF</label>
+          <input type="text" id="cpf" />
+          <small id="cpf-error" class="field-error"></small>
+        </div>
+
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="email" />
+          <small id="email-error" class="field-error"></small>
+        </div>
+
+        <div class="form-group">
+          <label>Telefone celular</label>
+          <input type="text" id="telefone" />
+          <small id="telefone-error" class="field-error"></small>
+        </div>
+
+        <div class="form-group">
+          <label>Telefone fixo</label>
+          <input type="text" id="telefone_fixo" />
+        </div>
+      </div>
+    </div>
+
+    <div class="wizard-panel" data-panel="2">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>CEP</label>
+          <input type="text" id="cep" />
+        </div>
+
+        <div class="form-group">
+          <label>Rua</label>
+          <input type="text" id="rua" />
+        </div>
+
+        <div class="form-group">
+          <label>Número</label>
+          <input type="text" id="numero" />
+        </div>
+
+        <div class="form-group">
+          <label>Bairro</label>
+          <input type="text" id="bairro" />
+        </div>
+
+        <div class="form-group">
+          <label>Cidade</label>
+          <input type="text" id="cidade" />
+        </div>
+
+        <div class="form-group">
+          <label>UF</label>
+          <input type="text" id="uf" maxlength="2" />
+        </div>
+
+        <div class="form-group full-width">
+          <label>Complemento</label>
+          <input type="text" id="complemento" />
+        </div>
+      </div>
+    </div>
+
+    <div class="wizard-panel" data-panel="3">
+      <div class="pets-header">
+        <h3>Pets do tutor</h3>
+        <button type="button" class="secondary-btn" id="add-pet-btn">Adicionar pet</button>
+      </div>
+
+      <div id="pets-container"></div>
+    </div>
+
+    <div class="wizard-actions">
+      <button type="button" class="secondary-btn" id="btn-prev">Voltar</button>
+      <button type="button" class="primary-btn" id="btn-next" disabled>Próximo</button>
+      <button type="submit" class="primary-btn" id="btn-save" style="display:none;">Salvar Cadastro</button>
+    </div>
+
+    <div id="cliente-message" class="form-message"></div>
+  </form>
+</section>
+
+<template id="pet-template">
+  <div class="glass-card pet-card">
+    <div class="pet-card-header">
+      <h3 class="pet-card-title">Pet</h3>
+      <button type="button" class="remove-pet-btn" title="Remover pet">✕</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nome do pet</label>
+        <input type="text" class="pet_nome" required />
+      </div>
+
+      <div class="form-group">
+        <label>Nascimento</label>
+        <input type="date" class="pet_nascimento" />
+      </div>
+
+      <div class="form-group">
+        <label>Raça</label>
+        <input type="text" class="pet_raca" />
+      </div>
+
+      <div class="form-group">
+        <label>Sexo</label>
+        <select class="pet_sexo">
+          <option value="">Selecione</option>
+          <option value="macho">Macho</option>
+          <option value="femea">Fêmea</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Temperamento</label>
+        <select class="pet_temperamento">
+          <option value="">Selecione</option>
+          <option value="docil">Dócil</option>
+          <option value="normal">Normal</option>
+          <option value="bravo">Bravo</option>
+          <option value="medroso">Medroso</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Peso</label>
+        <input type="number" step="0.01" class="pet_peso" />
+      </div>
+
+      <div class="form-group">
+        <label>Porte</label>
+        <select class="pet_porte">
+          <option value="">Selecione</option>
+          <option value="G1">G1</option>
+          <option value="G2">G2</option>
+          <option value="G3">G3</option>
+          <option value="G4">G4</option>
+          <option value="G5">G5</option>
+        </select>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Observações</label>
+        <input type="text" class="pet_observacoes" />
+      </div>
+
+      <div class="form-group checkbox-group full-width">
+        <label><input type="checkbox" class="pet_perfume" checked /> Pode perfume</label>
+        <label><input type="checkbox" class="pet_acessorio" checked /> Pode acessório</label>
+        <label><input type="checkbox" class="pet_castrado" /> Castrado</label>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  const clienteId = "{{ cliente_id if cliente_id else '' }}";
+  let currentStep = 1;
+  let petCount = 0;
+  let duplicidadeOk = false;
+
+  function updateWizard() {
+    document.querySelectorAll(".wizard-step").forEach(step => {
+      step.classList.toggle("active", Number(step.dataset.step) === currentStep);
+    });
+
+    document.querySelectorAll(".wizard-panel").forEach(panel => {
+      panel.classList.toggle("active", Number(panel.dataset.panel) === currentStep);
+    });
+
+    document.getElementById("btn-prev").style.display = currentStep === 1 ? "none" : "inline-flex";
+    document.getElementById("btn-next").style.display = currentStep === 3 ? "none" : "inline-flex";
+    document.getElementById("btn-save").style.display = currentStep === 3 ? "inline-flex" : "none";
+
+    if (currentStep === 1) {
+      atualizarEstadoBotaoProximo();
+    }
+  }
+
+  function atualizarEstadoBotaoProximo() {
+    const nome = document.getElementById("nome").value.trim();
+    const btnNext = document.getElementById("btn-next");
+    btnNext.disabled = !(nome && duplicidadeOk);
+  }
+
+  async function validarDuplicidade() {
+    const cpf = document.getElementById("cpf").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const telefone = document.getElementById("telefone").value.trim();
+
+    const params = new URLSearchParams();
+    if (cpf) params.append("cpf", cpf);
+    if (email) params.append("email", email);
+    if (telefone) params.append("telefone", telefone);
+    if (clienteId) params.append("cliente_id", clienteId);
+
+    if (![cpf, email, telefone].some(Boolean)) {
+      duplicidadeOk = true;
+      limparErrosDuplicidade();
+      atualizarEstadoBotaoProximo();
+      return;
+    }
+
+    const response = await fetch(`/api/clientes/validar-duplicidade?${params.toString()}`);
+    const data = await response.json();
+
+    document.getElementById("cpf-error").innerText = data.cpf_duplicado ? "CPF já cadastrado." : "";
+    document.getElementById("email-error").innerText = data.email_duplicado ? "E-mail já cadastrado." : "";
+    document.getElementById("telefone-error").innerText = data.telefone_duplicado ? "Telefone já cadastrado." : "";
+
+    document.getElementById("cpf").classList.toggle("field-invalid", data.cpf_duplicado);
+    document.getElementById("email").classList.toggle("field-invalid", data.email_duplicado);
+    document.getElementById("telefone").classList.toggle("field-invalid", data.telefone_duplicado);
+
+    duplicidadeOk = !(data.cpf_duplicado || data.email_duplicado || data.telefone_duplicado);
+    atualizarEstadoBotaoProximo();
+  }
+
+  function limparErrosDuplicidade() {
+    document.getElementById("cpf-error").innerText = "";
+    document.getElementById("email-error").innerText = "";
+    document.getElementById("telefone-error").innerText = "";
+
+    document.getElementById("cpf").classList.remove("field-invalid");
+    document.getElementById("email").classList.remove("field-invalid");
+    document.getElementById("telefone").classList.remove("field-invalid");
+  }
+
+  function addPetCard(data = {}) {
+    const template = document.getElementById("pet-template");
+    const clone = template.content.cloneNode(true);
+    const wrapper = document.createElement("div");
+    wrapper.appendChild(clone);
+
+    const card = wrapper.firstElementChild;
+    petCount += 1;
+    card.querySelector(".pet-card-title").innerText = `Pet ${petCount}`;
+
+    if (data.id) card.dataset.petId = data.id;
+    card.querySelector(".pet_nome").value = data.nome || "";
+    card.querySelector(".pet_nascimento").value = data.nascimento || "";
+    card.querySelector(".pet_raca").value = data.raca || "";
+    card.querySelector(".pet_sexo").value = data.sexo || "";
+    card.querySelector(".pet_temperamento").value = data.temperamento || "";
+    card.querySelector(".pet_peso").value = data.peso ?? "";
+    card.querySelector(".pet_porte").value = data.porte || "";
+    card.querySelector(".pet_observacoes").value = data.observacoes || "";
+    card.querySelector(".pet_perfume").checked = data.pode_perfume ?? true;
+    card.querySelector(".pet_acessorio").checked = data.pode_acessorio ?? true;
+    card.querySelector(".pet_castrado").checked = data.castrado ?? false;
+
+    card.querySelector(".remove-pet-btn").addEventListener("click", () => {
+      card.remove();
+      renumerarPets();
+    });
+
+    document.getElementById("pets-container").appendChild(card);
+  }
+
+  function renumerarPets() {
+    petCount = 0;
+    document.querySelectorAll(".pet-card").forEach(card => {
+      petCount += 1;
+      card.querySelector(".pet-card-title").innerText = `Pet ${petCount}`;
+    });
+  }
+
+  function coletarPets() {
+    const pets = [];
+    document.querySelectorAll(".pet-card").forEach(card => {
+      pets.push({
+        id: card.dataset.petId || null,
+        nome: card.querySelector(".pet_nome").value,
+        nascimento: card.querySelector(".pet_nascimento").value || null,
+        raca: card.querySelector(".pet_raca").value || null,
+        sexo: card.querySelector(".pet_sexo").value || null,
+        temperamento: card.querySelector(".pet_temperamento").value || null,
+        peso: card.querySelector(".pet_peso").value ? Number(card.querySelector(".pet_peso").value) : null,
+        porte: card.querySelector(".pet_porte").value || null,
+        observacoes: card.querySelector(".pet_observacoes").value || null,
+        pode_perfume: card.querySelector(".pet_perfume").checked,
+        pode_acessorio: card.querySelector(".pet_acessorio").checked,
+        castrado: card.querySelector(".pet_castrado").checked
+      });
+    });
+    return pets;
+  }
+
+  document.getElementById("add-pet-btn").addEventListener("click", () => addPetCard());
+
+  document.getElementById("btn-next").addEventListener("click", () => {
+    if (currentStep === 1 && !duplicidadeOk) return;
+    if (currentStep < 3) {
+      currentStep++;
+      updateWizard();
+    }
+  });
+
+  document.getElementById("btn-prev").addEventListener("click", () => {
+    if (currentStep > 1) {
+      currentStep--;
+      updateWizard();
+    }
+  });
+
+  ["nome", "cpf", "email", "telefone"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => {
+      if (id !== "nome") validarDuplicidade();
+      atualizarEstadoBotaoProximo();
+    });
+  });
+
+  document.getElementById("cep").addEventListener("blur", async function () {
+    const cep = this.value.replace(/\D/g, "");
+    if (cep.length !== 8) return;
+
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+
+    if (!data.erro) {
+      document.getElementById("rua").value = data.logradouro || "";
+      document.getElementById("bairro").value = data.bairro || "";
+      document.getElementById("cidade").value = data.localidade || "";
+      document.getElementById("uf").value = data.uf || "";
+    }
+  });
+
+  async function carregarClienteEdicao() {
+    if (!clienteId) {
+      addPetCard();
+      duplicidadeOk = true;
+      atualizarEstadoBotaoProximo();
+      return;
+    }
+
+    document.getElementById("form-title").innerText = "Editar Cliente";
+
+    const response = await fetch(`/api/clientes/${clienteId}`);
+    const data = await response.json();
+
+    document.getElementById("nome").value = data.cliente.nome || "";
+    document.getElementById("cpf").value = data.cliente.cpf || "";
+    document.getElementById("email").value = data.cliente.email || "";
+    document.getElementById("telefone").value = data.cliente.telefone || "";
+    document.getElementById("telefone_fixo").value = data.cliente.telefone_fixo || "";
+
+    document.getElementById("nome").disabled = true;
+    document.getElementById("cpf").disabled = true;
+
+    document.getElementById("cep").value = data.endereco.cep || "";
+    document.getElementById("rua").value = data.endereco.rua || "";
+    document.getElementById("numero").value = data.endereco.numero || "";
+    document.getElementById("bairro").value = data.endereco.bairro || "";
+    document.getElementById("cidade").value = data.endereco.cidade || "";
+    document.getElementById("uf").value = data.endereco.uf || "";
+    document.getElementById("complemento").value = data.endereco.complemento || "";
+
+    if (data.pets.length) {
+      data.pets.forEach(pet => addPetCard(pet));
+    } else {
+      addPetCard();
+    }
+
+    duplicidadeOk = true;
+    atualizarEstadoBotaoProximo();
+  }
+
+  document.getElementById("cliente-completo-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const msg = document.getElementById("cliente-message");
+    const pets = coletarPets();
+
+    if (!pets.length) {
+      msg.innerText = "Adicione ao menos um pet.";
+      return;
+    }
+
+    if (!clienteId) {
+      const payload = {
+        cliente: {
+          empresa_id: 1,
+          nome: document.getElementById("nome").value,
+          cpf: document.getElementById("cpf").value || null,
+          email: document.getElementById("email").value || null,
+          telefone: document.getElementById("telefone").value || null,
+          telefone_fixo: document.getElementById("telefone_fixo").value || null
+        },
+        endereco: {
+          cep: document.getElementById("cep").value || null,
+          rua: document.getElementById("rua").value || null,
+          numero: document.getElementById("numero").value || null,
+          bairro: document.getElementById("bairro").value || null,
+          cidade: document.getElementById("cidade").value || null,
+          uf: document.getElementById("uf").value || null,
+          complemento: document.getElementById("complemento").value || null
+        },
+        pets: pets
+      };
+
+      const response = await fetch("/api/clientes/completo", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        msg.innerText = "Cadastro completo salvo com sucesso.";
+        setTimeout(() => window.location.href = "/clientes", 700);
+      } else {
+        const error = await response.json();
+        msg.innerText = error.detail || "Erro ao salvar cadastro.";
+      }
+    } else {
+      const payloadCliente = {
+        cliente: {
+          email: document.getElementById("email").value || null,
+          telefone: document.getElementById("telefone").value || null,
+          telefone_fixo: document.getElementById("telefone_fixo").value || null
+        },
+        endereco: {
+          cep: document.getElementById("cep").value || null,
+          rua: document.getElementById("rua").value || null,
+          numero: document.getElementById("numero").value || null,
+          bairro: document.getElementById("bairro").value || null,
+          cidade: document.getElementById("cidade").value || null,
+          uf: document.getElementById("uf").value || null,
+          complemento: document.getElementById("complemento").value || null
+        }
+      };
+
+      const responseCliente = await fetch(`/api/clientes/${clienteId}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payloadCliente)
+      });
+
+      for (const pet of pets) {
+        if (pet.id) {
+          await fetch(`/api/pets/${pet.id}`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(pet)
+          });
+        }
+      }
+
+      if (responseCliente.ok) {
+        msg.innerText = "Cliente atualizado com sucesso.";
+        setTimeout(() => window.location.href = "/clientes", 700);
+      } else {
+        msg.innerText = "Erro ao atualizar cliente.";
+      }
+    }
+  });
+
+  updateWizard();
+  carregarClienteEdicao();
+</script>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Atendimento Clínico</h1>
+    <p>Registro completo do atendimento veterinário.</p>
+  </div>
+</section>
+
+<section class="glass-card">
+
+  <!-- INFO GERAL -->
+  <div class="form-grid">
+
+    <div class="form-group">
+      <label>Cliente</label>
+      <input type="text" value="{{ atendimento.cliente.nome if atendimento.cliente else '' }}" disabled>
+    </div>
+
+    <div class="form-group">
+      <label>Pet</label>
+      <input type="text" value="{{ atendimento.pet.nome if atendimento.pet else '' }}" disabled>
+    </div>
+
+    <div class="form-group">
+      <label>Veterinário</label>
+      <input type="text" value="{{ atendimento.veterinario.nome if atendimento.veterinario else '' }}" disabled>
+    </div>
+
+    <div class="form-group">
+      <label>Status</label>
+      <input type="text" value="{{ atendimento.status }}" disabled>
+    </div>
+
+  </div>
+
+</section>
+
+<!-- DIAGNÓSTICO -->
+<section class="glass-card">
+  <h3>Diagnóstico</h3>
+  <p>
+    {{ prontuario.diagnostico if prontuario and prontuario.diagnostico else 'Não informado' }}
+  </p>
+</section>
+
+<!-- EXAMES -->
+<section class="glass-card">
+  <h3>Exames solicitados</h3>
+
+  {% if exames_solicitados and exames_solicitados|length > 0 %}
+    <ul>
+      {% for exame in exames_solicitados %}
+        <li>{{ exame }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Nenhum exame solicitado.</p>
+  {% endif %}
+</section>
+
+<!-- RECEITAS -->
+<section class="glass-card">
+  <h3>Receitas</h3>
+
+  {% if receitas_descricao and receitas_descricao|length > 0 %}
+    <ul>
+      {% for item in receitas_descricao %}
+        <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Nenhuma receita registrada.</p>
+  {% endif %}
+</section>
+
+<!-- ORIENTAÇÕES -->
+<section class="glass-card">
+  <h3>Orientações</h3>
+
+  {% if receitas_orientacoes and receitas_orientacoes|length > 0 %}
+    <ul>
+      {% for item in receitas_orientacoes %}
+        <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Nenhuma orientação informada.</p>
+  {% endif %}
+</section>
+
+<!-- AÇÕES -->
+<section class="glass-card">
+  <div class="form-actions">
+
+    <a href="/api/clinico/{{ atendimento.id }}/receita/imprimir"
+       target="_blank"
+       class="primary-btn no-underline">
+      🖨️ Imprimir Receita
+    </a>
+
+    <a href="/agenda" class="secondary-btn no-underline">
+      Voltar
+    </a>
+
+  </div>
+</section>
+
+{% endblock %}

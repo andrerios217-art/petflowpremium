@@ -12,7 +12,6 @@ from app.crud.assinatura import (
     registrar_consumo_assinatura,
 )
 from app.schemas.assinatura import (
-
     AssinaturaConsumoOperacaoResponse,
     AssinaturaOperacaoResponse,
     AssinaturaPetConsumoCreate,
@@ -21,35 +20,6 @@ from app.schemas.assinatura import (
     AssinaturaPetOut,
     AssinaturaPetUpdate,
 )
-
-
-# === PATCH VECTORPET EMPRESA REAL ASSINATURA ===
-def _vectorpet_empresa_real_assinatura(db, assinatura_id, empresa_id_fallback):
-    """
-    Em ambiente demo/teste, a empresa da sessão pode não ser a mesma empresa
-    gravada na assinatura. Para evitar falso 404 na edição/consulta,
-    usa a empresa real da assinatura quando ela existir.
-    """
-    try:
-        from app.models.assinatura_pet import AssinaturaPet as _VectorPetAssinaturaPet
-
-        assinatura_ref = (
-            db.query(_VectorPetAssinaturaPet)
-            .filter(_VectorPetAssinaturaPet.id == assinatura_id)
-            .first()
-        )
-
-        if assinatura_ref is not None:
-            empresa_real = getattr(assinatura_ref, "empresa_id", None)
-
-            if empresa_real is not None:
-                return int(empresa_real)
-    except Exception:
-        pass
-
-    return empresa_id_fallback
-# === FIM PATCH VECTORPET EMPRESA REAL ASSINATURA ===
-
 
 router = APIRouter(prefix="/assinaturas", tags=["assinaturas"])
 
@@ -81,7 +51,7 @@ def obter_assinatura_route(
     assinatura = buscar_assinatura_por_id(
         db=db,
         assinatura_id=assinatura_id,
-        empresa_id=_vectorpet_empresa_real_assinatura(db, assinatura_id, empresa_id),
+        empresa_id=empresa_id,
     )
     if not assinatura:
         raise HTTPException(status_code=404, detail="Assinatura não encontrada.")
@@ -163,7 +133,7 @@ def atualizar_assinatura_route(
         assinatura = atualizar_assinatura(
             db=db,
             assinatura_id=assinatura_id,
-            empresa_id=_vectorpet_empresa_real_assinatura(db, assinatura_id, empresa_id),
+            empresa_id=empresa_id,
             data=payload,
         )
         return AssinaturaOperacaoResponse(
@@ -185,7 +155,7 @@ def cancelar_assinatura_route(
         assinatura = cancelar_assinatura(
             db=db,
             assinatura_id=assinatura_id,
-            empresa_id=_vectorpet_empresa_real_assinatura(db, assinatura_id, empresa_id),
+            empresa_id=empresa_id,
         )
         return AssinaturaOperacaoResponse(
             ok=True,
@@ -208,7 +178,7 @@ def listar_consumos_assinatura_route(
     assinatura = buscar_assinatura_por_id(
         db=db,
         assinatura_id=assinatura_id,
-        empresa_id=_vectorpet_empresa_real_assinatura(db, assinatura_id, empresa_id),
+        empresa_id=empresa_id,
     )
     if not assinatura:
         raise HTTPException(status_code=404, detail="Assinatura não encontrada.")
@@ -216,7 +186,7 @@ def listar_consumos_assinatura_route(
     return listar_consumos_assinatura(
         db=db,
         assinatura_id=assinatura_id,
-        empresa_id=_vectorpet_empresa_real_assinatura(db, assinatura_id, empresa_id),
+        empresa_id=empresa_id,
     )
 
 

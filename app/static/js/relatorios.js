@@ -85,7 +85,7 @@ async function carregarFaturamentoPeriodo() {
         atualizarStatusFaturamento("Dados carregados com sucesso.");
     } catch (error) {
         atualizarResumoFaturamento({
-            quantidade_vendas: 0,
+            Quantidade_vendas: 0,
             total_faturado: 0,
             ticket_medio: 0
         });
@@ -140,7 +140,7 @@ async function carregarRelatorioVendas() {
         atualizarStatusRelatorioVendas("Dados carregados com sucesso.");
     } catch (error) {
         atualizarResumoRelatorioVendas({
-            quantidade_vendas: 0,
+            Quantidade_vendas: 0,
             total_faturado: 0,
             ticket_medio: 0,
             total_descontos: 0,
@@ -162,7 +162,7 @@ function preencherResumoFaturamento(data) {
     const resumo = data?.resumo || {};
 
     atualizarResumoFaturamento({
-        quantidade_vendas: Number(resumo.quantidade_vendas || 0),
+        Quantidade_vendas: Number(resumo.Quantidade_vendas || 0),
         total_faturado: Number(resumo.total_faturado || 0),
         ticket_medio: Number(resumo.ticket_medio || 0)
     });
@@ -172,7 +172,7 @@ function preencherResumoRelatorioVendas(data) {
     const resumo = data?.resumo || {};
 
     atualizarResumoRelatorioVendas({
-        quantidade_vendas: Number(resumo.quantidade_vendas || 0),
+        Quantidade_vendas: Number(resumo.Quantidade_vendas || 0),
         total_faturado: Number(resumo.total_faturado || 0),
         ticket_medio: Number(resumo.ticket_medio || 0),
         total_descontos: Number(resumo.total_descontos || 0),
@@ -181,12 +181,12 @@ function preencherResumoRelatorioVendas(data) {
 }
 
 function atualizarResumoFaturamento(resumo) {
-    const quantidade = document.getElementById("faturamento-quantidade-vendas");
+    const Quantidade = document.getElementById("faturamento-Quantidade-vendas");
     const total = document.getElementById("faturamento-total-faturado");
     const ticket = document.getElementById("faturamento-ticket-medio");
 
-    if (quantidade) {
-        quantidade.textContent = String(resumo.quantidade_vendas || 0);
+    if (Quantidade) {
+        Quantidade.textContent = String(resumo.Quantidade_vendas || 0);
     }
 
     if (total) {
@@ -199,14 +199,14 @@ function atualizarResumoFaturamento(resumo) {
 }
 
 function atualizarResumoRelatorioVendas(resumo) {
-    const quantidade = document.getElementById("relatorio-vendas-quantidade-vendas");
+    const Quantidade = document.getElementById("relatorio-vendas-Quantidade-vendas");
     const total = document.getElementById("relatorio-vendas-total-faturado");
     const ticket = document.getElementById("relatorio-vendas-ticket-medio");
     const descontos = document.getElementById("relatorio-vendas-total-descontos");
     const acrescimos = document.getElementById("relatorio-vendas-total-acrescimos");
 
-    if (quantidade) {
-        quantidade.textContent = String(resumo.quantidade_vendas || 0);
+    if (Quantidade) {
+        Quantidade.textContent = String(resumo.Quantidade_vendas || 0);
     }
 
     if (total) {
@@ -259,7 +259,7 @@ function renderizarResultadoFaturamento(data) {
         <div class="financeiro-info">
             <span class="financeiro-info-label">${escapeHtml(formatarDataBrasil(item.data || "-"))}</span>
             <span class="financeiro-info-value">${formatarMoeda(item.total_faturado || 0)}</span>
-            <small>${Number(item.quantidade_vendas || 0)} venda(s)</small>
+            <small>${Number(item.Quantidade_vendas || 0)} venda(s)</small>
         </div>
     `).join("");
 
@@ -350,7 +350,7 @@ function renderizarResultadoRelatorioVendas(data) {
         <div class="financeiro-info">
             <span class="financeiro-info-label">${escapeHtml(item.origem || "NÃO INFORMADA")}</span>
             <span class="financeiro-info-value">${formatarMoeda(item.total_faturado || 0)}</span>
-            <small>${Number(item.quantidade_vendas || 0)} venda(s)</small>
+            <small>${Number(item.Quantidade_vendas || 0)} venda(s)</small>
         </div>
     `).join("");
 
@@ -363,7 +363,7 @@ function renderizarResultadoRelatorioVendas(data) {
                 <div class="relatorio-item">
                     <div class="relatorio-item-left">
                         <span class="relatorio-etapa">${escapeHtml(item.descricao_snapshot || "Item")}</span>
-                        <small>${escapeHtml(item.tipo_item || "-")} • ${Number(item.quantidade || 0)} un.</small>
+                        <small>${escapeHtml(item.tipo_item || "-")} • ${Number(item.Quantidade || 0)} un.</small>
                     </div>
                     <strong>${formatarMoeda(item.valor_total || 0)}</strong>
                 </div>

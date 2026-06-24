@@ -44,37 +44,6 @@
 
   <meta name="google" content="notranslate">
   <meta name="robots" content="notranslate">
-<script id="vectorpet-forcar-fetch-https">
-  (function () {
-    const fetchOriginal = window.fetch;
-
-    window.fetch = function (input, init) {
-      try {
-        if (typeof input === "string") {
-          const hostHttp = "http://" + window.location.host;
-
-          if (window.location.protocol === "https:" && input.startsWith(hostHttp)) {
-            input = "https://" + window.location.host + input.slice(hostHttp.length);
-          }
-        }
-
-        if (input instanceof Request) {
-          const url = input.url || "";
-          const hostHttp = "http://" + window.location.host;
-
-          if (window.location.protocol === "https:" && url.startsWith(hostHttp)) {
-            const novaUrl = "https://" + window.location.host + url.slice(hostHttp.length);
-            input = new Request(novaUrl, input);
-          }
-        }
-      } catch (erro) {
-        console.warn("VectorPet HTTPS patch:", erro);
-      }
-
-      return fetchOriginal.call(this, input, init);
-    };
-  })();
-</script>
 </head>
 <body>
   <div class="app-shell">

@@ -13,16 +13,6 @@ from app.crud.assinatura import (
 )
 from app.schemas.assinatura import (
 
-    AssinaturaConsumoOperacaoResponse,
-    AssinaturaOperacaoResponse,
-    AssinaturaPetConsumoCreate,
-    AssinaturaPetConsumoOut,
-    AssinaturaPetCreate,
-    AssinaturaPetOut,
-    AssinaturaPetUpdate,
-)
-
-
 # === PATCH VECTORPET EMPRESA REAL ASSINATURA ===
 def _vectorpet_empresa_real_assinatura(db, assinatura_id, empresa_id_fallback):
     """
@@ -49,7 +39,14 @@ def _vectorpet_empresa_real_assinatura(db, assinatura_id, empresa_id_fallback):
 
     return empresa_id_fallback
 # === FIM PATCH VECTORPET EMPRESA REAL ASSINATURA ===
-
+    AssinaturaConsumoOperacaoResponse,
+    AssinaturaOperacaoResponse,
+    AssinaturaPetConsumoCreate,
+    AssinaturaPetConsumoOut,
+    AssinaturaPetCreate,
+    AssinaturaPetOut,
+    AssinaturaPetUpdate,
+)
 
 router = APIRouter(prefix="/assinaturas", tags=["assinaturas"])
 

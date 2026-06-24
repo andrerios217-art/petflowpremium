@@ -39,6 +39,529 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title=settings.APP_NAME, version="1.0.0")
 
 
+# === PAGINA ASSINATURAS (VectorPet) ===
+from datetime import date as _VectorPetDate
+from decimal import Decimal as _VectorPetDecimal
+from html import escape as _VectorPetEscape
+
+from fastapi import Request as _VectorPetAssinaturasRequest
+from fastapi import Depends as _VectorPetDepends
+from fastapi import Query as _VectorPetQuery
+from fastapi.responses import HTMLResponse as _VectorPetAssinaturasHTMLResponse
+from fastapi.responses import RedirectResponse as _VectorPetRedirectResponse
+from fastapi.templating import Jinja2Templates as _VectorPetAssinaturasTemplates
+from sqlalchemy.orm import Session as _VectorPetSession
+
+from app.database import get_db as _VectorPetGetDb
+from app.models.assinatura_pet import AssinaturaPet as _VectorPetAssinaturaPet
+from app.models.cliente import Cliente as _VectorPetCliente
+from app.models.pet import Pet as _VectorPetPet
+
+_vectorpet_assinaturas_templates = _VectorPetAssinaturasTemplates(directory="app/templates")
+
+
+def _vp_moeda(valor):
+    try:
+        valor = float(valor or 0)
+    except Exception:
+        valor = 0
+
+    texto = f"{valor:,.2f}"
+    texto = texto.replace(",", "X").replace(".", ",").replace("X", ".")
+    return "R$ " + texto
+
+
+def _vp_data(valor):
+    if not valor:
+        return "-"
+
+    try:
+        return valor.strftime("%d/%m/%Y")
+    except Exception:
+        return str(valor)
+
+
+def _vp_decimal(valor):
+    if valor is None:
+        return 0.0
+
+    if isinstance(valor, _VectorPetDecimal):
+        return float(valor)
+
+    try:
+        return float(valor)
+    except Exception:
+        return 0.0
+
+
+def _vp_assinatura_linha(db: _VectorPetSession, assinatura: _VectorPetAssinaturaPet):
+    cliente = db.query(_VectorPetCliente).filter(_VectorPetCliente.id == assinatura.cliente_id).first()
+    pet = db.query(_VectorPetPet).filter(_VectorPetPet.id == assinatura.pet_id).first()
+
+    cliente_nome = _VectorPetEscape(getattr(cliente, "nome", "") or "-")
+    pet_nome = _VectorPetEscape(getattr(pet, "nome", "") or "-")
+    status = _VectorPetEscape(getattr(assinatura, "status", "") or "-")
+
+    status_classe = "assinaturas-status-outra"
+
+    if status == "ATIVA":
+        status_classe = "assinaturas-status-ativa"
+
+    if status == "CANCELADA":
+        status_classe = "assinaturas-status-cancelada"
+
+    botao_cancelar = ""
+
+    if status not in ["CANCELADA", "ENCERRADA"]:
+        botao_cancelar = f"""
+          <form method="post" action="/assinaturas-admin/cancelar/{assinatura.id}" onsubmit="return confirm('Deseja cancelar esta assinatura?');">
+            <button class="assinaturas-btn assinaturas-btn-danger" type="submit">Cancelar</button>
+          </form>
+        """
+
+    return f"""
+      <tr>
+        <td>#{assinatura.id}</td>
+        <td>{cliente_nome}</td>
+        <td>{pet_nome}</td>
+        <td>{_vp_data(getattr(assinatura, "data_inicio", None))}</td>
+        <td>{_vp_data(getattr(assinatura, "data_fim", None))}</td>
+        <td><span class="assinaturas-status {status_classe}">{status}</span></td>
+        <td>{_vp_moeda(getattr(assinatura, "valor_final", 0))}</td>
+        <td>
+          <div class="assinaturas-acoes">
+            <a class="assinaturas-btn assinaturas-btn-soft" href="/assinaturas/editar/{assinatura.id}">Editar</a>
+            {botao_cancelar}
+          </div>
+        </td>
+      </tr>
+    """
+
+
+@app.get("/assinaturas", response_class=_VectorPetAssinaturasHTMLResponse)
+async def vectorpet_assinaturas_lista_page(
+    request: _VectorPetAssinaturasRequest,
+    busca: str | None = _VectorPetQuery(None),
+    status: str | None = _VectorPetQuery(None),
+    db: _VectorPetSession = _VectorPetDepends(_VectorPetGetDb),
+):
+    query = db.query(_VectorPetAssinaturaPet)
+
+    if status:
+        query = query.filter(_VectorPetAssinaturaPet.status == status)
+
+    assinaturas = query.order_by(_VectorPetAssinaturaPet.id.desc()).limit(300).all()
+
+    dados = []
+
+    for assinatura in assinaturas:
+        cliente = db.query(_VectorPetCliente).filter(_VectorPetCliente.id == assinatura.cliente_id).first()
+        pet = db.query(_VectorPetPet).filter(_VectorPetPet.id == assinatura.pet_id).first()
+
+        item = {
+            "assinatura": assinatura,
+            "cliente_nome": getattr(cliente, "nome", "") if cliente else "",
+            "pet_nome": getattr(pet, "nome", "") if pet else "",
+        }
+
+        dados.append(item)
+
+    if busca:
+        termo = busca.strip().lower()
+
+        dados = [
+            item for item in dados
+            if termo in str(item["assinatura"].id).lower()
+            or termo in (item["cliente_nome"] or "").lower()
+            or termo in (item["pet_nome"] or "").lower()
+        ]
+
+    total = len(dados)
+    ativas = len([item for item in dados if getattr(item["assinatura"], "status", "") == "ATIVA"])
+    canceladas = len([item for item in dados if getattr(item["assinatura"], "status", "") == "CANCELADA"])
+    valor_ativo = sum(
+        _vp_decimal(getattr(item["assinatura"], "valor_final", 0))
+        for item in dados
+        if getattr(item["assinatura"], "status", "") == "ATIVA"
+    )
+
+    linhas = ""
+
+    if dados:
+        linhas = "\n".join([_vp_assinatura_linha(db, item["assinatura"]) for item in dados])
+    else:
+        linhas = '<tr><td colspan="8">Nenhuma assinatura encontrada.</td></tr>'
+
+    busca_value = _VectorPetEscape(busca or "")
+
+    status_options = {
+        "": "Todos",
+        "ATIVA": "Ativas",
+        "PAUSADA": "Pausadas",
+        "CANCELADA": "Canceladas",
+        "ENCERRADA": "Encerradas",
+    }
+
+    options_html = ""
+
+    for valor, label in status_options.items():
+        selected = "selected" if (status or "") == valor else ""
+        options_html += f'<option value="{valor}" {selected}>{label}</option>'
+
+    html = f"""
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no" class="notranslate">
+<head>
+  <meta charset="UTF-8">
+  <meta name="google" content="notranslate">
+  <meta name="robots" content="notranslate">
+  <title>Assinaturas | VectorPet</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .assinaturas-page {{
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }}
+
+    .assinaturas-hero {{
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 24px 28px;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef6ff 100%);
+      border: 1px solid #dbeafe;
+      border-radius: 20px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+    }}
+
+    .assinaturas-hero h1 {{
+      margin: 0 0 6px;
+      color: #0f172a;
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }}
+
+    .assinaturas-hero p {{
+      margin: 0;
+      color: #475569;
+    }}
+
+    .assinaturas-btn {{
+      min-height: 42px;
+      border: 0;
+      border-radius: 13px;
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }}
+
+    .assinaturas-btn-primary {{
+      color: #fff;
+      background: #2563eb;
+      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+    }}
+
+    .assinaturas-btn-soft {{
+      color: #0f172a;
+      background: #e2e8f0;
+    }}
+
+    .assinaturas-btn-danger {{
+      color: #991b1b;
+      background: #fee2e2;
+      border: 1px solid #fecaca;
+    }}
+
+    .assinaturas-card {{
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+    }}
+
+    .assinaturas-filtros {{
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) 180px 140px;
+      gap: 12px;
+      align-items: end;
+    }}
+
+    .assinaturas-field {{
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }}
+
+    .assinaturas-field label {{
+      color: #334155;
+      font-size: 13px;
+      font-weight: 800;
+    }}
+
+    .assinaturas-field input,
+    .assinaturas-field select {{
+      min-height: 42px;
+      border: 1px solid #cbd5e1;
+      border-radius: 13px;
+      padding: 0 12px;
+      outline: none;
+    }}
+
+    .assinaturas-resumo {{
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }}
+
+    .assinaturas-kpi {{
+      padding: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      background: #f8fafc;
+    }}
+
+    .assinaturas-kpi span {{
+      display: block;
+      margin-bottom: 6px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }}
+
+    .assinaturas-kpi strong {{
+      color: #0f172a;
+      font-size: 24px;
+      font-weight: 900;
+    }}
+
+    .assinaturas-table-wrap {{
+      overflow-x: auto;
+    }}
+
+    .assinaturas-table {{
+      width: 100%;
+      border-collapse: collapse;
+    }}
+
+    .assinaturas-table th,
+    .assinaturas-table td {{
+      padding: 13px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+      white-space: nowrap;
+    }}
+
+    .assinaturas-table th {{
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }}
+
+    .assinaturas-status {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+    }}
+
+    .assinaturas-status-ativa {{
+      color: #166534;
+      background: #dcfce7;
+    }}
+
+    .assinaturas-status-cancelada {{
+      color: #991b1b;
+      background: #fee2e2;
+    }}
+
+    .assinaturas-status-outra {{
+      color: #334155;
+      background: #e2e8f0;
+    }}
+
+    .assinaturas-acoes {{
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }}
+
+    .assinaturas-acoes form {{
+      margin: 0;
+    }}
+
+    @media (max-width: 900px) {{
+      .assinaturas-hero,
+      .assinaturas-filtros,
+      .assinaturas-resumo {{
+        grid-template-columns: 1fr;
+      }}
+    }}
+  </style>
+</head>
+<body translate="no" class="notranslate">
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+      <div class="topbar-global">
+        <strong>VectorPet</strong>
+      </div>
+
+      <section class="assinaturas-page">
+        <div class="assinaturas-hero">
+          <div>
+            <h1>Assinaturas</h1>
+            <p>Busque, edite, acompanhe e cancele assinaturas vinculadas aos tutores e pets.</p>
+          </div>
+
+          <a href="/assinaturas/novo" class="assinaturas-btn assinaturas-btn-primary">Nova assinatura</a>
+        </div>
+
+        <div class="assinaturas-card">
+          <form method="get" action="/assinaturas" class="assinaturas-filtros">
+            <div class="assinaturas-field">
+              <label for="busca">Buscar</label>
+              <input id="busca" name="busca" type="text" value="{busca_value}" placeholder="Tutor, pet ou número da assinatura">
+            </div>
+
+            <div class="assinaturas-field">
+              <label for="status">Status</label>
+              <select id="status" name="status">
+                {options_html}
+              </select>
+            </div>
+
+            <button class="assinaturas-btn assinaturas-btn-primary" type="submit">Buscar</button>
+          </form>
+        </div>
+
+        <div class="assinaturas-resumo">
+          <div class="assinaturas-kpi">
+            <span>Total</span>
+            <strong>{total}</strong>
+          </div>
+          <div class="assinaturas-kpi">
+            <span>Ativas</span>
+            <strong>{ativas}</strong>
+          </div>
+          <div class="assinaturas-kpi">
+            <span>Canceladas</span>
+            <strong>{canceladas}</strong>
+          </div>
+          <div class="assinaturas-kpi">
+            <span>Mensalidade ativa</span>
+            <strong>{_vp_moeda(valor_ativo)}</strong>
+          </div>
+        </div>
+
+        <div class="assinaturas-card">
+          <div class="assinaturas-table-wrap">
+            <table class="assinaturas-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tutor</th>
+                  <th>Pet</th>
+                  <th>Início</th>
+                  <th>Fim</th>
+                  <th>Status</th>
+                  <th>Valor mensal</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linhas}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
+    """
+
+    return _VectorPetAssinaturasHTMLResponse(html)
+
+
+@app.get("/assinaturas/novo", response_class=_VectorPetAssinaturasHTMLResponse)
+async def vectorpet_assinaturas_novo_page(request: _VectorPetAssinaturasRequest):
+    return _vectorpet_assinaturas_templates.TemplateResponse(
+        request,
+        "assinaturas.html",
+        {
+            "request": request,
+            "system_name": "VectorPet",
+            "assinatura_id": "",
+        },
+    )
+
+
+@app.get("/assinaturas/editar/{assinatura_id}", response_class=_VectorPetAssinaturasHTMLResponse)
+async def vectorpet_assinaturas_editar_page(request: _VectorPetAssinaturasRequest, assinatura_id: int):
+    return _vectorpet_assinaturas_templates.TemplateResponse(
+        request,
+        "assinaturas.html",
+        {
+            "request": request,
+            "system_name": "VectorPet",
+            "assinatura_id": assinatura_id,
+        },
+    )
+
+
+@app.post("/assinaturas-admin/cancelar/{assinatura_id}")
+async def vectorpet_assinaturas_admin_cancelar(
+    assinatura_id: int,
+    db: _VectorPetSession = _VectorPetDepends(_VectorPetGetDb),
+):
+    assinatura = (
+        db.query(_VectorPetAssinaturaPet)
+        .filter(_VectorPetAssinaturaPet.id == assinatura_id)
+        .first()
+    )
+
+    if assinatura is not None:
+        assinatura.status = "CANCELADA"
+
+        if hasattr(assinatura, "data_cancelamento"):
+            assinatura.data_cancelamento = _VectorPetDate.today()
+
+        db.add(assinatura)
+        db.commit()
+
+    return _VectorPetRedirectResponse("/assinaturas", status_code=303)
+# === FIM PAGINA ASSINATURAS (VectorPet) ===
+
+
+
+
+
+
+
+
+
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 

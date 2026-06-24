@@ -1318,7 +1318,7 @@
                 return {
                     servico_id: servicoId > 0 ? servicoId : null,
                     descricao: nome || "Serviço veterinário",
-                    quantidade: 1,
+                    Quantidade: 1,
                     valor_unitario: Number.isFinite(valor) && valor > 0 ? Number(valor.toFixed(2)) : 0,
                     tipo_item: "SERVICO_EXECUTADO",
                 };

@@ -162,7 +162,7 @@
     btnConfirmarFecharCaixa: document.getElementById("btn-confirmar-fechar-caixa"),
 
     parcelasContainer: null,
-    quantidadeParcelas: null,
+    QuantidadeParcelas: null,
   };
 
   function setText(el, value) {
@@ -485,7 +485,7 @@
     if (!els.formaPagamento) return;
 
     let container = document.getElementById("pdv-parcelas-container");
-    let select = document.getElementById("pdv-quantidade-parcelas");
+    let select = document.getElementById("pdv-Quantidade-parcelas");
 
     if (!container) {
       container = document.createElement("div");
@@ -494,10 +494,10 @@
       container.style.marginTop = "12px";
 
       container.innerHTML = `
-        <label for="pdv-quantidade-parcelas" style="display:block;margin-bottom:6px;font-weight:600;">
+        <label for="pdv-Quantidade-parcelas" style="display:block;margin-bottom:6px;font-weight:600;">
           Parcelas
         </label>
-        <select id="pdv-quantidade-parcelas" class="form-select">
+        <select id="pdv-Quantidade-parcelas" class="form-select">
           ${Array.from({ length: 12 }, (_, index) => {
             const n = index + 1;
             return `<option value="${n}">${n}x</option>`;
@@ -513,13 +513,13 @@
       }
     }
 
-    select = container.querySelector("#pdv-quantidade-parcelas");
+    select = container.querySelector("#pdv-Quantidade-parcelas");
 
     els.parcelasContainer = container;
-    els.quantidadeParcelas = select;
+    els.QuantidadeParcelas = select;
 
-    if (els.quantidadeParcelas && !els.quantidadeParcelas.value) {
-      els.quantidadeParcelas.value = "1";
+    if (els.QuantidadeParcelas && !els.QuantidadeParcelas.value) {
+      els.QuantidadeParcelas.value = "1";
     }
   }
 
@@ -527,7 +527,7 @@
     const formaPagamento = String(els.formaPagamento?.value || "").trim();
     if (formaPagamento !== "CARTAO_CREDITO") return 1;
 
-    const parcelas = toNumber(els.quantidadeParcelas?.value, 1);
+    const parcelas = toNumber(els.QuantidadeParcelas?.value, 1);
     if (!Number.isFinite(parcelas) || parcelas < 1) return 1;
     if (parcelas > 12) return 12;
     return Math.trunc(parcelas);
@@ -543,8 +543,8 @@
       showEl(els.parcelasContainer);
     } else {
       hideEl(els.parcelasContainer);
-      if (els.quantidadeParcelas) {
-        els.quantidadeParcelas.value = "1";
+      if (els.QuantidadeParcelas) {
+        els.QuantidadeParcelas.value = "1";
       }
     }
   }
@@ -556,8 +556,8 @@
     setValue(els.buscaProduto, "");
     setValue(els.buscaCliente, "");
     setValue(els.descontoPercent, "");
-    if (els.quantidadeParcelas) {
-      els.quantidadeParcelas.value = "1";
+    if (els.QuantidadeParcelas) {
+      els.QuantidadeParcelas.value = "1";
     }
     if (els.produtosResultado) {
       setHtml(els.produtosResultado, `<div class="pdv-empty-state">Nenhum produto pesquisado.</div>`);
@@ -684,7 +684,7 @@
             <strong>${escapeHtml(item.descricao_snapshot || "Item sem descrição")}</strong>
             <div class="pdv-cart-meta">
               ${item.tipo_item === "SERVICE" ? "Serviço" : "Produto"} |
-              Qtde: ${toNumber(item.quantidade, 0)} |
+              Qtde: ${toNumber(item.Quantidade, 0)} |
               Unitário: ${formatMoney(item.valor_unitario)} |
               Desconto: ${formatMoney(item.desconto_valor)}
             </div>
@@ -1252,7 +1252,7 @@
       tipo_item: "PRODUCT",
       produto_id: Number(produto.id),
       descricao_snapshot: produto.nome || "Produto",
-      quantidade: 1,
+      Quantidade: 1,
       valor_unitario: Number(toNumber(produto.preco_venda_atual, 0).toFixed(2)),
       desconto_valor: 0,
     };
@@ -1720,7 +1720,7 @@
 
     const formaPagamento = String(els.formaPagamento?.value || "DINHEIRO").trim() || "DINHEIRO";
     const valor = toNumber(venda.valor_total, 0);
-    const quantidadeParcelas = getQuantidadeParcelasSelecionada();
+    const QuantidadeParcelas = getQuantidadeParcelasSelecionada();
 
     if (valor < 0) throw new Error("Total inválido.");
 
@@ -1728,7 +1728,7 @@
       pagamento: {
         forma_pagamento: formaPagamento,
         valor: Number(valor.toFixed(2)),
-        quantidade_parcelas: quantidadeParcelas,
+        Quantidade_parcelas: QuantidadeParcelas,
       },
     };
 

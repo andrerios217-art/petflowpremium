@@ -719,13 +719,13 @@ function preencherResumo(resumo) {
     setText("financeiro-total-pago", formatarMoeda(resumo.total_pago || 0));
     setText("financeiro-total-vencido", formatarMoeda(resumo.total_vencido || 0));
 
-    setText("financeiro-qtd-pendente", `${Number(resumo.quantidade_pendente || 0)} conta(s)`);
-    setText("financeiro-qtd-pago", `${Number(resumo.quantidade_paga || 0)} conta(s)`);
-    setText("financeiro-qtd-vencido", `${Number(resumo.quantidade_vencida || 0)} conta(s)`);
+    setText("financeiro-qtd-pendente", `${Number(resumo.Quantidade_pendente || 0)} conta(s)`);
+    setText("financeiro-qtd-pago", `${Number(resumo.Quantidade_paga || 0)} conta(s)`);
+    setText("financeiro-qtd-vencido", `${Number(resumo.Quantidade_vencida || 0)} conta(s)`);
 
-    setText("financeiro-qtd-pendentes", `${Number(resumo.quantidade_pendente || 0)} conta(s)`);
-    setText("financeiro-qtd-pagas", `${Number(resumo.quantidade_paga || 0)} conta(s)`);
-    setText("financeiro-qtd-vencidas", `${Number(resumo.quantidade_vencida || 0)} conta(s)`);
+    setText("financeiro-qtd-pendentes", `${Number(resumo.Quantidade_pendente || 0)} conta(s)`);
+    setText("financeiro-qtd-pagas", `${Number(resumo.Quantidade_paga || 0)} conta(s)`);
+    setText("financeiro-qtd-vencidas", `${Number(resumo.Quantidade_vencida || 0)} conta(s)`);
 }
 
 function renderizarContas() {

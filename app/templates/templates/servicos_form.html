@@ -1,0 +1,272 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+
+<section class="page-header">
+  <div>
+    <h1 id="form-title">Novo serviço</h1>
+    <p>Cadastre ou edite serviços, definindo tipo, porte, custo, preço de venda e tempo estimado.</p>
+  </div>
+</section>
+
+<section class="glass-card">
+
+  <form id="servico-form" class="form-grid">
+
+    <div class="form-group">
+      <label>Nome do serviço</label>
+      <input type="text" id="nome" required />
+    </div>
+
+    <div class="form-group">
+      <label>Tipo de serviço</label>
+      <select id="tipo_servico" required>
+        <option value="">Selecione</option>
+        <option value="PETSHOP">Pet Shop</option>
+        <option value="VETERINARIO">Veterinário</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Porte de referência</label>
+      <select id="porte_referencia" required>
+        <option value="">Selecione</option>
+        <option value="G1">G1 - Mini</option>
+        <option value="G2">G2 - Pequeno</option>
+        <option value="G3">G3 - Médio</option>
+        <option value="G4">G4 - Grande</option>
+        <option value="G5">G5 - Gigante</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Custo (R$)</label>
+      <input type="text" id="custo" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" required />
+    </div>
+
+    <div class="form-group">
+      <label>Preço de venda (R$)</label>
+      <input type="text" id="venda" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" required />
+    </div>
+
+    <div class="form-group">
+      <label>Tempo estimado (minutos)</label>
+      <input type="number" id="tempo_minutos" min="1" required />
+    </div>
+
+    <div class="form-actions">
+
+      <button type="submit" class="primary-btn">
+        Salvar serviço
+      </button>
+
+      <a href="/servicos" class="secondary-btn no-underline">
+        Cancelar
+      </a>
+
+    </div>
+
+    <div id="servico-message" class="form-message"></div>
+
+  </form>
+
+</section>
+
+<script>
+const servicoId = "{{ servico_id if servico_id else '' }}";
+
+function definirTipoPadrao() {
+  const campoTipo = document.getElementById("tipo_servico");
+  if (!servicoId && campoTipo && !campoTipo.value) {
+    campoTipo.value = "PETSHOP";
+  }
+}
+
+function parseMoeda(valor) {
+  if (typeof valor === "number") {
+    return Number.isFinite(valor) ? valor : 0;
+  }
+
+  let texto = String(valor ?? "").trim();
+  if (!texto) return 0;
+
+  texto = texto.replace(/\s/g, "").replace(/[^\d,.-]/g, "");
+  if (!texto || texto === "," || texto === "." || texto === "-" || texto === "-," || texto === "-.") {
+    return 0;
+  }
+
+  const temVirgula = texto.includes(",");
+  const temPonto = texto.includes(".");
+
+  if (temVirgula && temPonto) {
+    if (texto.lastIndexOf(",") > texto.lastIndexOf(".")) {
+      texto = texto.replace(/\./g, "").replace(",", ".");
+    } else {
+      texto = texto.replace(/,/g, "");
+    }
+  } else if (temVirgula) {
+    texto = texto.replace(",", ".");
+  }
+
+  const numero = Number(texto);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function formatarMoeda(valor) {
+  const numero = parseMoeda(valor);
+  return numero.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  });
+}
+
+function getMoneyDigits(valor) {
+  return String(valor ?? "").replace(/\D/g, "");
+}
+
+function moneyDigitsToNumber(digits) {
+  const normalizado = String(digits ?? "").replace(/\D/g, "");
+  if (!normalizado) return 0;
+  return Number(normalizado) / 100;
+}
+
+function moveCaretToEnd(input) {
+  if (!input || typeof input.setSelectionRange !== "function") return;
+  const fim = input.value.length;
+  requestAnimationFrame(() => input.setSelectionRange(fim, fim));
+}
+
+function formatarMoedaEdicao(valor) {
+  const digits = getMoneyDigits(valor);
+  if (!digits) return "";
+  return formatarMoeda(moneyDigitsToNumber(digits));
+}
+
+function configurarMascaraMoeda(input) {
+  if (!input || input.dataset.moneyBound === "true") return;
+
+  input.dataset.moneyBound = "true";
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.autocomplete = "off";
+
+  input.addEventListener("focus", () => {
+    input.value = formatarMoedaEdicao(input.value);
+    if (typeof input.select === "function") {
+      input.select();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    const digits = getMoneyDigits(input.value);
+
+    if (!digits) {
+      input.value = "";
+      return;
+    }
+
+    const numero = moneyDigitsToNumber(digits);
+    input.value = formatarMoeda(numero);
+    moveCaretToEnd(input);
+  });
+
+  input.addEventListener("blur", () => {
+    const numero = parseMoeda(input.value);
+    input.value = numero > 0 ? formatarMoeda(numero) : "";
+  });
+}
+
+function validarFormulario() {
+  const nome = document.getElementById("nome").value.trim();
+  const tipoServico = document.getElementById("tipo_servico").value;
+  const porte = document.getElementById("porte_referencia").value;
+  const custo = parseMoeda(document.getElementById("custo").value);
+  const venda = parseMoeda(document.getElementById("venda").value);
+  const tempo = Number(document.getElementById("tempo_minutos").value);
+
+  if (!nome || !tipoServico || !porte || !tempo) {
+    document.getElementById("servico-message").innerText =
+      "Preencha todos os campos obrigatórios.";
+    return false;
+  }
+
+  if (custo <= 0 || venda <= 0) {
+    document.getElementById("servico-message").innerText =
+      "Informe custo e preço de venda maiores que zero.";
+    return false;
+  }
+
+  return true;
+}
+
+async function carregarServicoEdicao() {
+  if (!servicoId) {
+    definirTipoPadrao();
+    return;
+  }
+
+  document.getElementById("form-title").innerText = "Editar serviço";
+
+  const response = await fetch(`/api/servicos/${servicoId}`);
+  const data = await response.json();
+
+  document.getElementById("nome").value = data.nome || "";
+  document.getElementById("tipo_servico").value = data.tipo_servico || "PETSHOP";
+  document.getElementById("porte_referencia").value = data.porte_referencia || "";
+  document.getElementById("custo").value = data.custo ? formatarMoeda(data.custo) : "";
+  document.getElementById("venda").value = data.venda ? formatarMoeda(data.venda) : "";
+  document.getElementById("tempo_minutos").value = data.tempo_minutos ?? "";
+}
+
+document.getElementById("servico-form").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  if (!validarFormulario()) return;
+
+  const payload = {
+    empresa_id: 1,
+    nome: document.getElementById("nome").value.trim(),
+    tipo_servico: document.getElementById("tipo_servico").value,
+    porte_referencia: document.getElementById("porte_referencia").value,
+    custo: parseMoeda(document.getElementById("custo").value),
+    venda: parseMoeda(document.getElementById("venda").value),
+    tempo_minutos: Number(document.getElementById("tempo_minutos").value)
+  };
+
+  const msg = document.getElementById("servico-message");
+  msg.innerText = "";
+
+  let response;
+
+  if (servicoId) {
+    response = await fetch(`/api/servicos/${servicoId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  } else {
+    response = await fetch("/api/servicos/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  if (response.ok) {
+    msg.innerText = "Serviço salvo com sucesso.";
+
+    setTimeout(() => {
+      window.location.href = "/servicos";
+    }, 800);
+  } else {
+    const error = await response.json();
+    msg.innerText = error.detail || "Erro ao salvar serviço.";
+  }
+});
+
+configurarMascaraMoeda(document.getElementById("custo"));
+configurarMascaraMoeda(document.getElementById("venda"));
+carregarServicoEdicao();
+</script>
+
+{% endblock %}S

@@ -474,13 +474,13 @@
       ${montarCardResumo(
         "Entradas realizadas",
         moeda(entradas),
-        `${resumo.quantidade_entradas_realizadas || 0} recebimento(s) no per\u00edodo`,
+        `${resumo.Quantidade_entradas_realizadas || 0} recebimento(s) no per\u00edodo`,
         "positivo"
       )}
       ${montarCardResumo(
         "Sa\u00eddas realizadas",
         moeda(saidas),
-        `${resumo.quantidade_saidas_realizadas || 0} pagamento(s) no per\u00edodo`,
+        `${resumo.Quantidade_saidas_realizadas || 0} pagamento(s) no per\u00edodo`,
         "negativo"
       )}
       ${montarCardResumo(
@@ -492,7 +492,7 @@
       ${montarCardResumo(
         "Saldo previsto",
         moeda(saldoPrevisto),
-        `${resumo.quantidade_entradas_previstas || 0} entrada(s) e ${resumo.quantidade_saidas_previstas || 0} sa\u00edda(s) previstas`,
+        `${resumo.Quantidade_entradas_previstas || 0} entrada(s) e ${resumo.Quantidade_saidas_previstas || 0} sa\u00edda(s) previstas`,
         saldoPrevisto >= 0 ? "positivo" : "negativo"
       )}
     `;
@@ -562,7 +562,7 @@
               Sa\u00eddas: ${moeda(item.saidas_previstas || 0)}
             </small>
             <div class="fc-mini-meta">
-              ${item.quantidade_total || 0} movimento(s)
+              ${item.Quantidade_total || 0} movimento(s)
             </div>
           </article>
         `;
@@ -594,7 +594,7 @@
               <div class="fc-forma-icon">${icone}</div>
               <div>
                 <h3>${escaparHtml(item.forma_pagamento || "Outro")}</h3>
-                <p>${item.quantidade_total || 0} movimento(s)</p>
+                <p>${item.Quantidade_total || 0} movimento(s)</p>
               </div>
             </div>
 
@@ -648,7 +648,7 @@
             <td class="fc-right fc-negative">${moeda(item.saidas || 0)}</td>
             <td class="fc-right ${saldoDia >= 0 ? "fc-positive" : "fc-negative"}">${moeda(saldoDia)}</td>
             <td class="fc-right ${saldoAcumulado >= 0 ? "fc-positive" : "fc-negative"}">${moeda(saldoAcumulado)}</td>
-            <td class="fc-right">${item.quantidade_movimentos || 0}</td>
+            <td class="fc-right">${item.Quantidade_movimentos || 0}</td>
           </tr>
         `;
       })
