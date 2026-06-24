@@ -96,7 +96,6 @@ class AssinaturaPetUpdate(BaseModel):
     origem: OrigemAssinaturaLiteral | None = None
     observacoes: str | None = None
     contrato_externo_id: str | None = None
-    itens: list[AssinaturaPetItemCreate] | None = None
 
 
 class AssinaturaPetOut(BaseModel):

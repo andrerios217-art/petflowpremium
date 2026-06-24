@@ -254,212 +254,45 @@ def criar_assinatura(
 
 
 def atualizar_assinatura(
-    db,
-    assinatura_id,
-    empresa_id,
-    data,
-):
-    from datetime import datetime, timezone
-    from decimal import Decimal
-
-    from app.models.assinatura_pet import AssinaturaPet
-    from app.models.assinatura_pet_item import AssinaturaPetItem
-    from app.models.pet import Pet
-
-    assinatura = (
-        db.query(AssinaturaPet)
-        .filter(AssinaturaPet.id == assinatura_id)
-        .first()
-    )
-
-    if assinatura is None:
+    db: Session,
+    assinatura_id: int,
+    empresa_id: int,
+    data: AssinaturaPetUpdate,
+) -> AssinaturaPet:
+    assinatura = buscar_assinatura_por_id(db, assinatura_id, empresa_id)
+    if not assinatura:
         raise ValueError("Assinatura não encontrada.")
 
-    empresa_real = getattr(assinatura, "empresa_id", None) or empresa_id
+    payload = data.model_dump(exclude_unset=True)
 
-    if hasattr(data, "model_dump"):
-        dados = data.model_dump(exclude_unset=True)
-    elif isinstance(data, dict):
-        dados = dict(data)
-    else:
-        dados = {}
+    if "pet_id" in payload or "cliente_id" in payload:
+        cliente_id = payload.get("cliente_id", assinatura.cliente_id)
+        pet_id = payload.get("pet_id", assinatura.pet_id)
 
-    itens_payload = dados.pop("itens", None)
-
-    cliente_id_final = dados.get("cliente_id", getattr(assinatura, "cliente_id", None))
-    pet_id_final = dados.get("pet_id", getattr(assinatura, "pet_id", None))
-
-    if cliente_id_final and pet_id_final:
-        pet = (
-            db.query(Pet)
-            .filter(Pet.id == pet_id_final)
-            .first()
+        _validar_pet_do_cliente(
+            db=db,
+            empresa_id=empresa_id,
+            cliente_id=cliente_id,
+            pet_id=pet_id,
         )
 
-        if pet is None:
-            raise ValueError("Pet não encontrado para este tutor.")
+        if pet_id != assinatura.pet_id and existe_assinatura_ativa_para_pet(
+            db=db,
+            empresa_id=empresa_id,
+            pet_id=pet_id,
+            ignorar_assinatura_id=assinatura.id,
+        ):
+            raise ValueError("O pet informado já possui assinatura ativa.")
 
-        pet_cliente_id = getattr(pet, "cliente_id", None)
-        pet_empresa_id = getattr(pet, "empresa_id", None)
+    for campo, valor in payload.items():
+        setattr(assinatura, campo, valor)
 
-        if pet_cliente_id is not None and int(pet_cliente_id) != int(cliente_id_final):
-            raise ValueError("Pet não encontrado para este tutor.")
-
-        if pet_empresa_id is not None:
-            empresa_real = int(pet_empresa_id)
-            assinatura.empresa_id = empresa_real
-
-    campos_permitidos = [
-        "cliente_id",
-        "pet_id",
-        "status",
-        "data_inicio",
-        "data_fim",
-        "data_cancelamento",
-        "dia_fechamento_ciclo",
-        "usar_limite_ate_dia_28",
-        "nao_cumulativa",
-        "ativa_renovacao",
-        "origem",
-        "observacoes",
-        "contrato_externo_id",
-    ]
-
-    for campo in campos_permitidos:
-        if campo in dados:
-            setattr(assinatura, campo, dados[campo])
-
-    if itens_payload is not None:
-        if not itens_payload:
-            raise ValueError("A assinatura deve ter ao menos um serviço.")
-
-        itens_antigos = (
-            db.query(AssinaturaPetItem)
-            .filter(AssinaturaPetItem.assinatura_id == assinatura.id)
-            .all()
-        )
-
-        consumo_por_servico = {}
-
-        for item_antigo in itens_antigos:
-            servico_id_antigo = getattr(item_antigo, "servico_id", None)
-            consumido = getattr(item_antigo, "quantidade_consumida", 0) or 0
-
-            if servico_id_antigo is not None:
-                consumo_por_servico[int(servico_id_antigo)] = max(
-                    consumo_por_servico.get(int(servico_id_antigo), 0),
-                    int(consumido),
-                )
-
-            db.delete(item_antigo)
-
-        db.flush()
-
-        total_bruto = Decimal("0.00")
-        total_desconto = Decimal("0.00")
-        total_final = Decimal("0.00")
-
-        for item_payload in itens_payload:
-            if hasattr(item_payload, "model_dump"):
-                item_dados = item_payload.model_dump()
-            else:
-                item_dados = dict(item_payload)
-
-            servico_id = int(item_dados.get("servico_id") or 0)
-            nome_servico = str(item_dados.get("nome_servico") or "").strip()
-            quantidade = int(item_dados.get("quantidade_contratada") or 1)
-
-            preco_base = Decimal(str(item_dados.get("preco_unitario_base") or "0")).quantize(Decimal("0.01"))
-            percentual = Decimal(str(item_dados.get("percentual_desconto") or "0")).quantize(Decimal("0.01"))
-
-            if servico_id <= 0:
-                raise ValueError("Serviço inválido na assinatura.")
-
-            if not nome_servico:
-                raise ValueError("Nome do serviço obrigatório na assinatura.")
-
-            if quantidade < 1:
-                quantidade = 1
-
-            if percentual < 0 or percentual > 100:
-                raise ValueError("O desconto do serviço deve estar entre 0 e 100.")
-
-            quantidade_consumida = consumo_por_servico.get(servico_id, 0)
-            quantidade_disponivel = max(quantidade - quantidade_consumida, 0)
-
-            valor_desconto_unitario = (preco_base * percentual / Decimal("100")).quantize(Decimal("0.01"))
-            preco_unitario_final = (preco_base - valor_desconto_unitario).quantize(Decimal("0.01"))
-
-            subtotal_bruto = (preco_base * quantidade).quantize(Decimal("0.01"))
-            subtotal_desconto = (valor_desconto_unitario * quantidade).quantize(Decimal("0.01"))
-            subtotal_final = (preco_unitario_final * quantidade).quantize(Decimal("0.01"))
-
-            item = AssinaturaPetItem(
-                assinatura_id=assinatura.id,
-                empresa_id=empresa_real,
-                servico_id=servico_id,
-                nome_servico=nome_servico,
-                quantidade_contratada=quantidade,
-                preco_unitario_base=preco_base,
-                percentual_desconto=percentual,
-            )
-
-            if hasattr(item, "quantidade_consumida"):
-                item.quantidade_consumida = quantidade_consumida
-
-            if hasattr(item, "quantidade_disponivel"):
-                item.quantidade_disponivel = quantidade_disponivel
-
-            if hasattr(item, "valor_desconto_unitario"):
-                item.valor_desconto_unitario = valor_desconto_unitario
-
-            if hasattr(item, "preco_unitario_final"):
-                item.preco_unitario_final = preco_unitario_final
-
-            if hasattr(item, "subtotal_bruto"):
-                item.subtotal_bruto = subtotal_bruto
-
-            if hasattr(item, "subtotal_desconto"):
-                item.subtotal_desconto = subtotal_desconto
-
-            if hasattr(item, "subtotal_final"):
-                item.subtotal_final = subtotal_final
-
-            if hasattr(item, "ativo"):
-                item.ativo = True
-
-            if hasattr(item, "recalcular_precos"):
-                try:
-                    item.recalcular_precos()
-                    subtotal_bruto = Decimal(str(getattr(item, "subtotal_bruto", subtotal_bruto) or subtotal_bruto))
-                    subtotal_desconto = Decimal(str(getattr(item, "subtotal_desconto", subtotal_desconto) or subtotal_desconto))
-                    subtotal_final = Decimal(str(getattr(item, "subtotal_final", subtotal_final) or subtotal_final))
-                except Exception:
-                    pass
-
-            db.add(item)
-
-            total_bruto += subtotal_bruto
-            total_desconto += subtotal_desconto
-            total_final += subtotal_final
-
-        if hasattr(assinatura, "valor_bruto"):
-            assinatura.valor_bruto = total_bruto.quantize(Decimal("0.01"))
-
-        if hasattr(assinatura, "valor_desconto"):
-            assinatura.valor_desconto = total_desconto.quantize(Decimal("0.01"))
-
-        if hasattr(assinatura, "valor_final"):
-            assinatura.valor_final = total_final.quantize(Decimal("0.01"))
-
-    if hasattr(assinatura, "updated_at"):
-        assinatura.updated_at = datetime.now(timezone.utc)
-
-    db.add(assinatura)
+    assinatura.recalcular_totais()
     db.commit()
     db.refresh(assinatura)
 
-    return assinatura
+    return buscar_assinatura_por_id(db, assinatura.id, empresa_id)
+
 
 def cancelar_assinatura(
     db: Session,

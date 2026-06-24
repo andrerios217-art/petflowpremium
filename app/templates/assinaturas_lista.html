@@ -1,0 +1,358 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Assinaturas{% endblock %}
+
+{% block content %}
+<section class="assinaturas-lista-page">
+  <div class="assinaturas-lista-header">
+    <div>
+      <h1>Assinaturas</h1>
+      <p>Busque, edite e cancele assinaturas vinculadas aos tutores e pets.</p>
+    </div>
+
+    <a href="/assinaturas/novo" class="assinaturas-lista-btn assinaturas-lista-btn-primary">
+      Nova assinatura
+    </a>
+  </div>
+
+  <div class="assinaturas-lista-card">
+    <form method="get" action="/assinaturas" class="assinaturas-lista-filtros">
+      <div class="assinaturas-lista-field">
+        <label for="busca">Buscar</label>
+        <input
+          id="busca"
+          name="busca"
+          type="text"
+          value="{{ busca or '' }}"
+          placeholder="Tutor, pet ou número da assinatura"
+        />
+      </div>
+
+      <div class="assinaturas-lista-field">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option value="" {% if not status %}selected{% endif %}>Todos</option>
+          <option value="ATIVA" {% if status == "ATIVA" %}selected{% endif %}>Ativas</option>
+          <option value="PAUSADA" {% if status == "PAUSADA" %}selected{% endif %}>Pausadas</option>
+          <option value="CANCELADA" {% if status == "CANCELADA" %}selected{% endif %}>Canceladas</option>
+          <option value="ENCERRADA" {% if status == "ENCERRADA" %}selected{% endif %}>Encerradas</option>
+        </select>
+      </div>
+
+      <button type="submit" class="assinaturas-lista-btn assinaturas-lista-btn-primary">
+        Buscar
+      </button>
+    </form>
+  </div>
+
+  <div class="assinaturas-lista-kpis">
+    <div class="assinaturas-lista-kpi">
+      <span>Total</span>
+      <strong>{{ total }}</strong>
+    </div>
+
+    <div class="assinaturas-lista-kpi">
+      <span>Ativas</span>
+      <strong>{{ total_ativas }}</strong>
+    </div>
+
+    <div class="assinaturas-lista-kpi">
+      <span>Canceladas</span>
+      <strong>{{ total_canceladas }}</strong>
+    </div>
+
+    <div class="assinaturas-lista-kpi assinaturas-lista-kpi-destaque">
+      <span>Mensalidade ativa</span>
+      <strong>{{ valor_ativo_formatado }}</strong>
+    </div>
+  </div>
+
+  <div class="assinaturas-lista-card">
+    <div class="assinaturas-lista-table-wrap">
+      <table class="assinaturas-lista-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Tutor</th>
+            <th>Pet</th>
+            <th>Início</th>
+            <th>Fim</th>
+            <th>Status</th>
+            <th>Valor mensal</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% if assinaturas %}
+            {% for assinatura in assinaturas %}
+              <tr>
+                <td>#{{ assinatura.id }}</td>
+                <td>{{ assinatura.cliente_nome }}</td>
+                <td>{{ assinatura.pet_nome }}</td>
+                <td>{{ assinatura.data_inicio_formatada }}</td>
+                <td>{{ assinatura.data_fim_formatada }}</td>
+                <td>
+                  <span class="assinaturas-lista-status assinaturas-lista-status-{{ assinatura.status|lower }}">
+                    {{ assinatura.status }}
+                  </span>
+                </td>
+                <td>{{ assinatura.valor_final_formatado }}</td>
+                <td>
+                  <div class="assinaturas-lista-acoes">
+                    <a
+                      href="/assinaturas/editar/{{ assinatura.id }}"
+                      class="assinaturas-lista-btn assinaturas-lista-btn-soft"
+                    >
+                      Editar
+                    </a>
+
+                    {% if assinatura.status not in ["CANCELADA", "ENCERRADA"] %}
+                      <form
+                        method="post"
+                        action="/assinaturas/cancelar-visual/{{ assinatura.id }}"
+                        onsubmit="return confirm('Deseja cancelar esta assinatura?');"
+                      >
+                        <button type="submit" class="assinaturas-lista-btn assinaturas-lista-btn-danger">
+                          Cancelar
+                        </button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="8" class="assinaturas-lista-empty">
+                Nenhuma assinatura encontrada.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<style>
+  .assinaturas-lista-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .assinaturas-lista-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 28px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 22px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+  }
+
+  .assinaturas-lista-header h1 {
+    margin: 0 0 6px;
+    color: #0f172a;
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .assinaturas-lista-header p {
+    margin: 0;
+    color: #64748b;
+  }
+
+  .assinaturas-lista-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+  }
+
+  .assinaturas-lista-filtros {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) 190px 150px;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .assinaturas-lista-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .assinaturas-lista-field label {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .assinaturas-lista-field input,
+  .assinaturas-lista-field select {
+    min-height: 44px;
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    padding: 0 13px;
+    outline: none;
+    background: #fff;
+  }
+
+  .assinaturas-lista-field input:focus,
+  .assinaturas-lista-field select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .assinaturas-lista-btn {
+    min-height: 42px;
+    border: 0;
+    border-radius: 13px;
+    padding: 0 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .assinaturas-lista-btn-primary {
+    color: #ffffff;
+    background: #2563eb;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  }
+
+  .assinaturas-lista-btn-soft {
+    color: #0f172a;
+    background: #e2e8f0;
+  }
+
+  .assinaturas-lista-btn-danger {
+    color: #991b1b;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+  }
+
+  .assinaturas-lista-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .assinaturas-lista-kpi {
+    padding: 17px;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #ffffff;
+  }
+
+  .assinaturas-lista-kpi-destaque {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+  }
+
+  .assinaturas-lista-kpi span {
+    display: block;
+    margin-bottom: 7px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  .assinaturas-lista-kpi strong {
+    color: #0f172a;
+    font-size: 25px;
+    font-weight: 900;
+  }
+
+  .assinaturas-lista-table-wrap {
+    overflow-x: auto;
+  }
+
+  .assinaturas-lista-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .assinaturas-lista-table th,
+  .assinaturas-lista-table td {
+    padding: 13px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .assinaturas-lista-table th {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .assinaturas-lista-status {
+    min-height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .assinaturas-lista-status-ativa {
+    color: #166534;
+    background: #dcfce7;
+  }
+
+  .assinaturas-lista-status-cancelada {
+    color: #991b1b;
+    background: #fee2e2;
+  }
+
+  .assinaturas-lista-status-pausada,
+  .assinaturas-lista-status-encerrada {
+    color: #334155;
+    background: #e2e8f0;
+  }
+
+  .assinaturas-lista-acoes {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .assinaturas-lista-acoes form {
+    margin: 0;
+  }
+
+  .assinaturas-lista-empty {
+    color: #64748b;
+    font-weight: 800;
+  }
+
+  @media (max-width: 900px) {
+    .assinaturas-lista-header,
+    .assinaturas-lista-filtros,
+    .assinaturas-lista-kpis {
+      grid-template-columns: 1fr;
+    }
+
+    .assinaturas-lista-header {
+      flex-direction: column;
+    }
+  }
+</style>
+{% endblock %}

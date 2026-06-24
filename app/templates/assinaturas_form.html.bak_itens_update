@@ -1241,7 +1241,7 @@
   }
 
   function montarPayloadAtualizacao() {
-      return {
+    return {
       cliente_id: parseInt(document.getElementById("cliente-id").value, 10),
       pet_id: parseInt(document.getElementById("pet-id").value, 10),
       data_inicio: document.getElementById("data-inicio").value,
@@ -1252,10 +1252,9 @@
       ativa_renovacao: document.getElementById("ativa-renovacao").checked,
       origem: document.getElementById("origem").value,
       observacoes: document.getElementById("observacoes").value.trim() || null,
-      contrato_externo_id: document.getElementById("contrato-externo-id").value.trim() || null,
-        itens: coletarItens()
-      };
-    }
+      contrato_externo_id: document.getElementById("contrato-externo-id").value.trim() || null
+    };
+  }
 
   function preencherFormulario(assinatura) {
     document.getElementById("data-inicio").value = assinatura.data_inicio || "";

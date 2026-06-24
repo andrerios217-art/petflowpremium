@@ -1366,8 +1366,7 @@
         ativa_renovacao: document.getElementById("ativa-renovacao").checked,
         origem: document.getElementById("origem").value,
         observacoes: document.getElementById("observacoes").value.trim() || null,
-        contrato_externo_id: document.getElementById("contrato-externo-id").value.trim() || null,
-        itens: coletarItens()
+        contrato_externo_id: document.getElementById("contrato-externo-id").value.trim() || null
       };
     }
 

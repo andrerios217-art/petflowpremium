@@ -297,20 +297,6 @@ def _vp_update_item_dict(item):
     return {}
 
 
-def _vp_update_set_seguro(obj, campo, valor):
-    """
-    Evita erro em propriedades calculadas do model, como quantidade_disponivel,
-    que existem no objeto mas não têm setter.
-    """
-    try:
-        setattr(obj, campo, valor)
-        return True
-    except AttributeError:
-        return False
-    except Exception:
-        return False
-
-
 @app.put("/assinaturas/{assinatura_id}")
 async def vectorpet_update_assinatura_com_itens(
     assinatura_id: int,
@@ -342,13 +328,13 @@ async def vectorpet_update_assinatura_com_itens(
 
         for campo in campos_simples:
             if campo in payload:
-                _vp_update_set_seguro(assinatura, campo, payload.get(campo))
+                setattr(assinatura, campo, payload.get(campo))
 
         if "data_inicio" in payload:
-            _vp_update_set_seguro(assinatura, "data_inicio", _vp_update_date(payload.get("data_inicio")))
+            assinatura.data_inicio = _vp_update_date(payload.get("data_inicio"))
 
         if "data_fim" in payload:
-            _vp_update_set_seguro(assinatura, "data_fim", _vp_update_date(payload.get("data_fim")))
+            assinatura.data_fim = _vp_update_date(payload.get("data_fim"))
 
         empresa_id = getattr(assinatura, "empresa_id", None)
 
@@ -370,6 +356,8 @@ async def vectorpet_update_assinatura_com_itens(
         total_bruto = _VPUpdateDecimal("0.00")
         total_desconto = _VPUpdateDecimal("0.00")
         total_final = _VPUpdateDecimal("0.00")
+
+        usados = []
 
         for index, item_payload in enumerate(itens_payload):
             item_dados = _vp_update_item_dict(item_payload)
@@ -403,43 +391,72 @@ async def vectorpet_update_assinatura_com_itens(
                 )
                 db.add(item)
 
-            _vp_update_set_seguro(item, "empresa_id", empresa_id)
-            _vp_update_set_seguro(item, "servico_id", servico_id)
-            _vp_update_set_seguro(item, "nome_servico", nome_servico)
-            _vp_update_set_seguro(item, "quantidade_contratada", quantidade)
-            _vp_update_set_seguro(item, "preco_unitario_base", preco_base)
-            _vp_update_set_seguro(item, "percentual_desconto", percentual)
+            item.empresa_id = empresa_id
+            item.servico_id = servico_id
+            item.nome_servico = nome_servico
+            item.quantidade_contratada = quantidade
+            item.preco_unitario_base = preco_base
+            item.percentual_desconto = percentual
+
+            quantidade_consumida = _vp_update_int(getattr(item, "quantidade_consumida", 0), 0)
+
+            if hasattr(item, "quantidade_disponivel"):
+                item.quantidade_disponivel = max(quantidade - quantidade_consumida, 0)
+
+            if hasattr(item, "ativo"):
+                item.ativo = True
 
             subtotal_bruto = (preco_base * quantidade).quantize(_VPUpdateDecimal("0.01"))
             subtotal_desconto = (subtotal_bruto * percentual / _VPUpdateDecimal("100")).quantize(_VPUpdateDecimal("0.01"))
             subtotal_final = (subtotal_bruto - subtotal_desconto).quantize(_VPUpdateDecimal("0.01"))
 
-            # Campos calculados: grava só se forem colunas graváveis.
-            _vp_update_set_seguro(item, "valor_desconto_unitario", (preco_base * percentual / _VPUpdateDecimal("100")).quantize(_VPUpdateDecimal("0.01")))
-            _vp_update_set_seguro(item, "preco_unitario_final", (preco_base - (preco_base * percentual / _VPUpdateDecimal("100"))).quantize(_VPUpdateDecimal("0.01")))
-            _vp_update_set_seguro(item, "subtotal_bruto", subtotal_bruto)
-            _vp_update_set_seguro(item, "subtotal_desconto", subtotal_desconto)
-            _vp_update_set_seguro(item, "subtotal_final", subtotal_final)
-            _vp_update_set_seguro(item, "ativo", True)
+            if hasattr(item, "valor_desconto_unitario"):
+                item.valor_desconto_unitario = (preco_base * percentual / _VPUpdateDecimal("100")).quantize(_VPUpdateDecimal("0.01"))
+
+            if hasattr(item, "preco_unitario_final"):
+                item.preco_unitario_final = (preco_base - (preco_base * percentual / _VPUpdateDecimal("100"))).quantize(_VPUpdateDecimal("0.01"))
+
+            if hasattr(item, "subtotal_bruto"):
+                item.subtotal_bruto = subtotal_bruto
+
+            if hasattr(item, "subtotal_desconto"):
+                item.subtotal_desconto = subtotal_desconto
+
+            if hasattr(item, "subtotal_final"):
+                item.subtotal_final = subtotal_final
+
+            if hasattr(item, "recalcular_precos"):
+                try:
+                    item.recalcular_precos()
+                    subtotal_bruto = _vp_update_decimal(getattr(item, "subtotal_bruto", subtotal_bruto))
+                    subtotal_desconto = _vp_update_decimal(getattr(item, "subtotal_desconto", subtotal_desconto))
+                    subtotal_final = _vp_update_decimal(getattr(item, "subtotal_final", subtotal_final))
+                except Exception:
+                    pass
 
             db.add(item)
+            usados.append(item)
 
             total_bruto += subtotal_bruto
             total_desconto += subtotal_desconto
             total_final += subtotal_final
 
-        # Remove itens excedentes para evitar duplicidade de valor na lista.
+        # Itens excedentes: desativa se houver campo ativo; senão remove.
         for item_extra in itens_antigos[len(itens_payload):]:
-            marcado = _vp_update_set_seguro(item_extra, "ativo", False)
-
-            if marcado:
+            if hasattr(item_extra, "ativo"):
+                item_extra.ativo = False
                 db.add(item_extra)
             else:
                 db.delete(item_extra)
 
-        _vp_update_set_seguro(assinatura, "valor_bruto", total_bruto.quantize(_VPUpdateDecimal("0.01")))
-        _vp_update_set_seguro(assinatura, "valor_desconto", total_desconto.quantize(_VPUpdateDecimal("0.01")))
-        _vp_update_set_seguro(assinatura, "valor_final", total_final.quantize(_VPUpdateDecimal("0.01")))
+        if hasattr(assinatura, "valor_bruto"):
+            assinatura.valor_bruto = total_bruto.quantize(_VPUpdateDecimal("0.01"))
+
+        if hasattr(assinatura, "valor_desconto"):
+            assinatura.valor_desconto = total_desconto.quantize(_VPUpdateDecimal("0.01"))
+
+        if hasattr(assinatura, "valor_final"):
+            assinatura.valor_final = total_final.quantize(_VPUpdateDecimal("0.01"))
 
         db.add(assinatura)
         db.commit()
