@@ -15,6 +15,16 @@ let ultimoSnapshotProducao = "";
 let timerSecagemIniciado = false;
 let ultimoRefreshManual = 0;
 
+function aplicarTextoBotaoConfirmarProducao() {
+  const botao = document.getElementById("confirmar-acao-producao");
+
+  if (!botao) return;
+
+  botao.textContent = "Confirmar etapa";
+  botao.setAttribute("aria-label", "Confirmar etapa");
+  botao.setAttribute("title", "Confirmar etapa");
+}
+
 function corPrioridade(prioridade) {
   const valor = String(prioridade || "").toUpperCase();
 
@@ -329,6 +339,8 @@ async function abrirModalAcao({ tipo, card }) {
   document.getElementById("acao-producao-finaliza").value = cardEstaEmUltimaEtapa(card) ? "1" : "0";
 
   preencherSelectFuncionarios(card.funcionario_id || "");
+
+  aplicarTextoBotaoConfirmarProducao();
 
   const titulo = document.getElementById("acao-modal-titulo");
   const subtitulo = document.getElementById("acao-modal-subtitulo");
@@ -697,6 +709,7 @@ function configurarEventosModal() {
 
   document.getElementById("fechar-acao-producao-modal")?.addEventListener("click", fecharModalAcao);
   document.getElementById("cancelar-acao-producao")?.addEventListener("click", fecharModalAcao);
+  aplicarTextoBotaoConfirmarProducao();
   document.getElementById("confirmar-acao-producao")?.addEventListener("click", confirmarAcaoProducao);
   document.getElementById("btn-atualizar-producao")?.addEventListener("click", async () => {
     ultimoRefreshManual = Date.now();

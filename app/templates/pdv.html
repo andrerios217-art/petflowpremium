@@ -1,4 +1,4 @@
-{% extends "layout/base.html" %}
+﻿{% extends "layout/base.html" %}
 
 {% block content %}
 <section class="pdv-page">
@@ -57,7 +57,7 @@
         <div class="pdv-card__header">
           <div>
             <h2>Venda atual</h2>
-            <p>Venda rápida com cliente opcional, busca de produto enxuta e pagamento integral.</p>
+            <p>Venda rápida com cliente opcional, busca simplificada de produtos e pagamento integral.</p>
           </div>
 
           <div class="pdv-venda-actions">
@@ -76,7 +76,7 @@
         <div class="pdv-venda-headline">
           <div>
             <strong id="pdv-venda-cliente">Nenhuma venda iniciada</strong>
-            <p id="pdv-venda-meta">Abra uma venda, vincule um cliente se necessário ou puxe da produção.</p>
+            <p id="pdv-venda-meta">Abra uma venda, vincule um cliente se necessÃ¡rio ou adicione serviÃ§os prontos para cobranÃ§a.</p>
           </div>
           <div class="pdv-venda-badges">
             <span id="pdv-venda-numero" class="pdv-badge">Sem venda</span>
@@ -103,7 +103,7 @@
           </div>
 
           <div class="pdv-field pdv-field-grow">
-            <label for="pdv-busca-cliente">Cliente</label>
+            <label for="pdv-busca-cliente">Buscar</label>
             <input
               type="text"
               id="pdv-busca-cliente"
@@ -162,12 +162,12 @@
             <span class="pdv-label">Desconto</span>
             <strong id="pdv-total-desconto">R$ 0,00</strong>
             <small id="pdv-total-desconto-legenda">
-              Manual ou automático para assinante
+              Manual ou automÃ¡tico para assinante
             </small>
           </div>
 
           <div class="pdv-total-box">
-            <span class="pdv-label">Acréscimo</span>
+            <span class="pdv-label">AcrÃ©scimo</span>
             <strong id="pdv-total-acrescimo">R$ 0,00</strong>
           </div>
 
@@ -178,9 +178,9 @@
         </div>
 
         <div id="pdv-desconto-assinante-info" class="pdv-subscriber-discount-note">
-          <strong>Desconto automático de assinante:</strong>
-          quando o cliente vinculado tiver assinatura ativa, o sistema aplica a regra configurada separando produtos e serviços.
-          O valor aplicado fica salvo no histórico da venda.
+          <strong>Desconto automÃ¡tico de assinante:</strong>
+          quando o cliente vinculado tiver assinatura ativa, o sistema aplica a regra configurada separando produtos e serviÃ§os.
+          O valor aplicado fica salvo no histÃ³rico da venda.
         </div>
 
         <div class="pdv-discount-row">
@@ -208,8 +208,8 @@
             <select id="pdv-forma-pagamento">
               <option value="DINHEIRO">Dinheiro</option>
               <option value="PIX">PIX</option>
-              <option value="CARTAO_DEBITO">Cartão débito</option>
-              <option value="CARTAO_CREDITO">Cartão crédito</option>
+              <option value="CARTAO_DEBITO">CartÃ£o de dÃ©bito</option>
+              <option value="CARTAO_CREDITO">CartÃ£o de crÃ©dito</option>
             </select>
           </div>
 
@@ -238,8 +238,8 @@
       <div class="pdv-card">
         <div class="pdv-card__header">
           <div>
-            <h2>Prontos da produção</h2>
-            <p>Puxe para a venda atual o que já está pronto para cobrança.</p>
+            <h2>ServiÃ§os prontos para cobranÃ§a</h2>
+            <p>Adicione Ã  venda os serviÃ§os finalizados e prontos para cobranÃ§a.</p>
           </div>
 
           <button type="button" id="btn-atualizar-producao" class="pdv-btn">
@@ -248,19 +248,19 @@
         </div>
 
         <div class="pdv-inline-note">
-          Ao puxar da produção, a venda fica vinculada ao cliente correto.
+          Ao adicionar um serviÃ§o pronto, a venda serÃ¡ vinculada ao cliente correto.
         </div>
 
         <div id="pdv-producao-lista" class="pdv-producao-list">
-          <div class="pdv-empty-state">Nenhum item pronto para cobrança.</div>
+          <div class="pdv-empty-state">Nenhum serviÃ§o pronto para cobranÃ§a.</div>
         </div>
       </div>
 
       <div class="pdv-card">
         <div class="pdv-card__header">
           <div>
-            <h2>Atendimentos veterinários prontos para venda</h2>
-            <p>Adicione na venda como serviço (cliente cadastrado ou vinculado).</p>
+            <h2>Atendimentos veterinÃ¡rios prontos para cobranÃ§a</h2>
+            <p>Adicione Ã  venda os atendimentos clÃ­nicos finalizados e prontos para cobranÃ§a.</p>
           </div>
 
           <button type="button" id="btn-atualizar-atendimentos" class="pdv-btn">
@@ -269,7 +269,7 @@
         </div>
 
         <div id="pdv-atendimentos-lista" class="pdv-producao-list">
-          <div class="pdv-empty-state">Nenhum atendimento pronto.</div>
+          <div class="pdv-empty-state">Nenhum atendimento veterinÃ¡rio pronto para cobranÃ§a.</div>
         </div>
       </div>
     </aside>
@@ -283,7 +283,7 @@
         <h3>Abrir caixa</h3>
         <p>Selecione o operador e informe o valor inicial em dinheiro.</p>
       </div>
-      <button type="button" class="pdv-modal__close" data-close-modal="modal-abrir-caixa">×</button>
+      <button type="button" class="pdv-modal__close" data-close-modal="modal-abrir-caixa">Ã—</button>
     </div>
 
     <div class="pdv-modal__body">
@@ -321,25 +321,25 @@
         </div>
 
         <div class="pdv-field">
-          <label for="caixa-observacoes-abertura">Observações</label>
+          <label for="caixa-observacoes-abertura">ObservaÃ§Ãµes</label>
           <input
             type="text"
             id="caixa-observacoes-abertura"
-            placeholder="Observações opcionais da abertura"
+            placeholder="ObservaÃ§Ãµes opcionais da abertura"
           />
         </div>
       </div>
 
       <div id="caixa-abertura-divergencia-box" class="pdv-auth-box pdv-hidden">
-        <h4>Divergência na abertura</h4>
-        <p>Quando a diferença ultrapassar a tolerância, informe motivo e gerente.</p>
+        <h4>DivergÃªncia na abertura</h4>
+        <p>Quando a diferenÃ§a ultrapassar a tolerÃ¢ncia, informe motivo e gerente.</p>
 
         <div class="pdv-field">
-          <label for="caixa-motivo-diferenca-abertura">Motivo da diferença</label>
+          <label for="caixa-motivo-diferenca-abertura">Motivo da diferenÃ§a</label>
           <textarea
             id="caixa-motivo-diferenca-abertura"
             rows="3"
-            placeholder="Explique a diferença da abertura"
+            placeholder="Explique a diferenÃ§a da abertura"
           ></textarea>
         </div>
 
@@ -389,7 +389,7 @@
         <h3>Registrar sangria</h3>
         <p>Informe operador, valor e motivo da retirada.</p>
       </div>
-      <button type="button" class="pdv-modal__close" data-close-modal="modal-sangria">×</button>
+      <button type="button" class="pdv-modal__close" data-close-modal="modal-sangria">Ã—</button>
     </div>
 
     <div class="pdv-modal__body">
@@ -431,22 +431,22 @@
           <input
             type="text"
             id="caixa-sangria-motivo"
-            placeholder="Ex.: retirada para troco, segurança, depósito"
+            placeholder="Ex.: retirada para troco, seguranÃ§a, depÃ³sito"
           />
         </div>
       </div>
 
       <div class="pdv-field">
-        <label for="caixa-sangria-observacoes">Observações</label>
+        <label for="caixa-sangria-observacoes">ObservaÃ§Ãµes</label>
         <textarea
           id="caixa-sangria-observacoes"
           rows="3"
-          placeholder="Observações opcionais"
+          placeholder="ObservaÃ§Ãµes opcionais"
         ></textarea>
       </div>
 
       <div id="caixa-sangria-gerente-box" class="pdv-auth-box pdv-hidden">
-        <h4>Autorização gerencial</h4>
+        <h4>AutorizaÃ§Ã£o gerencial</h4>
 
         <div class="pdv-field">
           <label for="caixa-gerente-sangria-busca">Buscar gerente por nome</label>
@@ -494,7 +494,7 @@
         <h3>Registrar suprimento</h3>
         <p>Informe operador, valor e motivo da entrada.</p>
       </div>
-      <button type="button" class="pdv-modal__close" data-close-modal="modal-suprimento">×</button>
+      <button type="button" class="pdv-modal__close" data-close-modal="modal-suprimento">Ã—</button>
     </div>
 
     <div class="pdv-modal__body">
@@ -536,22 +536,22 @@
           <input
             type="text"
             id="caixa-suprimento-motivo"
-            placeholder="Ex.: reforço de troco, correção operacional"
+            placeholder="Ex.: reforÃ§o de troco, correÃ§Ã£o operacional"
           />
         </div>
       </div>
 
       <div class="pdv-field">
-        <label for="caixa-suprimento-observacoes">Observações</label>
+        <label for="caixa-suprimento-observacoes">ObservaÃ§Ãµes</label>
         <textarea
           id="caixa-suprimento-observacoes"
           rows="3"
-          placeholder="Observações opcionais"
+          placeholder="ObservaÃ§Ãµes opcionais"
         ></textarea>
       </div>
 
       <div id="caixa-suprimento-gerente-box" class="pdv-auth-box pdv-hidden">
-        <h4>Autorização gerencial</h4>
+        <h4>AutorizaÃ§Ã£o gerencial</h4>
 
         <div class="pdv-field">
           <label for="caixa-gerente-suprimento-busca">Buscar gerente por nome</label>
@@ -599,7 +599,7 @@
         <h3>Fechar caixa</h3>
         <p>Fechamento com contagem cega e rastreabilidade completa.</p>
       </div>
-      <button type="button" class="pdv-modal__close" data-close-modal="modal-fechar-caixa">×</button>
+      <button type="button" class="pdv-modal__close" data-close-modal="modal-fechar-caixa">Ã—</button>
     </div>
 
     <div class="pdv-modal__body">
@@ -642,7 +642,7 @@
         </div>
 
         <div class="pdv-field">
-          <label for="caixa-fechamento-dica">Conferência</label>
+          <label for="caixa-fechamento-dica">ConferÃªncia</label>
           <input
             type="text"
             id="caixa-fechamento-dica"
@@ -653,15 +653,15 @@
       </div>
 
       <div id="caixa-fechamento-divergencia-box" class="pdv-auth-box pdv-hidden">
-        <h4>Divergência no fechamento</h4>
-        <p>Quando a diferença ultrapassar a tolerância, informe motivo e gerente.</p>
+        <h4>DivergÃªncia no fechamento</h4>
+        <p>Quando a diferenÃ§a ultrapassar a tolerÃ¢ncia, informe motivo e gerente.</p>
 
         <div class="pdv-field">
-          <label for="caixa-motivo-diferenca-fechamento">Motivo da diferença</label>
+          <label for="caixa-motivo-diferenca-fechamento">Motivo da diferenÃ§a</label>
           <textarea
             id="caixa-motivo-diferenca-fechamento"
             rows="3"
-            placeholder="Explique a diferença do fechamento"
+            placeholder="Explique a diferenÃ§a do fechamento"
           ></textarea>
         </div>
 
@@ -1216,133 +1216,107 @@
         width: 100%;
       }
     }
-  </style>
+  
+/* === PATCH PDV VECTORPET - ESTÃ‰TICA E HIERARQUIA === */
+.pdv-page {
+  --vp-blue: #2563eb;
+  --vp-ink: #0f172a;
+  --vp-muted: #64748b;
+  --vp-border: #e2e8f0;
+  --vp-soft: #f8fafc;
+}
+
+.pdv-grid {
+  grid-template-columns: minmax(0, 1.7fr) minmax(360px, .9fr);
+  gap: 18px;
+}
+
+.pdv-card {
+  border-color: var(--vp-border) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06) !important;
+}
+
+.pdv-card__header h2 {
+  color: var(--vp-ink);
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.pdv-card__header p,
+.pdv-muted,
+.pdv-inline-note {
+  color: var(--vp-muted) !important;
+}
+
+.pdv-btn {
+  border-radius: 13px !important;
+  font-weight: 900 !important;
+}
+
+.pdv-btn-primary {
+  background: var(--vp-blue) !important;
+  color: #fff !important;
+  border-color: var(--vp-blue) !important;
+}
+
+.pdv-btn-danger {
+  color: #991b1b !important;
+  background: #fee2e2 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.pdv-venda-headline,
+.pdv-cliente-vinculado-content,
+.pdv-total-box,
+.pdv-producao-item,
+.pdv-cart-item,
+.pdv-produto-card,
+.pdv-cliente-card {
+  border-radius: 16px !important;
+  border-color: var(--vp-border) !important;
+}
+
+.pdv-total-box-highlight {
+  border-color: #bfdbfe !important;
+  background: #eff6ff !important;
+}
+
+.pdv-sidebar {
+  position: sticky;
+  top: 14px;
+}
+
+.pdv-producao-item__actions {
+  gap: 8px;
+}
+
+#pdv-empresa-id {
+  display: none !important;
+}
+
+label[for="pdv-empresa-id"] {
+  display: none !important;
+}
+
+.pdv-search-row-clientes .pdv-field-small {
+  display: none !important;
+}
+
+@media (max-width: 1100px) {
+  .pdv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pdv-sidebar {
+    position: static;
+  }
+}
+/* === FIM PATCH PDV VECTORPET === */
+
+</style>
 </section>
 
-<script src="{{ url_for('static', path='js/pdv.js') }}"></script>
-<script id="pdv-ajuste-ux-operador">
-  document.addEventListener("DOMContentLoaded", function () {
-    function trocarTextosSoltos() {
-      const trocas = [
-        ["Empresa ID", "Empresa"],
-        ["Tutor", "Cliente"],
-        ["Funcionário ID", "Funcionário"],
-        ["Funcionario ID", "Funcionário"],
-        ["Produto ID", "Produto"],
-        ["Serviço ID", "Serviço"],
-        ["Servico ID", "Serviço"],
-        ["Venda Atual", "Venda atual"],
-        ["Produção pronta para PDV", "Produção pronta para venda"],
-        ["Atendimentos veterinários prontos", "Atendimentos veterinários prontos para venda"],
-        ["Forma Pagamento", "Forma de pagamento"],
-        ["Valor Pago", "Valor pago"],
-        ["Finalizar Venda", "Finalizar venda"],
-        ["Cancelar Venda", "Cancelar venda"]
-      ];
-
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      const nodes = [];
-
-      while (walker.nextNode()) {
-        nodes.push(walker.currentNode);
-      }
-
-      nodes.forEach(function (node) {
-        let texto = node.nodeValue || "";
-
-        trocas.forEach(function (item) {
-          texto = texto.replaceAll(item[0], item[1]);
-        });
-
-        node.nodeValue = texto;
-      });
-    }
-
-    function esconderEmpresaId() {
-      const possiveisIds = [
-        "empresaId",
-        "empresa_id",
-        "pdvEmpresaId",
-        "pdv-empresa-id",
-        "empresa-id",
-        "filtroEmpresaId"
-      ];
-
-      possiveisIds.forEach(function (id) {
-        const campo = document.getElementById(id);
-
-        if (!campo) {
-          return;
-        }
-
-        campo.type = "hidden";
-
-        const container = campo.closest("label, .form-group, .field, .pdv-field, .filter-field, .form-field, .input-group, div");
-
-        if (container && (container.textContent || "").toLowerCase().includes("empresa")) {
-          container.style.display = "none";
-        }
-      });
-
-      document.querySelectorAll("label, .form-group, .field, .pdv-field, .filter-field, .form-field").forEach(function (el) {
-        const texto = (el.textContent || "").trim().toLowerCase();
-
-        if (texto === "empresa" || texto === "empresa id" || texto.startsWith("empresa id")) {
-          const input = el.querySelector("input, select");
-
-          if (input) {
-            if (input.tagName === "INPUT") {
-              input.type = "hidden";
-            }
-
-            el.style.display = "none";
-          }
-        }
-      });
-    }
-
-    function melhorarBuscaCliente() {
-      document.querySelectorAll("button, a").forEach(function (el) {
-        const texto = (el.textContent || "").trim().toLowerCase();
-
-        if (texto === "cliente" && (el.id || "").toLowerCase().includes("buscar")) {
-          el.textContent = "Buscar";
-        }
-
-        if (texto === "buscar cliente") {
-          el.textContent = "Buscar";
-        }
-      });
-
-      document.querySelectorAll("input").forEach(function (input) {
-        const placeholder = input.getAttribute("placeholder") || "";
-
-        if (placeholder.toLowerCase().includes("cliente id")) {
-          input.setAttribute("placeholder", "Digite o nome do cliente");
-        }
-
-        if (placeholder.toLowerCase() === "buscar cliente") {
-          input.setAttribute("placeholder", "Digite o nome do cliente");
-        }
-      });
-    }
-
-    function aplicarAjustes() {
-      trocarTextosSoltos();
-      esconderEmpresaId();
-      melhorarBuscaCliente();
-    }
-
-    aplicarAjustes();
-
-    const observer = new MutationObserver(function () {
-      aplicarAjustes();
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  });
-</script>
+<script src="/static/js/pdv.js?v=pdv-producao-robusta-1"></script>
 {% endblock %}
+

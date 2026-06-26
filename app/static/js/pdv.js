@@ -593,7 +593,7 @@
   function renderVendaContexto() {
     if (!hasVendaAtual()) {
       setText(els.vendaCliente, "Nenhuma venda iniciada");
-      setText(els.vendaMeta, "Abra uma venda, vincule um cliente se necessário ou puxe da produção.");
+      setText(els.vendaMeta, "Abra uma venda, vincule um cliente se necessário ou adicione serviços prontos para cobrança.");
       setText(els.vendaNumero, "Sem venda");
       setText(els.vendaModo, "-");
       renderClienteVinculado();
@@ -684,7 +684,7 @@
             <strong>${escapeHtml(item.descricao_snapshot || "Item sem descrição")}</strong>
             <div class="pdv-cart-meta">
               ${item.tipo_item === "SERVICE" ? "Serviço" : "Produto"} |
-              Qtde: ${toNumber(item.Quantidade, 0)} |
+              Qtde: ${toNumber(item.quantidade, 0)} |
               Unitário: ${formatMoney(item.valor_unitario)} |
               Desconto: ${formatMoney(item.desconto_valor)}
             </div>
@@ -1275,19 +1275,24 @@
 
   async function removerItemDaVenda(itemId) {
     if (!hasVendaAberta()) throw new Error("Nenhuma venda aberta.");
+
     const vendaAtualizada = await request(`/api/pdv/vendas/${state.vendaAtual.id}/itens/${itemId}`, {
       method: "DELETE",
     });
 
     state.vendaAtual = vendaAtualizada;
+
     renderVenda();
     renderControlsState();
-    showAlert(
-      vendaAtualTemAssinanteAtivo()
-        ? "Item removido. Desconto de assinante recalculado automaticamente."
-        : "Item removido da venda.",
-      "success"
-    );
+
+    try {
+      await carregarProducaoPronta();
+      await carregarAtendimentosProntos();
+    } catch (error) {
+      console.warn("Falha ao atualizar listas de cobrança:", error);
+    }
+
+    showAlert("Item removido. Ele voltou para cobrança quando aplicável.", "success");
   }
 
   async function carregarOperadores(termo, limite = 50) {
@@ -1522,7 +1527,7 @@
 
     const itens = state.producaoPronta || [];
     if (!itens.length) {
-      setHtml(els.producaoLista, `<div class="pdv-empty-state">Nenhum item pronto na produção.</div>`);
+      setHtml(els.producaoLista, `<div class="pdv-empty-state">Nenhum serviço pronto para cobrança.</div>`);
       return;
     }
 
@@ -1552,7 +1557,7 @@
                 data-action="puxar-producao"
                 data-producao-id="${escapeHtml(producaoId)}"
               >
-                Puxar
+                Adicionar
               </button>
             </div>
           </div>
@@ -1576,40 +1581,61 @@
   }
 
   async function puxarProducaoParaVenda(producaoId) {
-    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de puxar itens da produção.");
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de adicionar serviços.");
 
-    const empresaId = getEmpresaId();
-    const caixaSessaoId = getCaixaSessaoId();
-    if (!caixaSessaoId) throw new Error("Sessão de caixa inválida.");
-
-    const payload = {
-      empresa_id: empresaId,
-      caixa_sessao_id: caixaSessaoId,
-      producao_id: Number(producaoId),
-    };
-
-    const venda = await request("/api/pdv/vendas/producao", {
-      method: "POST",
-      body: JSON.stringify(payload),
+    const itemPronto = (state.producaoPronta || []).find((item) => {
+      const id = item.producao_id || item.id;
+      return Number(id) === Number(producaoId);
     });
 
-    state.vendaAtual = venda;
+    const clienteId = itemPronto?.cliente_id ? Number(itemPronto.cliente_id) : null;
+
+    if (!hasVendaAberta()) {
+      await criarVendaBalcao(clienteId || null);
+    }
+
+    if (!hasVendaAberta()) throw new Error("Não foi possível abrir uma venda.");
+
+    if (
+      clienteId &&
+      vendaTemClienteVinculado() &&
+      Number(state.vendaAtual.cliente_id) !== Number(clienteId)
+    ) {
+      throw new Error("Esse serviço pertence a outro cliente. Finalize ou cancele a venda atual antes de adicionar.");
+    }
+
+    const vendaId = state.vendaAtual.id;
+
+    const vendaAtualizada = await request(`/api/pdv/vendas/${vendaId}/producao/${Number(producaoId)}/adicionar`, {
+      method: "POST",
+    });
+
+    state.vendaAtual = vendaAtualizada;
+
     renderVenda();
     renderControlsState();
+
     showAlert(
       vendaAtualTemAssinanteAtivo() && toNumber(state.vendaAtual?.desconto_valor, 0) > 0
-        ? "Produção puxada. Desconto de assinante aplicado automaticamente."
-        : "Produção puxada para a venda atual.",
+        ? "Serviço adicionado. Desconto de assinante aplicado automaticamente."
+        : "Serviço adicionado à venda atual.",
       "success"
     );
+
+    state.producaoPronta = (state.producaoPronta || []).filter((item) => {
+      const id = item.producao_id || item.id;
+      return Number(id) !== Number(producaoId);
+    });
+
+    renderProducaoLista();
 
     try {
       await carregarProducaoPronta();
     } catch (error) {
-      console.warn("Falha ao atualizar prontos da produção:", error);
+      console.warn("Falha ao atualizar serviços prontos:", error);
     }
 
-    return venda;
+    return state.vendaAtual;
   }
 
   function renderAtendimentosLista() {
@@ -1617,7 +1643,7 @@
 
     const itens = state.atendimentosProntos || [];
     if (!itens.length) {
-      setHtml(els.atendimentosLista, `<div class="pdv-empty-state">Nenhum atendimento pronto.</div>`);
+      setHtml(els.atendimentosLista, `<div class="pdv-empty-state">Nenhum atendimento veterinário pronto para cobrança.</div>`);
       return;
     }
 
@@ -1670,7 +1696,7 @@
   }
 
   async function adicionarAtendimentoNaVenda(atendimentoId, clienteId) {
-    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes.");
+    if (!hasCaixaAberto()) throw new Error("Abra o caixa antes de adicionar atendimentos.");
 
     if (!hasVendaAberta()) {
       await criarVendaBalcao(clienteId);
@@ -1681,34 +1707,42 @@
     if (!vendaTemClienteVinculado()) {
       throw new Error("Atendimento veterinário exige venda com cliente vinculado.");
     }
+
     if (Number(state.vendaAtual.cliente_id) !== Number(clienteId)) {
       throw new Error("Esse atendimento é de outro cliente. Finalize ou cancele a venda atual e tente novamente.");
     }
 
     const vendaId = state.vendaAtual.id;
 
-    const vendaAtualizada = await request(`/api/pdv/vendas/${vendaId}/itens`, {
+    const vendaAtualizada = await request(`/api/pdv/vendas/${vendaId}/atendimentos/${Number(atendimentoId)}/adicionar-debug`, {
       method: "POST",
-      body: JSON.stringify({
-        tipo_item: "SERVICE",
-        atendimento_clinico_id: Number(atendimentoId),
-      }),
     });
 
     state.vendaAtual = vendaAtualizada;
+
     renderVenda();
     renderControlsState();
+
     showAlert(
       vendaAtualTemAssinanteAtivo() && toNumber(state.vendaAtual?.desconto_valor, 0) > 0
         ? "Atendimento adicionado. Desconto de assinante aplicado automaticamente."
-        : "Atendimento adicionado na venda.",
+        : "Atendimento adicionado à venda atual.",
       "success"
     );
 
     state.atendimentosProntos = (state.atendimentosProntos || []).filter(
       (x) => Number(x.atendimento_id) !== Number(atendimentoId)
     );
+
     renderAtendimentosLista();
+
+    try {
+      await carregarAtendimentosProntos();
+    } catch (error) {
+      console.warn("Falha ao atualizar atendimentos prontos:", error);
+    }
+
+    return state.vendaAtual;
   }
 
   async function finalizarVendaAtual() {
@@ -1756,6 +1790,14 @@
   async function cancelarVendaAtual(motivo = "Cancelamento manual no PDV.") {
     if (!hasVendaAberta()) {
       limparEstadoVendaLocal();
+
+      try {
+        await carregarProducaoPronta();
+        await carregarAtendimentosProntos();
+      } catch (error) {
+        console.warn("Falha ao atualizar listas de cobrança:", error);
+      }
+
       return;
     }
 
@@ -1767,7 +1809,15 @@
     });
 
     limparEstadoVendaLocal();
-    showAlert("Venda cancelada.", "warning");
+
+    try {
+      await carregarProducaoPronta();
+      await carregarAtendimentosProntos();
+    } catch (error) {
+      console.warn("Falha ao atualizar listas de cobrança:", error);
+    }
+
+    showAlert("Venda cancelada. Serviços e atendimentos voltaram para cobrança quando aplicável.", "warning");
   }
 
   function collectAberturaPayload() {
@@ -2378,3 +2428,4 @@
 
   document.addEventListener("DOMContentLoaded", init);
 })();
+

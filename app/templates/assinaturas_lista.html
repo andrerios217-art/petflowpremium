@@ -1,6 +1,238 @@
 {% extends "layout/base.html" %}
 
-{% block title %}Assinaturas{% endblock %}
+{% block title %}Assinaturas
+<!-- MODAL CANCELAMENTO ASSINATURA VECTORPET -->
+<div id="modal-cancelar-assinatura" class="vp-modal-cancelamento" aria-hidden="true">
+  <div class="vp-modal-cancelamento-backdrop"></div>
+
+  <div class="vp-modal-cancelamento-card" role="dialog" aria-modal="true" aria-labelledby="vp-modal-cancelamento-titulo">
+    <div class="vp-modal-cancelamento-icon">!</div>
+
+    <h2 id="vp-modal-cancelamento-titulo">Confirmar cancelamento</h2>
+
+    <p>
+      Essa assinatura será marcada como cancelada e deixará de aparecer como ativa.
+      O histórico continuará disponível para consulta.
+    </p>
+
+    <label class="vp-modal-cancelamento-check">
+      <input type="checkbox" id="check-confirmar-cancelamento">
+      <span>Entendo que estou cancelando esta assinatura.</span>
+    </label>
+
+    <div class="vp-modal-cancelamento-actions">
+      <button type="button" class="vp-modal-btn vp-modal-btn-soft" id="btn-manter-assinatura">
+        Voltar
+      </button>
+
+      <button type="button" class="vp-modal-btn vp-modal-btn-danger" id="btn-confirmar-cancelamento" disabled>
+        Confirmar cancelamento
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("modal-cancelar-assinatura");
+    const btnManter = document.getElementById("btn-manter-assinatura");
+    const btnConfirmar = document.getElementById("btn-confirmar-cancelamento");
+    const checkConfirmar = document.getElementById("check-confirmar-cancelamento");
+
+    let formSelecionado = null;
+
+    function abrirModal(form) {
+      formSelecionado = form;
+      checkConfirmar.checked = false;
+      btnConfirmar.disabled = true;
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+    }
+
+    function fecharModal() {
+      formSelecionado = null;
+      checkConfirmar.checked = false;
+      btnConfirmar.disabled = true;
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
+    document.querySelectorAll(".assinatura-cancelar-form").forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        abrirModal(form);
+      });
+    });
+
+    checkConfirmar.addEventListener("change", function () {
+      btnConfirmar.disabled = !checkConfirmar.checked;
+    });
+
+    btnManter.addEventListener("click", fecharModal);
+
+    btnConfirmar.addEventListener("click", function () {
+      if (!checkConfirmar.checked) {
+        return;
+      }
+
+      if (formSelecionado) {
+        formSelecionado.submit();
+      }
+    });
+
+    modal.addEventListener("click", function (event) {
+      if (
+        event.target.classList.contains("vp-modal-cancelamento") ||
+        event.target.classList.contains("vp-modal-cancelamento-backdrop")
+      ) {
+        fecharModal();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && modal.classList.contains("is-open")) {
+        fecharModal();
+      }
+    });
+  });
+</script>
+
+<style>
+  .vp-modal-cancelamento {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .vp-modal-cancelamento.is-open {
+    display: flex;
+  }
+
+  .vp-modal-cancelamento-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.36);
+    backdrop-filter: blur(3px);
+  }
+
+  .vp-modal-cancelamento-card {
+    position: relative;
+    width: min(460px, 100%);
+    border-radius: 24px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+    padding: 26px;
+    text-align: center;
+    animation: vpModalEntrada .16s ease-out;
+  }
+
+  .vp-modal-cancelamento-icon {
+    width: 46px;
+    height: 46px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #b45309;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    font-size: 24px;
+    font-weight: 900;
+  }
+
+  .vp-modal-cancelamento-card h2 {
+    margin: 0 0 8px;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+  }
+
+  .vp-modal-cancelamento-card p {
+    margin: 0;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .vp-modal-cancelamento-check {
+    margin-top: 18px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .vp-modal-cancelamento-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: #dc2626;
+    cursor: pointer;
+  }
+
+  .vp-modal-cancelamento-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 22px;
+  }
+
+  .vp-modal-btn {
+    min-height: 42px;
+    border-radius: 13px;
+    padding: 0 16px;
+    border: 0;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .vp-modal-btn-soft {
+    color: #0f172a;
+    background: #e2e8f0;
+  }
+
+  .vp-modal-btn-danger {
+    color: #991b1b;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+  }
+
+  .vp-modal-btn-danger:hover:not(:disabled) {
+    background: #fecaca;
+  }
+
+  .vp-modal-btn-danger:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+
+  @keyframes vpModalEntrada {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+</style>
+<!-- FIM MODAL CANCELAMENTO ASSINATURA VECTORPET -->
+{% endblock %}
 
 {% block content %}
 <section class="assinaturas-lista-page">
@@ -110,8 +342,7 @@
                     {% if assinatura.status not in ["CANCELADA", "ENCERRADA"] %}
                       <form
                         method="post"
-                        action="/assinaturas/cancelar-visual/{{ assinatura.id }}"
-                        onsubmit="return confirm('Deseja cancelar esta assinatura?');"
+                        action="/assinaturas/cancelar-visual/{{ assinatura.id }}" class="assinatura-cancelar-form" class="assinatura-cancelar-form"
                       >
                         <button type="submit" class="assinaturas-lista-btn assinaturas-lista-btn-danger">
                           Cancelar

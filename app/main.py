@@ -39,6 +39,432 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title=settings.APP_NAME, version="1.0.0")
 
 
+# === PATCH AGENDA VETERINARIA CLINICO RECEITA VECTORPET ===
+from datetime import datetime as _VPVetDatetime
+from html import escape as _VPVetEscape
+
+from fastapi import Depends as _VPVetDepends
+from fastapi import Query as _VPVetQuery
+from fastapi.responses import HTMLResponse as _VPVetHTMLResponse
+from sqlalchemy.orm import Session as _VPVetSession
+
+try:
+    from app.database import get_db as _VPVetGetDb
+except Exception:
+    from app.core.deps import get_db as _VPVetGetDb
+
+from app.models.agendamento import Agendamento as _VPVetAgendamento
+from app.models.atendimento_clinico import AtendimentoClinico as _VPVetAtendimentoClinico
+from app.models.cliente import Cliente as _VPVetCliente
+from app.models.pet import Pet as _VPVetPet
+
+
+def _vpvet_colunas(modelo):
+    try:
+        return {coluna.name for coluna in modelo.__table__.columns}
+    except Exception:
+        return set()
+
+
+def _vpvet_set(obj, campo, valor):
+    try:
+        if campo in _vpvet_colunas(type(obj)):
+            setattr(obj, campo, valor)
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def _vpvet_get(obj, *campos, default=None):
+    for campo in campos:
+        try:
+            valor = getattr(obj, campo, None)
+
+            if valor is not None:
+                return valor
+        except Exception:
+            pass
+
+    return default
+
+
+def _vpvet_data(valor):
+    if not valor:
+        return ""
+
+    try:
+        return valor.strftime("%d/%m/%Y")
+    except Exception:
+        return str(valor)
+
+
+def _vpvet_texto(valor):
+    return _VPVetEscape(str(valor or ""))
+
+
+def _vpvet_dict_atendimento(atendimento):
+    return {
+        "id": getattr(atendimento, "id", None),
+        "agendamento_id": getattr(atendimento, "agendamento_id", None),
+        "cliente_id": getattr(atendimento, "cliente_id", None),
+        "pet_id": getattr(atendimento, "pet_id", None),
+        "empresa_id": getattr(atendimento, "empresa_id", None),
+        "status": getattr(atendimento, "status", None),
+    }
+
+
+@app.post("/api/clinico/iniciar-por-agendamento/{agendamento_id}")
+async def vectorpet_iniciar_clinico_por_agendamento_seguro(
+    agendamento_id: int,
+    empresa_id: int | None = _VPVetQuery(None),
+    db: _VPVetSession = _VPVetDepends(_VPVetGetDb),
+):
+    agendamento = (
+        db.query(_VPVetAgendamento)
+        .filter(_VPVetAgendamento.id == agendamento_id)
+        .first()
+    )
+
+    if agendamento is None:
+        return {
+            "ok": False,
+            "detail": "Agendamento não encontrado.",
+        }
+
+    empresa_real = _vpvet_get(agendamento, "empresa_id", default=empresa_id)
+    cliente_id = _vpvet_get(agendamento, "cliente_id")
+    pet_id = _vpvet_get(agendamento, "pet_id")
+    funcionario_id = _vpvet_get(agendamento, "funcionario_id", "veterinario_id")
+
+    atendimento = (
+        db.query(_VPVetAtendimentoClinico)
+        .filter(_VPVetAtendimentoClinico.agendamento_id == agendamento_id)
+        .first()
+    )
+
+    if atendimento is None:
+        atendimento = _VPVetAtendimentoClinico()
+
+        _vpvet_set(atendimento, "empresa_id", empresa_real)
+        _vpvet_set(atendimento, "agendamento_id", agendamento_id)
+        _vpvet_set(atendimento, "cliente_id", cliente_id)
+        _vpvet_set(atendimento, "pet_id", pet_id)
+        _vpvet_set(atendimento, "funcionario_id", funcionario_id)
+        _vpvet_set(atendimento, "veterinario_id", funcionario_id)
+        _vpvet_set(atendimento, "status", "EM_ATENDIMENTO")
+        _vpvet_set(atendimento, "data_atendimento", _VPVetDatetime.utcnow())
+        _vpvet_set(atendimento, "created_at", _VPVetDatetime.utcnow())
+
+        db.add(atendimento)
+    else:
+        _vpvet_set(atendimento, "status", "EM_ATENDIMENTO")
+        _vpvet_set(atendimento, "empresa_id", _vpvet_get(atendimento, "empresa_id", default=empresa_real))
+
+    _vpvet_set(agendamento, "status", "EM_ATENDIMENTO")
+    _vpvet_set(agendamento, "status_agendamento", "EM_ATENDIMENTO")
+    _vpvet_set(agendamento, "em_atendimento", True)
+
+    db.add(agendamento)
+    db.add(atendimento)
+    db.commit()
+    db.refresh(atendimento)
+
+    return {
+        "ok": True,
+        "mensagem": "Atendimento iniciado com sucesso.",
+        "atendimento": _vpvet_dict_atendimento(atendimento),
+        "atendimento_id": atendimento.id,
+        "id": atendimento.id,
+        "receita_url": f"/receita/{atendimento.id}",
+        "impressao_receita_url": f"/receita/{atendimento.id}",
+    }
+
+
+@app.get("/receita/{atendimento_id}", response_class=_VPVetHTMLResponse)
+@app.get("/atendimento-clinico/receita/{atendimento_id}", response_class=_VPVetHTMLResponse)
+@app.get("/imprimir-receita/{atendimento_id}", response_class=_VPVetHTMLResponse)
+async def vectorpet_receita_impressao_page(
+    atendimento_id: int,
+    db: _VPVetSession = _VPVetDepends(_VPVetGetDb),
+):
+    atendimento = (
+        db.query(_VPVetAtendimentoClinico)
+        .filter(_VPVetAtendimentoClinico.id == atendimento_id)
+        .first()
+    )
+
+    if atendimento is None:
+        return _VPVetHTMLResponse(
+            "<h1>Receita não encontrada</h1><p>Atendimento clínico não localizado.</p>",
+            status_code=404,
+        )
+
+    cliente = None
+    pet = None
+
+    cliente_id = _vpvet_get(atendimento, "cliente_id")
+    pet_id = _vpvet_get(atendimento, "pet_id")
+
+    if cliente_id:
+        cliente = db.query(_VPVetCliente).filter(_VPVetCliente.id == cliente_id).first()
+
+    if pet_id:
+        pet = db.query(_VPVetPet).filter(_VPVetPet.id == pet_id).first()
+
+    tutor_nome = _vpvet_texto(_vpvet_get(cliente, "nome", default="-"))
+    pet_nome = _vpvet_texto(_vpvet_get(pet, "nome", default="-"))
+
+    data = _vpvet_data(
+        _vpvet_get(
+            atendimento,
+            "data_atendimento",
+            "created_at",
+            default=_VPVetDatetime.utcnow(),
+        )
+    )
+
+    queixa = _vpvet_texto(_vpvet_get(atendimento, "queixa_principal", "queixa", default=""))
+    historico = _vpvet_texto(_vpvet_get(atendimento, "historico_atual", "historico", default=""))
+    conduta = _vpvet_texto(_vpvet_get(atendimento, "conduta", "conduta_servicos_executados", default=""))
+    medicacoes = _vpvet_texto(_vpvet_get(atendimento, "medicacoes", "medicamentos", default=""))
+    exames = _vpvet_texto(_vpvet_get(atendimento, "exames_diagnostico", "exames", "diagnostico", default=""))
+    receita = _vpvet_texto(_vpvet_get(atendimento, "receita_orientacoes", "receita", "orientacoes", default=""))
+    observacoes = _vpvet_texto(_vpvet_get(atendimento, "observacoes_gerais", "observacoes", default=""))
+
+    html = f"""
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Receita / Atendimento #{atendimento_id}</title>
+  <style>
+    * {{
+      box-sizing: border-box;
+    }}
+
+    body {{
+      margin: 0;
+      padding: 32px;
+      font-family: Arial, sans-serif;
+      color: #111827;
+      background: #f8fafc;
+    }}
+
+    .pagina {{
+      max-width: 860px;
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      padding: 30px;
+    }}
+
+    .topo {{
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 18px;
+      margin-bottom: 24px;
+    }}
+
+    h1 {{
+      margin: 0;
+      color: #172554;
+      font-size: 26px;
+    }}
+
+    .sub {{
+      margin-top: 6px;
+      color: #64748b;
+    }}
+
+    .dados {{
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }}
+
+    .box {{
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      background: #f8fafc;
+    }}
+
+    .box span {{
+      display: block;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }}
+
+    .box strong {{
+      font-size: 16px;
+    }}
+
+    .secao {{
+      margin-top: 18px;
+    }}
+
+    .secao h2 {{
+      margin: 0 0 8px;
+      color: #172554;
+      font-size: 17px;
+    }}
+
+    .campo {{
+      min-height: 48px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      white-space: pre-wrap;
+      background: #fff;
+    }}
+
+    .assinatura {{
+      margin-top: 44px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }}
+
+    .linha {{
+      border-top: 1px solid #111827;
+      padding-top: 8px;
+      text-align: center;
+      color: #374151;
+      font-size: 13px;
+    }}
+
+    .acoes {{
+      margin-top: 24px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }}
+
+    button {{
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }}
+
+    .primario {{
+      background: #172554;
+      color: #fff;
+    }}
+
+    .secundario {{
+      background: #e5e7eb;
+      color: #111827;
+    }}
+
+    @media print {{
+      body {{
+        background: #fff;
+        padding: 0;
+      }}
+
+      .pagina {{
+        border: 0;
+        border-radius: 0;
+        max-width: none;
+      }}
+
+      .acoes {{
+        display: none;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <main class="pagina">
+    <div class="topo">
+      <div>
+        <h1>Receita / Atendimento clínico</h1>
+        <div class="sub">VectorPet • Atendimento #{atendimento_id}</div>
+      </div>
+      <div class="sub">Data: {data}</div>
+    </div>
+
+    <section class="dados">
+      <div class="box">
+        <span>Tutor</span>
+        <strong>{tutor_nome}</strong>
+      </div>
+      <div class="box">
+        <span>Pet</span>
+        <strong>{pet_nome}</strong>
+      </div>
+    </section>
+
+    <section class="secao">
+      <h2>Queixa principal</h2>
+      <div class="campo">{queixa}</div>
+    </section>
+
+    <section class="secao">
+      <h2>Histórico atual</h2>
+      <div class="campo">{historico}</div>
+    </section>
+
+    <section class="secao">
+      <h2>Conduta / serviços executados</h2>
+      <div class="campo">{conduta}</div>
+    </section>
+
+    <section class="secao">
+      <h2>Medicações</h2>
+      <div class="campo">{medicacoes}</div>
+    </section>
+
+    <section class="secao">
+      <h2>Exames / diagnóstico</h2>
+      <div class="campo">{exames}</div>
+    </section>
+
+    <section class="secao">
+      <h2>Receita / orientações</h2>
+      <div class="campo">{receita}</div>
+    </section>
+
+    <section class="secao">
+      <h2>Observações gerais</h2>
+      <div class="campo">{observacoes}</div>
+    </section>
+
+    <section class="assinatura">
+      <div class="linha">Assinatura do responsável</div>
+      <div class="linha">Assinatura do veterinário</div>
+    </section>
+
+    <div class="acoes">
+      <button class="secundario" onclick="window.close()">Fechar</button>
+      <button class="primario" onclick="window.print()">Imprimir</button>
+    </div>
+  </main>
+
+  <script>
+    setTimeout(function () {{
+      window.print();
+    }}, 500);
+  </script>
+</body>
+</html>
+    """
+
+    return _VPVetHTMLResponse(html)
+# === FIM PATCH AGENDA VETERINARIA CLINICO RECEITA VECTORPET ===
+
+
 # === ROTAS VISUAIS ASSINATURAS VECTORPET ===
 from datetime import date as _VPAssDate
 from decimal import Decimal as _VPAssDecimal

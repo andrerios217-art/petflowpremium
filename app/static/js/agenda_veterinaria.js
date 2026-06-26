@@ -1042,7 +1042,7 @@
 
         try {
             const data = await fetchJsonSafe(
-                `/api/clinico/iniciar-por-agendamento/${agendamentoId}?empresa_id=${empresaId}`,
+                `/api/clinico/iniciar-por-agendamento/${agendamentoId}`,
                 { method: "POST" },
                 "Não foi possível iniciar o atendimento clínico no backend."
             );
@@ -1777,3 +1777,93 @@
         console.log(message);
     }
 })();
+
+/* PATCH VECTORPET RECEITA AGENDA VETERINARIA */
+(function () {
+  if (window.__vpAgendaVetReceitaPatch) return;
+  window.__vpAgendaVetReceitaPatch = true;
+
+  function obterIdAtendimento(data) {
+    if (!data) return null;
+
+    return (
+      data.atendimento_id ||
+      data.id ||
+      data.atendimento?.id ||
+      data.data?.id ||
+      data.result?.id ||
+      null
+    );
+  }
+
+  function abrirReceita(data) {
+    const urlDireta =
+      data?.receita_url ||
+      data?.impressao_receita_url ||
+      data?.url_receita ||
+      null;
+
+    const atendimentoId = obterIdAtendimento(data);
+
+    const url = urlDireta || (atendimentoId ? `/receita/${atendimentoId}` : null);
+
+    if (!url) return;
+
+    setTimeout(function () {
+      window.open(url, "_blank");
+    }, 500);
+  }
+
+  const fetchOriginal = window.fetch;
+
+  window.fetch = async function (input, init) {
+    const response = await fetchOriginal.apply(this, arguments);
+
+    try {
+      const url = typeof input === "string" ? input : input?.url || "";
+      const method = String(init?.method || "GET").toUpperCase();
+
+      const ehClinico = url.includes("/api/clinico/");
+      const ehInicio = url.includes("/iniciar-por-agendamento/");
+      const ehGravacao = method === "POST" || method === "PUT" || method === "PATCH";
+
+      if (
+        ehClinico &&
+        ehGravacao &&
+        !ehInicio &&
+        response.ok &&
+        window.location.pathname.includes("agenda-veterinaria")
+      ) {
+        const clone = response.clone();
+        const data = await clone.json().catch(function () {
+          return null;
+        });
+
+        if (data) {
+          abrirReceita(data);
+        }
+      }
+
+      if (
+        ehClinico &&
+        ehInicio &&
+        response.ok &&
+        window.location.pathname.includes("agenda-veterinaria")
+      ) {
+        const clone = response.clone();
+        const data = await clone.json().catch(function () {
+          return null;
+        });
+
+        if (data?.mensagem) {
+          console.log(data.mensagem);
+        }
+      }
+    } catch (erro) {
+      console.warn("VectorPet Agenda Veterinária receita patch:", erro);
+    }
+
+    return response;
+  };
+})();
+/* FIM PATCH VECTORPET RECEITA AGENDA VETERINARIA */
